@@ -1,0 +1,195 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}會員管理{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>會員列表</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <!-- 搜尋和過濾 -->
+                            <div class="input-group m-b">
+                                <input type="text" class="form-control" id="searchInput" placeholder="搜尋會員...">
+                                <span class="input-group-btn">
+                                    <button type="button" class="btn btn-primary" onclick="searchUsers()">
+                                        <i class="fa fa-search"></i> 搜尋
+                                    </button>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 會員列表表格 -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>用戶名</th>
+                                    <th>電子郵件</th>
+                                    <th>註冊時間</th>
+                                    <th>最後登入</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.date_joined|date:"Y-m-d H:i" }}</td>
+                                    <td>{{ user.last_login|date:"Y-m-d H:i"|default:"從未登入" }}</td>
+                                    <td>
+                                        {% if user.is_active %}
+                                            <span class="label label-primary">正常</span>
+                                        {% else %}
+                                            <span class="label label-danger">已停用</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-xs btn-info" onclick="viewUser({{ user.id }})">
+                                            <i class="fa fa-eye"></i> 查看
+                                        </button>
+                                        <button class="btn btn-xs btn-warning" onclick="editUser({{ user.id }})">
+                                            <i class="fa fa-edit"></i> 編輯
+                                        </button>
+                                        {% if user.is_active %}
+                                            <button class="btn btn-xs btn-danger" onclick="banUser({{ user.id }})">
+                                                <i class="fa fa-ban"></i> 停用
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-xs btn-success" onclick="unbanUser({{ user.id }})">
+                                                <i class="fa fa-check"></i> 啟用
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 分頁 -->
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="pagination">
+                                <span class="step-links">
+                                    {% if users.has_previous %}
+                                        <a href="?page=1">&laquo; 第一頁</a>
+                                        <a href="?page={{ users.previous_page_number }}">上一頁</a>
+                                    {% endif %}
+
+                                    <span class="current">
+                                        第 {{ users.number }} 頁，共 {{ users.paginator.num_pages }} 頁
+                                    </span>
+
+                                    {% if users.has_next %}
+                                        <a href="?page={{ users.next_page_number }}">下一頁</a>
+                                        <a href="?page={{ users.paginator.num_pages }}">最後一頁 &raquo;</a>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 會員詳情模態框 -->
+<div class="modal inmodal" id="userModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content animated fadeIn">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">會員詳情</h4>
+            </div>
+            <div class="modal-body" id="userModalBody">
+                <!-- 會員詳情將通過AJAX載入 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-white" data-dismiss="modal">關閉</button>
+                <button type="button" class="btn btn-primary" onclick="saveUserChanges()">保存更改</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function searchUsers() {
+    const searchTerm = document.getElementById('searchInput').value;
+    window.location.href = `?search=${searchTerm}`;
+}
+
+function viewUser(userId) {
+    $.get(`/admin-dashboard/users/${userId}/detail/`, function(data) {
+        $('#userModalBody').html(data);
+        $('#userModal').modal('show');
+    });
+}
+
+function editUser(userId) {
+    $.get(`/admin-dashboard/users/${userId}/edit/`, function(data) {
+        $('#userModalBody').html(data);
+        $('#userModal').modal('show');
+    });
+}
+
+function banUser(userId) {
+    if (confirm('確定要停用此會員嗎？')) {
+        $.post(`/admin-dashboard/users/${userId}/ban/`, {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        }, function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('操作失敗：' + response.message);
+            }
+        });
+    }
+}
+
+function unbanUser(userId) {
+    if (confirm('確定要啟用此會員嗎？')) {
+        $.post(`/admin-dashboard/users/${userId}/unban/`, {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        }, function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('操作失敗：' + response.message);
+            }
+        });
+    }
+}
+
+function saveUserChanges() {
+    const form = $('#userModalBody form');
+    $.post(form.attr('action'), form.serialize(), function(response) {
+        if (response.success) {
+            $('#userModal').modal('hide');
+            location.reload();
+        } else {
+            alert('保存失敗：' + response.message);
+        }
+    });
+}
+</script>
+{% endblock %} 

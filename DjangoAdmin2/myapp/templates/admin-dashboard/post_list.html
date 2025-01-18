@@ -1,0 +1,145 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}文章列表管理{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>文章列表</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>標題</th>
+                                    <th>作者</th>
+                                    <th>分類</th>
+                                    <th>發布時間</th>
+                                    <th>瀏覽</th>
+                                    <th>按讚</th>
+                                    <th>評論</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for post in posts %}
+                                <tr>
+                                    <td>{{ post.title }}</td>
+                                    <td>{{ post.author }}</td>
+                                    <td>{{ post.category }}</td>
+                                    <td>{{ post.created_at }}</td>
+                                    <td>{{ post.views }}</td>
+                                    <td>{{ post.likes }}</td>
+                                    <td>{{ post.comments }}</td>
+                                    <td>
+                                        <button class="btn btn-xs btn-danger delete-post" data-id="{{ post.id }}">
+                                            <i class="fa fa-trash"></i> 刪除
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 分頁 -->
+                    {% if is_paginated %}
+                    <div class="pagination">
+                        <span class="step-links">
+                            {% if page_obj.has_previous %}
+                                <a href="?page=1">&laquo; 第一頁</a>
+                                <a href="?page={{ page_obj.previous_page_number }}">上一頁</a>
+                            {% endif %}
+
+                            <span class="current">
+                                第 {{ page_obj.number }} 頁，共 {{ page_obj.paginator.num_pages }} 頁
+                            </span>
+
+                            {% if page_obj.has_next %}
+                                <a href="?page={{ page_obj.next_page_number }}">下一頁</a>
+                                <a href="?page={{ page_obj.paginator.num_pages }}">最後一頁 &raquo;</a>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 刪除確認對話框 -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">確認刪除</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>確定要刪除這篇文章嗎？此操作無法復原。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">確認刪除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        let postIdToDelete = null;
+
+        // 點擊刪除按鈕
+        $('.delete-post').click(function() {
+            postIdToDelete = $(this).data('id');
+            $('#deleteConfirmModal').modal('show');
+        });
+
+        // 確認刪除
+        $('#confirmDelete').click(function() {
+            if (postIdToDelete) {
+                $.ajax({
+                    url: `/api/posts/${postIdToDelete}/`,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    success: function() {
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('刪除失敗，請稍後再試');
+                    }
+                });
+            }
+            $('#deleteConfirmModal').modal('hide');
+        });
+
+        // 獲取 CSRF Token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %} 

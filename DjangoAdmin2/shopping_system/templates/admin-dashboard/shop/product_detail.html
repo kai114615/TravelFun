@@ -1,0 +1,85 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>商品詳情</h5>
+                    <div class="ibox-tools">
+                        <a href="/shop/admin-dashboard/shop/products/{{ product.id }}/update/" class="btn btn-primary btn-xs">編輯商品</a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <dl class="dl-horizontal">
+                                <dt>商品名稱：</dt>
+                                <dd>{{ product.name }}</dd>
+                                
+                                <dt>商品類別：</dt>
+                                <dd>{{ product.category }}</dd>
+                                
+                                <dt>價格：</dt>
+                                <dd>${{ product.price|floatformat:"0" }}</dd>
+                                
+                                <dt>庫存：</dt>
+                                <dd>{{ product.stock }}</dd>
+                                
+                                <dt>狀態：</dt>
+                                <dd>
+                                    {% if product.is_active %}
+                                    <span class="label label-primary">已上架</span>
+                                    {% else %}
+                                    <span class="label label-default">未上架</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt>創建時間：</dt>
+                                <dd>{{ product.created_at|date:"Y-m-d H:i" }}</dd>
+                                
+                                <dt>更新時間：</dt>
+                                <dd>{{ product.updated_at|date:"Y-m-d H:i" }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="image-box">
+                                <img src="{{ product.get_image_url }}" alt="{{ product.name }}" class="img-responsive">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row m-t-lg">
+                        <div class="col-sm-12">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    <h3 class="panel-title">商品描述</h3>
+                                </div>
+                                <div class="panel-body">
+                                    {{ product.description|safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="hr-line-dashed"></div>
+                            <div class="form-group">
+                                <div class="col-sm-4 col-sm-offset-2">
+                                    <a class="btn btn-white" href="/shop/admin-dashboard/shop/products/">返回列表</a>
+                                    <a class="btn btn-danger" href="/shop/admin-dashboard/shop/products/{{ product.id }}/delete/">刪除商品</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

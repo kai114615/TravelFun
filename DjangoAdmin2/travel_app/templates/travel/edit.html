@@ -1,0 +1,324 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}編輯行程{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>編輯行程</h5>
+                </div>
+                <div class="ibox-content">
+                    <form id="registerForm" method="POST" enctype="multipart/form-data">  
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="InputName" class="form-label">景點名稱</label>
+                            <input type="text" class="form-control" id="InputName" name="name" value="{{travel.travel_name}}">
+                            <div id="nameHelp" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputTxt" class="form-label">景點介紹</label>
+                            <textarea style="height:50px;" type="text" class="form-control" id="InputTxt" name="txt">{{travel.travel_txt}} </textarea>
+                            <div id="divTxt" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputTel" class="form-label">電話資訊</label>
+                            <input type="tel" class="form-control" id="Inputtel" name="tel" value="{{travel.tel}}">
+                            <div id="divTel" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputAddress" class="form-label">景點地址</label>
+                            <input type="text" class="form-control" id="InputAddress" name="address" value="{{travel.travel_address}}">
+                            <div id="divAddress" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputRegion" class="form-label">縣/市</label>
+                            <input type="region" class="form-control" id="InputRegion" name="region" value="{{travel.region}}">
+                            <div id="divRegion" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputTown" class="form-label">鄉/鎮/市/區</label>
+                            <input type="town" class="form-control" id="InputTown" name="town" value="{{travel.town}}">
+                            <div id="divTown" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="formFile1" class="form-label">圖片1(連結)</label>
+                            <input class="form-control" type="url" id="formFile1" name="image1" value="{{travel.image1}}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="formFile2" class="form-label">圖片2(連結)</label>
+                            <input class="form-contro2" type="url" id="formFile2" name="image2" value="{{travel.image2}}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="formFile3" class="form-label">圖片3(連結)</label>
+                            <input class="form-control" type="url" id="formFile3" name="image3" value="{{travel.image3}}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputLinginfo" class="form-label">交通</label>
+                            <input type="text" class="form-control" id="Linginfo" name="linginfo" value="{{travel.travel_ligininfo}}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputOpentime" class="form-label">營業時間</label>
+                            <input type="text" class="form-control" id="InputOpentime" name="opentime" value="{{travel.opentime}}">
+                        </div>
+                        <div class="mb-3">
+                            <h7>經度/緯度(範例:41.40338, 2.17403 小數點只到第五位)</h7>
+                            <label for="InputPx" class="form-label">經度:</label>
+                            <input type="number" step='0.00001' class="form-control" id="InputPx" name="Px" value="{{travel.px}}">
+                            <label for="InputPy" class="form-label">緯度:</label>
+                            <input type="number" step='0.00001' class="form-control" id="InputPy" name="Py" value="{{travel.py}}">
+                            <div id="divpxy" class="form-text"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputWbsite" class="form-label">網站資訊</label>
+                            <input type="text" class="form-control" id="InputWebsite" name="website" value="{{travel.website}}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputTicketinfo" class="form-label">票價</label>
+                            <input type="text" class="form-control" id="InputTicketinfoe" name="ticketinfo" value="{{travel.ticketinfo}}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="InputParkinginfo" class="form-label">附近停車場</label>
+                            <input type="text" class="form-control" id="InputParkinginfo" name="parkinginfo" value="{{travel.parkinginfo}}">
+                            <div id="nameHelp" class="form-text"></div>
+                        </div>
+                        <div>
+                            
+                            <label class="form-label">景點屬性:</label>
+                            <label>
+                                <input type="checkbox" name="class" value="1" onclick="return checkCount(this)" >1.文化類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="2" onclick="return checkCount(this)">2.生態類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="3" onclick="return checkCount(this)">3.古蹟類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="4" onclick="return checkCount(this)">4.廟宇類
+                            </label>
+                            <label><input type="checkbox" name="class" value="5" onclick="return checkCount(this)">5.藝術類
+                            </label>
+                            <label><input type="checkbox" name="class" value="6" onclick="return checkCount(this)">6.小吃/特產類
+                            </label>
+                            <label><input type="checkbox" name="class" value="7" onclick="return checkCount(this)">7.國家公園類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="8" onclick="return checkCount(this)">8.國家風景區類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="9" onclick="return checkCount(this)">9.休閒農業類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="10" onclick="return checkCount(this)" >10.溫泉類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="11" onclick="return checkCount(this)">11.自然風景類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="12" onclick="return checkCount(this)">12.遊憩類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="13" onclick="return checkCount(this)">13.體育健身類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="14" onclick="return checkCount(this)">14.觀光工廠類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="15" onclick="return checkCount(this)">15.都會公園類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="16" onclick="return checkCount(this)">16.森林遊樂區類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="17" onclick="return checkCount(this)">17.林場類
+                            </label>
+                            <label>
+                                <input type="checkbox" name="class" value="18" onclick="return checkCount(this)">
+                                18.其他
+                            </label>
+
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" id="buttonSubmit">送出</button>
+                        
+                    </form>
+                    <div id="div1" class="alert alert-info mt-3"></div>
+                    <a href="/travel/" class="btn btn-danger">回首頁</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 獲取已存在的類別ID
+        const class1Id = parseInt("{{ travel.class1_id|default:'null' }}");
+        const class2Id = parseInt("{{ travel.class2_id|default:'null' }}");
+        const class3Id = parseInt("{{ travel.class3_id|default:'null' }}");
+
+        
+        // 設置預設勾選
+        const checkboxes = document.querySelectorAll('input[name="class"]');
+        checkboxes.forEach(checkbox => {
+            const value = parseInt(checkbox.value);
+            if (value === class1Id || value === class2Id || value === class3Id) {
+                checkbox.checked = true;
+            }
+        });
+
+        // 初始化已選中的複選框數量
+        var checkedCount = document.querySelectorAll('input[name="class"]:checked').length;
+        
+        // 複選框計數功能
+        function checkCount(obj) {
+            if (obj.checked === true) {
+                if (checkedCount >= 3) {
+                    alert("最多只能選3項喔");
+                    return false;
+                }
+                checkedCount++;
+            } else {
+                checkedCount--;
+            }
+            return true;
+        }
+        
+        window.checkCount = checkCount;
+
+        // 景點名稱驗證
+        const inpName = document.querySelector('#InputName');
+        const divName = document.querySelector('#nameHelp');
+        if(inpName) {
+            inpName.addEventListener("blur", async () => {
+                const response = await fetch(`/travel/travelName/?name=${inpName.value}&travel_id={{ travel.travel_id }}`);
+                const nameInfo = await response.json();
+                if (nameInfo.name_exists) {
+                    divName.innerText = '景點名稱已存在';
+                } else {
+                    divName.innerText = '';
+                }
+            });
+        }
+
+        // 電話驗證 - 修正選擇器
+        const inpTel = document.querySelector('#Inputtel'); // 注意這裡的ID
+        const divTel = document.querySelector('#divTel'); // 修正選擇器名稱
+        if(inpTel) {
+            inpTel.addEventListener("blur", async () => {
+                const response = await fetch(`/travel/travelTel/?tel=${inpTel.value}&travel_id={{ travel.travel_id }}`);
+                const telInfo = await response.json();
+                if (telInfo.tel_exists) {
+                    divTel.innerText = '電話已註冊';
+                } else {
+                    divTel.innerText = '';
+                }
+            });
+        }
+
+        // 地址驗證
+        const inpAddress = document.querySelector('#InputAddress');
+        const divAddress = document.querySelector('#divAddress');
+        if(inpAddress) {
+            inpAddress.addEventListener("blur", async () => {
+                const response = await fetch(`/travel/travelAddress/?address=${inpAddress.value}&travel_id={{ travel.travel_id }}`);
+                const addressInfo = await response.json();
+                if (addressInfo.address_exists) {
+                    divAddress.innerText = '地址已註冊';
+                } else {
+                    divAddress.innerText = '';
+                }
+            });
+        }
+
+        // 縣市驗證
+        const inputRegion = document.querySelector('#InputRegion');
+        const divRegion = document.querySelector('#divRegion');
+        if(inputRegion) {
+            inputRegion.addEventListener("blur", async () => {
+                const response = await fetch(`/travel/travelRegion/?region=${inputRegion.value}`);
+                const regionInfo = await response.json();
+                if (regionInfo.region_exists) {
+                    divRegion.innerText = '縣市填寫錯誤';
+                } else {
+                    divRegion.innerText = '';
+                }
+            });
+        }
+
+        // 鄉鎮市區驗證
+        const inputTown = document.querySelector('#InputTown');
+        const divTown = document.querySelector('#divTown');
+        if(inputTown && inputRegion) {
+            inputTown.addEventListener("blur", async () => {
+                const response = await fetch(`/travel/travelTown/?town=${inputTown.value}&region=${inputRegion.value}`);
+                const townInfo = await response.json();
+                if (townInfo.town_exists) {
+                    divTown.innerText = '鄉鎮市區不存在';
+                } else {
+                    divTown.innerText = '';
+                }
+            });
+        }
+
+        // 表單提交處理 - 改用表單提交事件
+        const form = document.querySelector('#registerForm');
+        const divInfo = document.querySelector('#div1');
+        if(form) {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const formData = new FormData(form);
+                try {
+                    const response = await fetch(`/travel/edit01/{{travel.travel_id}}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+                    const data = await response.text();
+                    divInfo.innerHTML = data;
+                } catch(error) {
+                    console.error('Error:', error);
+                    divInfo.innerHTML = '提交過程中發生錯誤';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+    .form-label {
+        margin-bottom: 0.5rem;
+    }
+    .form-control {
+        margin-bottom: 0.5rem;
+    }
+    .checkbox-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+        margin: 15px 0;
+    }
+    .checkbox-list label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    .form-text {
+        color: #dc3545;
+        font-size: 0.875em;
+    }
+</style>
+{% endblock %}

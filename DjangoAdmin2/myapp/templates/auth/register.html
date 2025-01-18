@@ -1,0 +1,94 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}註冊{% endblock %}
+
+{% block content %}
+<div class="middle-box text-center loginscreen animated fadeInDown" id="registerApp">
+    <div>
+        <div>
+            <h1 class="logo-name">H+</h1>
+        </div>
+        <h3>註冊新帳號</h3>
+        <p>建立一個新的帳號</p>
+        
+        <form class="m-t" @submit.prevent="handleRegister">
+            <div class="form-group">
+                <input type="text" class="form-control" v-model="form.username" placeholder="用戶名" required>
+            </div>
+            <div class="form-group">
+                <input type="email" class="form-control" v-model="form.email" placeholder="電子郵件" required>
+            </div>
+            <div class="form-group">
+                <input type="password" class="form-control" v-model="form.password" placeholder="密碼" required>
+            </div>
+            <div class="form-group">
+                <input type="password" class="form-control" v-model="form.confirmPassword" placeholder="確認密碼" required>
+            </div>
+            <button type="submit" class="btn btn-primary block full-width m-b" :disabled="loading">
+                ${loading ? '註冊中...' : '註冊'}
+            </button>
+
+            <p class="text-muted text-center">
+                已經有帳號了？<a href="/login">立即登入</a>
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+new Vue({
+    el: '#registerApp',
+    delimiters: ['${', '}'],
+    data: {
+        form: {
+            username: '',
+            email: '',
+            password: '',
+            confirmPassword: ''
+        },
+        loading: false
+    },
+    methods: {
+        async handleRegister() {
+            if (this.loading) return;
+            
+            if (this.form.password !== this.form.confirmPassword) {
+                alert('兩次輸入的密碼不一致');
+                return;
+            }
+            
+            this.loading = true;
+            try {
+                const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.REGISTER}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: this.form.username,
+                        email: this.form.email,
+                        password: this.form.password
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || '註冊失敗');
+                }
+                
+                const data = await response.json();
+                alert('註冊成功！請登入');
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('註冊錯誤:', error);
+                alert(error.message || '註冊失敗，請稍後再試');
+            } finally {
+                this.loading = false;
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

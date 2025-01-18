@@ -1,0 +1,184 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}會員 API 測試{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>會員 API 測試</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <!-- 會員 API 測試面板 -->
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">會員 API</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-group">
+                                <label>API URL：</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="memberApiUrl" value="{{ request.scheme }}://{{ request.get_host }}/api/users/" readonly>
+                                    <span class="input-group-btn">
+                                        <button class="btn btn-primary" onclick="copyUrl('memberApiUrl')">
+                                            <i class="fa fa-copy"></i> 複製
+                                        </button>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>會員 ID：</label>
+                                <input type="text" class="form-control" id="memberId" placeholder="輸入會員 ID">
+                            </div>
+
+                            <!-- POST/PUT 請求的表單 -->
+                            <div id="requestDataForm" class="form-group" style="display: none;">
+                                <hr>
+                                <h4>請求資料：</h4>
+                                <div class="form-group">
+                                    <label>用戶名：</label>
+                                    <input type="text" class="form-control" id="username" placeholder="輸入用戶名">
+                                </div>
+                                <div class="form-group">
+                                    <label>電子郵件：</label>
+                                    <input type="email" class="form-control" id="email" placeholder="輸入電子郵件">
+                                </div>
+                                <div class="form-group">
+                                    <label>密碼：</label>
+                                    <input type="password" class="form-control" id="password" placeholder="輸入密碼">
+                                </div>
+                                <div class="form-group">
+                                    <label>等級：</label>
+                                    <select class="form-control" id="level">
+                                        <option value="user">用戶</option>
+                                        <option value="editor">編輯</option>
+                                        <option value="admin">管理員</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="testApi('GET')">GET</button>
+                                <button class="btn btn-success" onclick="testApi('POST')">POST</button>
+                                <button class="btn btn-warning" onclick="testApi('PUT')">PUT</button>
+                                <button class="btn btn-danger" onclick="testApi('DELETE')">DELETE</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API 響應結果 -->
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">API 響應結果</h3>
+                        </div>
+                        <div class="panel-body">
+                            <pre id="apiResponse" class="well">等待測試...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyUrl(elementId) {
+    const input = document.getElementById(elementId);
+    input.select();
+    document.execCommand('copy');
+    toastr.success('URL已複製到剪貼簿');
+}
+
+function updateApiUrl() {
+    const memberId = document.getElementById('memberId').value;
+    const baseUrl = '{{ request.scheme }}://{{ request.get_host }}/api/users/';
+    document.getElementById('memberApiUrl').value = memberId ? `${baseUrl}${memberId}/` : baseUrl;
+}
+
+function getRequestData() {
+    return {
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+        level: document.getElementById('level').value
+    };
+}
+
+function testApi(method) {
+    const memberId = document.getElementById('memberId').value;
+    const baseUrl = '{{ request.scheme }}://{{ request.get_host }}/api/users/';
+    const url = memberId ? `${baseUrl}${memberId}/` : baseUrl;
+    
+    // 顯示或隱藏表單
+    const requestDataForm = document.getElementById('requestDataForm');
+    requestDataForm.style.display = (method === 'POST' || method === 'PUT') ? 'block' : 'none';
+    
+    // 如果是 GET 或 DELETE 請求，直接發送
+    if (method === 'GET' || method === 'DELETE') {
+        sendRequest(url, method);
+        return;
+    }
+    
+    // 如果是 POST 或 PUT 請求，等待用戶填寫表單
+    if (method === 'POST' || method === 'PUT') {
+        const data = getRequestData();
+        if (!data.username || !data.email) {
+            document.getElementById('apiResponse').textContent = '請填寫必要的欄位（用戶名和電子郵件）';
+            return;
+        }
+        sendRequest(url, method, data);
+    }
+}
+
+function sendRequest(url, method, data = null) {
+    const options = {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    };
+
+    if (data) {
+        options.body = JSON.stringify(data);
+    }
+
+    fetch(url, options)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('apiResponse').textContent = JSON.stringify(data, null, 2);
+        })
+        .catch(error => {
+            document.getElementById('apiResponse').textContent = `Error: ${error.message}`;
+        });
+}
+
+// 獲取 CSRF Token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 監聽會員ID輸入框的變化
+document.getElementById('memberId').addEventListener('input', updateApiUrl);
+</script>
+{% endblock %} 

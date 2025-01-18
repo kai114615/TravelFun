@@ -1,0 +1,54 @@
+{
+  "name": "travel-fun",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite --port 3333 --open",
+    "start": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint './src/**/*.{ts,vue}' --cache .",
+    "lint:fix": "pnpm run lint --fix --ignore-path .gitignore"
+  },
+  "dependencies": {
+    "@ckeditor/ckeditor5-build-classic": "^38.1.1",
+    "@ckeditor/ckeditor5-vue": "^5.1.0",
+    "@popperjs/core": "^2.11.8",
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/line-clamp": "^0.4.4",
+    "@vicons/antd": "^0.12.0",
+    "@vicons/material": "^0.12.0",
+    "@voomap/core": "0.0.1-beta.25",
+    "@voomap/map": "0.0.1-beta.25",
+    "axios": "^1.7.9",
+    "naive-ui": "^2.41.0",
+    "pinia": "^2.3.0",
+    "sweetalert2": "^11.10.1",
+    "swiper": "^9.4.1",
+    "uuid": "^9.0.1",
+    "vfonts": "^0.0.3",
+    "vue": "^3.3.13",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^0.41.4",
+    "@types/google.maps": "^3.54.10",
+    "@types/node": "^20.10.5",
+    "@types/uuid": "^9.0.7",
+    "@vitejs/plugin-vue": "^4.5.2",
+    "autoprefixer": "^10.4.16",
+    "lint-staged": "^14.0.1",
+    "postcss": "^8.4.32",
+    "simple-git-hooks": "^2.9.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3",
+    "vite": "^4.5.1",
+    "vue-tsc": "^1.8.26"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  }
+}

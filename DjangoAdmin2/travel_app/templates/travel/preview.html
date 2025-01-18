@@ -1,0 +1,168 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block styles %}
+<style>
+    .preview-container {
+        padding: 20px;
+    }
+    
+    .preview-section {
+        margin-bottom: 20px;
+        background: #fff;
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .preview-section h3 {
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 18px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+    }
+    
+    .preview-content {
+        font-size: 16px;
+        color: #666;
+    }
+    
+    .image-gallery {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .image-gallery img {
+        width: 230px;
+        height: auto;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .action-buttons {
+        margin-top: 20px;
+    }
+    
+    .action-buttons .btn {
+        margin-right: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>景點詳細資訊</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="preview-container">
+                        <div class="preview-section">
+                            <h3>景點名稱</h3>
+                            <div class="preview-content">{{travel.travel_name}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>景點介紹</h3>
+                            <div class="preview-content">{{travel.travel_txt}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>電話資訊</h3>
+                            <div class="preview-content">{{travel.tel}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>景點地址</h3>
+                            <div class="preview-content">{{travel.travel_address}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>縣/市</h3>
+                            <div class="preview-content">{{travel.region}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>鄉/鎮/市/區</h3>
+                            <div class="preview-content">{{travel.town}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>圖片</h3>
+                            <div class="image-gallery">
+                                {% if travel.image1 %}
+                                <img src="{{travel.image1}}" alt="景點圖片1">
+                                {% endif %}
+                                {% if travel.image2 %}
+                                <img src="{{travel.image2}}" alt="景點圖片2">
+                                {% endif %}
+                                {% if travel.image3 %}
+                                <img src="{{travel.image3}}" alt="景點圖片3">
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>交通</h3>
+                            <div class="preview-content">{{travel.travel_ligininfo}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>營業時間</h3>
+                            <div class="preview-content">{{travel.opentime}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>經度/緯度</h3>
+                            <div class="preview-content">{{travel.px}} / {{travel.py}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>網站資訊</h3>
+                            <div class="preview-content">{{travel.website}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>票價</h3>
+                            <div class="preview-content">{{travel.ticketinfo}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>附近停車場</h3>
+                            <div class="preview-content">{{travel.parkinginfo}}</div>
+                        </div>
+
+                        <div class="preview-section">
+                            <h3>景點類別</h3>
+                            <div class="preview-content">
+                                {{class1.class_name}}
+                                {% if class2 %}
+                                , {{class2.class_name}}
+                                {% endif %}
+                                {% if class3 %}
+                                , {{class3.class_name}}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <a href="/travel/edit/{{travel.travel_id}}" class="btn btn-primary">修改</a>
+                            <a href="/travel/delete/{{travel.travel_id}}" class="btn btn-danger">刪除</a>
+                            <a href="/travel/" class="btn btn-default">回首頁</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+
+
+{% endblock %}

@@ -1,0 +1,211 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>版面管理</h5>
+                </div>
+                <div class="ibox-content">
+                    <!-- 輪播圖設置 -->
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">首頁輪播圖</h3>
+                        </div>
+                        <div class="panel-body">
+                            <form method="post" enctype="multipart/form-data" class="form-horizontal">
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    <label class="col-sm-2 control-label">當前輪播圖</label>
+                                    <div class="col-sm-10">
+                                        <div class="row">
+                                            {% for i in "12345" %}
+                                            <div class="col-md-4">
+                                                <div class="image-box" style="margin-bottom: 15px;">
+                                                    <img src="{% static 'img/no-image.jpg' %}" class="img-responsive">
+                                                    <div class="caption">
+                                                        <div class="btn-group" style="margin-top: 10px;">
+                                                            <button type="button" class="btn btn-primary btn-xs">更換圖片</button>
+                                                            <button type="button" class="btn btn-danger btn-xs">刪除</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- 分類展示設置 -->
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">分類展示</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>分類名稱</th>
+                                            <th>顯示順序</th>
+                                            <th>是否顯示</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for i in "12345" %}
+                                        <tr>
+                                            <td>分類 {{ i }}</td>
+                                            <td>
+                                                <input type="number" class="form-control input-sm" value="{{ i }}" style="width: 80px;">
+                                            </td>
+                                            <td>
+                                                <div class="switch">
+                                                    <div class="onoffswitch">
+                                                        <input type="checkbox" checked class="onoffswitch-checkbox">
+                                                        <label class="onoffswitch-label"></label>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-white btn-xs">編輯</button>
+                                                <button class="btn btn-danger btn-xs">刪除</button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 推薦商品設置 -->
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">推薦商品</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>商品名稱</th>
+                                            <th>推薦位置</th>
+                                            <th>顯示順序</th>
+                                            <th>是否顯示</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for i in "12345" %}
+                                        <tr>
+                                            <td>商品 {{ i }}</td>
+                                            <td>
+                                                <select class="form-control input-sm" style="width: 120px;">
+                                                    <option>首頁推薦</option>
+                                                    <option>熱門商品</option>
+                                                    <option>新品上市</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control input-sm" value="{{ i }}" style="width: 80px;">
+                                            </td>
+                                            <td>
+                                                <div class="switch">
+                                                    <div class="onoffswitch">
+                                                        <input type="checkbox" checked class="onoffswitch-checkbox">
+                                                        <label class="onoffswitch-label"></label>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-white btn-xs">編輯</button>
+                                                <button class="btn btn-danger btn-xs">移除</button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .image-box {
+        position: relative;
+        border: 1px solid #ddd;
+        padding: 5px;
+        border-radius: 4px;
+    }
+    .image-box img {
+        width: 100%;
+        height: auto;
+    }
+    .image-box .caption {
+        text-align: center;
+    }
+    .onoffswitch {
+        position: relative;
+        width: 54px;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+    .onoffswitch-checkbox {
+        display: none;
+    }
+    .onoffswitch-label {
+        display: block;
+        overflow: hidden;
+        cursor: pointer;
+        border: 2px solid #1AB394;
+        border-radius: 3px;
+    }
+    .onoffswitch-inner {
+        display: block;
+        width: 200%;
+        margin-left: -100%;
+        -webkit-transition: margin 0.3s ease-in 0s;
+        transition: margin 0.3s ease-in 0s;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // 初始化開關按鈕
+        $('.onoffswitch-checkbox').each(function() {
+            $(this).change(function() {
+                // 處理開關狀態變更
+                console.log('Switch changed:', $(this).prop('checked'));
+            });
+        });
+
+        // 處理排序變更
+        $('input[type="number"]').change(function() {
+            console.log('Order changed:', $(this).val());
+        });
+
+        // 處理推薦位置變更
+        $('select').change(function() {
+            console.log('Position changed:', $(this).val());
+        });
+    });
+</script>
+{% endblock %} 

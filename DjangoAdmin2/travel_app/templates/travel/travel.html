@@ -1,0 +1,202 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block styles %}
+<style>
+    .content-wrapper {
+        padding: 20px;
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .search-section {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f9f9f9;
+        border-radius: 5px;
+    }
+    
+    .search-section select {
+        margin-right: 10px;
+        width: auto;
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="search-section">
+        <h3>景點搜尋(選擇地址或直接搜尋名稱)</h3>
+        <div class="form-inline">
+            <select id="selectRegion" class="form-control">
+                <option value="0">請選擇</option>
+            </select>
+            <select id="selectTown" class="form-control"></select>
+            
+            <form method="GET" class="form-inline" style="display: inline-block; margin-left: 15px;">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="text" class="form-control" id="InputName" name="name" value="{{ travel_name }}" placeholder="輸入景點名稱">
+                    <button type="submit" class="btn btn-primary">搜尋</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="button-group">
+        <a href="{% url 'travel:register' %}" class="btn btn-danger">新增</a>
+        <a href="/travel/" class="btn btn-danger">回首頁</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>景點</th>
+                    <th>類別</th>
+                    <th>電話</th>
+                    <th>縣市</th>
+                    <th>鄉鎮市(區)</th>
+                    <th>編輯</th>
+                </tr>
+            </thead>
+            <tbody id="table">
+                {% for item in travel %}
+                <tr>
+                    <td>{{ item.travel_name }}</td>
+                    <td>{{ item.class1_id }}, {{ item.class2_id }}, {{ item.class3_id }}</td>
+                    <td align="center">{{ item.tel }}</td>
+                    <td>{{ item.region }}</td>
+                    <td>{{ item.town }}</td>
+                    <td>
+                        <a href="/travel/preview/{{ item.travel_id }}" class="btn btn-danger btn-sm">預覽</a>
+                        <a href="/travel/edit/{{ item.travel_id }}" class="btn btn-danger btn-sm">修改</a>
+                        <a href="/travel/delete/{{ item.travel_id }}" class="btn btn-danger btn-sm">刪除</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination-container">
+        <nav>
+            <ul class="pagination">
+                {% if travel.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if travel_name %}&name={{ travel_name }}{% endif %}">首頁</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ travel.previous_page_number }}{% if travel_name %}&name={{ travel_name }}{% endif %}">上一頁</a>
+                </li>
+                {% endif %}
+
+                {% for num in page_range %}
+                <li class="page-item {% if num == travel.number %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if travel_name %}&name={{ travel_name }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+
+                {% if travel.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ travel.next_page_number }}{% if travel_name %}&name={{ travel_name }}{% endif %}">下一頁</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ total_pages }}{% if travel_name %}&name={{ travel_name }}{% endif %}">末頁</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 創建一個獨立的命名空間
+var TravelApp = {
+    init: function() {
+        this.selRegion = document.querySelector('#selectRegion');
+        this.selTown = document.querySelector('#selectTown');
+        this.eleTable = document.querySelector('#table');
+        
+        this.loadRegions();
+        this.bindEvents();
+    },
+    
+    loadRegions: async function() {
+        try {
+            const response = await fetch('/travel/region/');
+            const regions = await response.json();
+            const optsArray = regions.map((region) => `<option value="${region}">${region}</option>`);
+            this.selRegion.innerHTML = `<option value="0">請選擇</option>` + optsArray.join("");
+        } catch (error) {
+            console.error('載入縣市失敗:', error);
+        }
+    },
+    
+    loadTowns: async function(region) {
+        try {
+            const townResponse = await fetch(`/travel/town/${region}`);
+            const towns = await townResponse.json();
+            const townOpts = towns.map(town => `<option value="${town}">${town}</option>`);
+            this.selTown.innerHTML = `<option value="0">請選擇</option>` + townOpts.join("");
+        } catch (error) {
+            console.error('載入鄉鎮失敗:', error);
+        }
+    },
+    
+    loadTravels: async function(region, town) {
+        try {
+            const travelResponse = await fetch(`/travel/show/${region}/${town}`);
+            const travels = await travelResponse.json();
+            this.updateTable(travels);
+        } catch (error) {
+            console.error('載入景點失敗:', error);
+        }
+    },
+    
+    updateTable: function(travels) {
+        this.eleTable.innerHTML = travels.map(item => `
+            <tr>
+                <td>${item.travel_name}</td>
+                <td>${item.class1_id}, ${item.class2_id}, ${item.class3_id}</td>
+                <td align='center'>${item.tel}</td>
+                <td>${item.region}</td>
+                <td>${item.town}</td>
+                <td>
+                    <a href="/travel/preview/${item.travel_id}" class="btn btn-danger btn-sm">預覽</a>
+                    <a href="/travel/edit/${item.travel_id}" class="btn btn-danger btn-sm">修改</a>
+                    <a href="/travel/delete/${item.travel_id}" class="btn btn-danger btn-sm">刪除</a>
+                </td>
+            </tr>
+        `).join('');
+    },
+    
+    bindEvents: function() {
+        this.selRegion.addEventListener('change', async () => {
+            const region = this.selRegion.value;
+            if (region != "0") {
+                await this.loadTowns(region);
+            }
+        });
+
+        this.selTown.addEventListener('change', async () => {
+            const region = this.selRegion.value;
+            const town = this.selTown.value;
+            if (region && town !== "0") {
+                await this.loadTravels(region, town);
+            }
+        });
+    }
+};
+
+// 在 DOM 載入完成後初始化
+document.addEventListener('DOMContentLoaded', function() {
+    TravelApp.init();
+});
+</script>
+{% endblock %}

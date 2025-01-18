@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1 {
+    @apply text-5xl leading-[1.2];
+  }
+
+  h2 {
+    @apply text-[32px] leading-[1.2];
+  }
+
+  h3 {
+    @apply text-[28px] leading-[1.2];
+  }
+
+  h4 {
+    @apply text-2xl leading-[1.2];
+  }
+
+  h5 {
+    @apply text-xl leading-[1.2];
+  }
+
+  h6 {
+    @apply text-base leading-[1.2];
+  }
+
+  body {
+    @apply text-base leading-normal;
+  }
+
+  button {
+    @apply text-sm leading-normal disabled:cursor-not-allowed disabled:opacity-60 [&:disabled>*]:cursor-not-allowed;
+  }
+
+  button,
+  [type='button'],
+  [type='reset'],
+  [type='submit'] {
+    background-color: var(--n-color);
+  }
+}
+
+@layer components {
+  .text-title {
+    @apply text-[28px] font-bold leading-[1.2] sm:text-5xl;
+  }
+
+  .text-sec-title {
+    @apply text-base font-bold leading-[1.2] sm:text-[28px];
+  }
+
+  .text-area-title {
+    @apply text-lg leading-normal;
+  }
+
+  .text-sm-content {
+    @apply text-sm leading-normal;
+  }
+
+  .icon-hover {
+    @apply cursor-pointer transition-transform duration-300 hover:scale-125;
+  }
+
+  .btn {
+    @apply relative inline-flex min-h-[48px] min-w-[110px] items-center justify-center gap-2 whitespace-nowrap rounded-m bg-cc-primary px-6 py-3 text-sm font-bold leading-normal text-white transition-colors duration-300 hover:bg-cc-accent disabled:hover:bg-cc-primary;
+  }
+
+  .product-map-card {
+    @apply relative z-10 min-w-full overflow-hidden rounded-m transition-opacity duration-300 hover:opacity-80;
+  }
+
+  .img {
+    @apply h-full w-full object-cover object-center;
+  }
+
+  .without-ring:focus {
+    @apply focus:border-transparent focus:outline-transparent focus:ring-0 focus:ring-offset-0;
+  }
+
+  [type='checkbox'] {
+    @apply without-ring cursor-pointer rounded-m border border-cc-other-5 text-cc-primary transition-colors duration-200 hover:border-cc-primary;
+  }
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  letter-spacing: 0.05em;
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+    Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  color: #181818;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.clear-scale {
+  transform: translateZ(0);
+}
+
+.clear-scale:hover {
+  transform: translateZ(0) scale(1.1);
+}
+
+#map .modal-diglog {
+  @apply p-8;
+}
+
+#map .modal-window,
+#mobile .modal-window {
+  @apply overflow-visible rounded-m;
+}
+
+.n-base-select-menu .n-base-select-menu__empty {
+  padding: 0px;
+}
+
+/* fix overflow */
+.n-breadcrumb>ul {
+  display: flex;
+  flex-wrap: wrap;
+}

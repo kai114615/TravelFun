@@ -1,0 +1,221 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}討論區 API 測試{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 文章 API 測試 -->
+    <div class="col-sm-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">文章 API</h3>
+            </div>
+            <div class="panel-body">
+                <div class="form-group">
+                    <label>文章ID (用於PUT/DELETE):</label>
+                    <input type="number" class="form-control" id="postId">
+                </div>
+                <div class="form-group">
+                    <label>API URL:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="postApiUrl" value="/api/test/posts/" readonly>
+                        <span class="input-group-btn">
+                            <button class="btn btn-default" onclick="copyToClipboard('postApiUrl')">複製</button>
+                        </span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApi('posts', 'GET')" class="btn btn-primary">GET</button>
+                    <button onclick="testApi('posts', 'POST')" class="btn btn-success">POST</button>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApiWithId('posts', 'PUT')" class="btn btn-warning">PUT</button>
+                    <button onclick="testApiWithId('posts', 'DELETE')" class="btn btn-danger">DELETE</button>
+                </div>
+                <div class="api-response"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分類 API 測試 -->
+    <div class="col-sm-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">分類 API</h3>
+            </div>
+            <div class="panel-body">
+                <div class="form-group">
+                    <label>分類ID (用於PUT/DELETE):</label>
+                    <input type="number" class="form-control" id="categoryId">
+                </div>
+                <div class="form-group">
+                    <label>API URL:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="categoryApiUrl" value="/api/test/categories/" readonly>
+                        <span class="input-group-btn">
+                            <button class="btn btn-default" onclick="copyToClipboard('categoryApiUrl')">複製</button>
+                        </span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApi('categories', 'GET')" class="btn btn-primary">GET</button>
+                    <button onclick="testApi('categories', 'POST')" class="btn btn-success">POST</button>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApiWithId('categories', 'PUT')" class="btn btn-warning">PUT</button>
+                    <button onclick="testApiWithId('categories', 'DELETE')" class="btn btn-danger">DELETE</button>
+                </div>
+                <div class="api-response"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 評論 API 測試 -->
+    <div class="col-sm-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">評論 API</h3>
+            </div>
+            <div class="panel-body">
+                <div class="form-group">
+                    <label>評論ID (用於PUT/DELETE):</label>
+                    <input type="number" class="form-control" id="commentId">
+                </div>
+                <div class="form-group">
+                    <label>API URL:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="commentApiUrl" value="/api/test/comments/" readonly>
+                        <span class="input-group-btn">
+                            <button class="btn btn-default" onclick="copyToClipboard('commentApiUrl')">複製</button>
+                        </span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApi('comments', 'GET')" class="btn btn-primary">GET</button>
+                    <button onclick="testApi('comments', 'POST')" class="btn btn-success">POST</button>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApiWithId('comments', 'PUT')" class="btn btn-warning">PUT</button>
+                    <button onclick="testApiWithId('comments', 'DELETE')" class="btn btn-danger">DELETE</button>
+                </div>
+                <div class="api-response"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function testApi(resource, method) {
+    const url = `/api/test/${resource}/`;
+    const responseDiv = event.target.parentElement.parentElement.querySelector('.api-response');
+    
+    $.ajax({
+        url: url,
+        method: method,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        success: function(response) {
+            responseDiv.innerHTML = `<pre>${JSON.stringify(response, null, 2)}</pre>`;
+        },
+        error: function(xhr) {
+            responseDiv.innerHTML = `<pre class="error">Error: ${xhr.status} - ${xhr.statusText}</pre>`;
+        }
+    });
+}
+
+function testApiWithId(resource, method) {
+    const idInput = document.getElementById(`${resource.slice(0, -1)}Id`);
+    const id = idInput.value;
+    
+    if (!id) {
+        alert(`請輸入${resource.slice(0, -1)}ID`);
+        return;
+    }
+    
+    const url = `/api/test/${resource}/${id}/`;
+    const responseDiv = event.target.parentElement.parentElement.querySelector('.api-response');
+    
+    $.ajax({
+        url: url,
+        method: method,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        success: function(response) {
+            responseDiv.innerHTML = `<pre>${JSON.stringify(response, null, 2)}</pre>`;
+        },
+        error: function(xhr) {
+            responseDiv.innerHTML = `<pre class="error">Error: ${xhr.status} - ${xhr.statusText}</pre>`;
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    element.select();
+    document.execCommand('copy');
+    
+    // 取得當前網站的域名和埠號
+    const baseUrl = window.location.origin;
+    // 複製完整URL（包含域名）
+    const fullUrl = baseUrl + element.value;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+        alert('API URL已複製到剪貼簿！');
+    });
+}
+
+// 當ID輸入框值改變時，更新對應的API URL
+document.getElementById('postId').addEventListener('input', function(e) {
+    const url = e.target.value ? `/api/test/posts/${e.target.value}/` : '/api/test/posts/';
+    document.getElementById('postApiUrl').value = url;
+});
+
+document.getElementById('categoryId').addEventListener('input', function(e) {
+    const url = e.target.value ? `/api/test/categories/${e.target.value}/` : '/api/test/categories/';
+    document.getElementById('categoryApiUrl').value = url;
+});
+
+document.getElementById('commentId').addEventListener('input', function(e) {
+    const url = e.target.value ? `/api/test/comments/${e.target.value}/` : '/api/test/comments/';
+    document.getElementById('commentApiUrl').value = url;
+});
+</script>
+
+<style>
+.api-response {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+.api-response pre {
+    margin: 0;
+    white-space: pre-wrap;
+}
+.api-response pre.error {
+    color: red;
+}
+.btn-group {
+    margin-right: 10px;
+}
+.input-group {
+    margin-bottom: 10px;
+}
+</style>
+{% endblock %} 

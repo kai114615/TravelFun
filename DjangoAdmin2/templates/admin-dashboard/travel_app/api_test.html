@@ -1,0 +1,114 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}API測試 - 行程規劃{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox">
+                <div class="ibox-title">
+                    <h5>行程規劃 API 測試</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="form-group">
+                                <label>API 端點</label>
+                                <select class="form-control" id="apiEndpoint">
+                                    <option value="/travel/api/travel/">景點列表</option>
+                                    <option value="/travel/api/country/">縣市列表</option>
+                                    <option value="/travel/api/travelclass/">景點類別</option>
+                                    <option value="/travel/api/taiwan/">台灣地區</option>
+                                    <option value="/travel/api/travelfilter/">景點篩選</option>
+                                    <option value="/travel/api/query/">自定義查詢</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>請求方法</label>
+                                <select class="form-control" id="requestMethod">
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                    <option value="PUT">PUT</option>
+                                    <option value="DELETE">DELETE</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>請求參數 (JSON格式)</label>
+                                <textarea class="form-control" id="requestParams" rows="5" placeholder='{
+    "key": "value"
+}'></textarea>
+                            </div>
+                            <button class="btn btn-primary" onclick="sendRequest()">發送請求</button>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="form-group">
+                                <label>響應結果</label>
+                                <pre id="responseArea" class="form-control" style="height: 400px; overflow-y: auto;"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function sendRequest() {
+    const endpoint = document.getElementById('apiEndpoint').value;
+    const method = document.getElementById('requestMethod').value;
+    const params = document.getElementById('requestParams').value;
+    const responseArea = document.getElementById('responseArea');
+
+    // 顯示載入中
+    responseArea.innerHTML = 'Loading...';
+
+    let fetchOptions = {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    };
+
+    // 如果有請求參數且不是GET請求
+    if (params && params.trim() !== '' && method !== 'GET') {
+        try {
+            fetchOptions.body = params;
+        } catch (e) {
+            responseArea.innerHTML = '錯誤：請求參數必須是有效的JSON格式';
+            return;
+        }
+    }
+
+    fetch(endpoint, fetchOptions)
+        .then(response => response.json())
+        .then(data => {
+            responseArea.innerHTML = JSON.stringify(data, null, 2);
+        })
+        .catch(error => {
+            responseArea.innerHTML = '錯誤：' + error.message;
+        });
+}
+
+// 獲取CSRF Token的函數
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 

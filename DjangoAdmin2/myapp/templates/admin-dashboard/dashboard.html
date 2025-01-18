@@ -1,0 +1,610 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}儀表板 - 後台管理系統{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content">
+    <!-- 統計數據 -->
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>討論區總覽</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">1,386</h1>
+                    <small>總文章數</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>本月新增</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">145</h1>
+                    <small>新文章數</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>活躍用戶</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">328</h1>
+                    <small>發文用戶數</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>互動數</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">2,864</h1>
+                    <small>評論與按讚</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 圖表區域 -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>文章發布趨勢</h5>
+                </div>
+                <div class="ibox-content">
+                    <canvas id="articleTrendChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>分類文章分布</h5>
+                </div>
+                <div class="ibox-content">
+                    <canvas id="categoryDistChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 更多分析圖表 -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>用戶互動分析</h5>
+                </div>
+                <div class="ibox-content">
+                    <canvas id="interactionChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>熱門時段分析</h5>
+                </div>
+                <div class="ibox-content">
+                    <canvas id="timeDistChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 商城分析圖表 -->
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>商品類型銷售分析</h5>
+                </div>
+                <div class="ibox-content">
+                    <canvas id="salesDistChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最新文章和熱門分類 -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>最新文章</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>標題</th>
+                                    <th>作者</th>
+                                    <th>分類</th>
+                                    <th>發布時間</th>
+                                    <th>互動</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>台北101觀景台遊記分享</td>
+                                    <td>旅遊達人小明</td>
+                                    <td>景點分享</td>
+                                    <td>2024-03-15</td>
+                                    <td>32 讚 · 12 評論</td>
+                                </tr>
+                                <tr>
+                                    <td>花蓮太魯閣三日遊行程推薦</td>
+                                    <td>背包客阿華</td>
+                                    <td>行程規劃</td>
+                                    <td>2024-03-14</td>
+                                    <td>45 讚 · 18 評論</td>
+                                </tr>
+                                <tr>
+                                    <td>九份老街美食地圖</td>
+                                    <td>美食探險家</td>
+                                    <td>美食推薦</td>
+                                    <td>2024-03-13</td>
+                                    <td>56 讚 · 23 評論</td>
+                                </tr>
+                                <tr>
+                                    <td>墾丁最新衝浪體驗</td>
+                                    <td>衝浪教練小陳</td>
+                                    <td>活動體驗</td>
+                                    <td>2024-03-12</td>
+                                    <td>28 讚 · 15 評論</td>
+                                </tr>
+                                <tr>
+                                    <td>阿里山日出攝影技巧分享</td>
+                                    <td>攝影師大山</td>
+                                    <td>攝影技巧</td>
+                                    <td>2024-03-11</td>
+                                    <td>67 讚 · 34 評論</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>熱門分類</h5>
+                </div>
+                <div class="ibox-content">
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <span class="badge badge-primary">156</span>
+                            景點分享
+                        </li>
+                        <li class="list-group-item">
+                            <span class="badge badge-primary">98</span>
+                            行程規劃
+                        </li>
+                        <li class="list-group-item">
+                            <span class="badge badge-primary">87</span>
+                            美食推薦
+                        </li>
+                        <li class="list-group-item">
+                            <span class="badge badge-primary">45</span>
+                            活動體驗
+                        </li>
+                        <li class="list-group-item">
+                            <span class="badge badge-primary">34</span>
+                            攝影技巧
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 最新評論 -->
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>最新評論</h5>
+                </div>
+                <div class="ibox-content">
+                    <div>
+                        <div class="feed-activity-list">
+                            <div class="feed-element">
+                                <small class="pull-right text-navy">5分鐘前</small>
+                                <strong>小華</strong>
+                                <div>太魯閣真的很美，感謝分享這麼詳細的行程！</div>
+                            </div>
+                            <div class="feed-element">
+                                <small class="pull-right text-navy">23分鐘前</small>
+                                <strong>阿明</strong>
+                                <div>九份的阿妹茶樓一定要去，風景超讚的。</div>
+                            </div>
+                            <div class="feed-element">
+                                <small class="pull-right text-navy">1小時前</small>
+                                <strong>小美</strong>
+                                <div>衝浪初學者也可以參加嗎？看起來很好玩！</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- 引入 Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- 引入 ChartDataLabels 插件 -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 全局配置
+        Chart.defaults.animation = {
+            duration: 800,
+            easing: 'easeOutQuart',
+            onComplete: function() {
+                this.options.animation.duration = 0;
+            }
+        };
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+        Chart.defaults.responsive = true;
+        Chart.defaults.maintainAspectRatio = false;
+
+        // 文章發布趨勢圖
+        var trendCtx = document.getElementById('articleTrendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                datasets: [{
+                    label: '發布文章數',
+                    data: [85, 92, 145, 128, 142, 180, 165, 195, 168, 140, 132, 145],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false
+                }, {
+                    label: '互動總數',
+                    data: [220, 245, 380, 320, 360, 450, 410, 480, 420, 350, 330, 360],
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    duration: 800,
+                    onComplete: function() {
+                        this.options.animation.duration = 0;
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '2024年每月發布文章數量與互動趨勢'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y + ' 次';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '數量'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + ' 次';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 分類文章分布圖
+        var distCtx = document.getElementById('categoryDistChart').getContext('2d');
+        new Chart(distCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['景點分享', '行程規劃', '美食推薦', '活動體驗', '攝影技巧', '住宿推薦', '交通資訊'],
+                datasets: [{
+                    data: [356, 298, 287, 245, 134, 178, 156],
+                    backgroundColor: [
+                        'rgb(255, 99, 132)',
+                        'rgb(54, 162, 235)',
+                        'rgb(255, 205, 86)',
+                        'rgb(75, 192, 192)',
+                        'rgb(153, 102, 255)',
+                        'rgb(255, 159, 64)',
+                        'rgb(201, 203, 207)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    duration: 800,
+                    onComplete: function() {
+                        this.options.animation.duration = 0;
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '各分類文章數量分布'
+                    },
+                    legend: {
+                        position: 'right'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return `${context.label}: ${context.parsed} 篇 (${percentage}%)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        formatter: (value, ctx) => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return percentage + '%';
+                        },
+                        color: '#fff',
+                        font: {
+                            weight: 'bold',
+                            size: 14
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels]
+        });
+
+        // 用戶互動分析圖
+        var interactionCtx = document.getElementById('interactionChart').getContext('2d');
+        new Chart(interactionCtx, {
+            type: 'bar',
+            data: {
+                labels: ['按讚', '評論', '分享', '收藏', '檢舉'],
+                datasets: [{
+                    label: '本月互動次數',
+                    data: [1450, 820, 580, 720, 45],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 205, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgb(255, 99, 132)',
+                        'rgb(54, 162, 235)',
+                        'rgb(255, 205, 86)',
+                        'rgb(75, 192, 192)',
+                        'rgb(153, 102, 255)'
+                    ],
+                    borderWidth: 1
+                }, {
+                    label: '上月互動次數',
+                    data: [1280, 750, 520, 680, 38],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.3)',
+                        'rgba(54, 162, 235, 0.3)',
+                        'rgba(255, 205, 86, 0.3)',
+                        'rgba(75, 192, 192, 0.3)',
+                        'rgba(153, 102, 255, 0.3)'
+                    ],
+                    borderColor: [
+                        'rgb(255, 99, 132)',
+                        'rgb(54, 162, 235)',
+                        'rgb(255, 205, 86)',
+                        'rgb(75, 192, 192)',
+                        'rgb(153, 102, 255)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    duration: 800,
+                    onComplete: function() {
+                        this.options.animation.duration = 0;
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '用戶互動類型統計 (本月 vs 上月)'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const dataset = context.dataset;
+                                const total = dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed.y / total) * 100).toFixed(1);
+                                return `${dataset.label}: ${context.parsed.y} 次 (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + ' 次';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 熱門時段分析圖
+        var timeCtx = document.getElementById('timeDistChart').getContext('2d');
+        new Chart(timeCtx, {
+            type: 'radar',
+            data: {
+                labels: ['0-4時', '4-8時', '8-12時', '12-16時', '16-20時', '20-24時'],
+                datasets: [{
+                    label: '發文數量',
+                    data: [45, 85, 285, 395, 420, 290],
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgb(54, 162, 235)',
+                    pointBackgroundColor: 'rgb(54, 162, 235)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(54, 162, 235)'
+                }, {
+                    label: '互動數量',
+                    data: [120, 180, 580, 780, 850, 620],
+                    fill: true,
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    pointBackgroundColor: 'rgb(255, 99, 132)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(255, 99, 132)'
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    duration: 800,
+                    onComplete: function() {
+                        this.options.animation.duration = 0;
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '24小時發文與互動時段分布'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const dataset = context.dataset;
+                                const total = dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.raw / total) * 100).toFixed(1);
+                                return `${dataset.label}: ${context.raw} 次 (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 1000,
+                        min: 0,
+                        stepSize: 200,
+                        ticks: {
+                            callback: function(value) {
+                                return value + ' 次';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 商品類型銷售分析圖
+        var salesCtx = document.getElementById('salesDistChart').getContext('2d');
+        new Chart(salesCtx, {
+            type: 'pie',
+            data: {
+                labels: ['套裝行程', '景點門票', '交通票券', '住宿預訂', '美食餐券', '體驗活動', '伴手禮'],
+                datasets: [{
+                    data: [458, 386, 325, 298, 256, 198, 145],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 205, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)',
+                        'rgba(255, 159, 64, 0.8)',
+                        'rgba(201, 203, 207, 0.8)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    duration: 800,
+                    onComplete: function() {
+                        this.options.animation.duration = 0;
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '各類商品銷售數量分布'
+                    },
+                    legend: {
+                        position: 'right'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const value = context.raw;
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                const revenue = (value * getAveragePrice(context.label)).toLocaleString();
+                                return [
+                                    `${context.label}: ${value} 筆 (${percentage}%)`,
+                                    `預估營收: NT$ ${revenue}`
+                                ];
+                            }
+                        }
+                    },
+                    datalabels: {
+                        formatter: (value, ctx) => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return percentage + '%';
+                        },
+                        color: '#fff',
+                        font: {
+                            weight: 'bold',
+                            size: 14
+                        }
+                    }
+                }
+            },
+            plugins: [ChartDataLabels]
+        });
+
+        // 計算各類商品的平均價格
+        function getAveragePrice(category) {
+            const prices = {
+                '套裝行程': 5000,
+                '景點門票': 800,
+                '交通票券': 350,
+                '住宿預訂': 3500,
+                '美食餐券': 500,
+                '體驗活動': 1200,
+                '伴手禮': 300
+            };
+            return prices[category] || 0;
+        }
+    });
+</script>
+{% endblock %}

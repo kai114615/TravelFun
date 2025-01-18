@@ -1,0 +1,117 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>{{ title }}</h5>
+                </div>
+                <div class="ibox-content">
+                    {% if error %}
+                    <div class="alert alert-danger">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+                    <form method="post" class="form-horizontal">
+                        {% csrf_token %}
+                        
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">商品名稱</label>
+                            <div class="col-sm-10">
+                                <input type="text" class="form-control" name="name" value="{{ product.name|default:'' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">商品類別</label>
+                            <div class="col-sm-10">
+                                <input type="text" class="form-control" name="category" value="{{ product.category|default:'' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">價格</label>
+                            <div class="col-sm-10">
+                                <input type="number" class="form-control" name="price" value="{{ product.price|default:'' }}" step="0.01" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">庫存</label>
+                            <div class="col-sm-10">
+                                <input type="number" class="form-control" name="stock" value="{{ product.stock|default:0 }}" min="0" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">商品圖片網址</label>
+                            <div class="col-sm-10">
+                                {% if product and product.image_url %}
+                                <img src="{{ product.get_image_url }}" alt="{{ product.name }}" class="img-thumbnail" style="max-width: 200px;">
+                                <br><br>
+                                {% endif %}
+                                <input type="url" name="image_url" class="form-control" value="{{ product.image_url|default:'' }}" placeholder="請輸入商品圖片網址，例如：https://example.com/image.jpg">
+                                <small class="text-muted">請輸入完整的圖片網址，包含 http:// 或 https://</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">商品描述</label>
+                            <div class="col-sm-10">
+                                <textarea name="description" class="form-control" rows="10">{{ product.description|default:'' }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">是否上架</label>
+                            <div class="col-sm-10">
+                                <div class="checkbox">
+                                    <label>
+                                        <input type="checkbox" name="is_active" {% if product.is_active|default:True %}checked{% endif %}>
+                                        上架商品
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+                        <div class="form-group">
+                            <div class="col-sm-4 col-sm-offset-2">
+                                <a class="btn btn-white" href="{% url 'shopping_system:product_list' %}">取消</a>
+                                <button class="btn btn-primary" type="submit">保存</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="{% static 'ckeditor/ckeditor-init.js' %}"></script>
+<script src="{% static 'ckeditor/ckeditor/ckeditor.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        CKEDITOR.replace('description', {
+            height: 300,
+            toolbar: [
+                ['Styles', 'Format', 'Font', 'FontSize'],
+                ['Bold', 'Italic', 'Underline', 'Strike'],
+                ['TextColor', 'BGColor'],
+                ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'Blockquote'],
+                ['Link', 'Unlink'],
+                ['Image', 'Table'],
+                ['Maximize']
+            ]
+        });
+    });
+</script>
+{% endblock %} 

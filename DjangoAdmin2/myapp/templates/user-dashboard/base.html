@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}後台管理系統{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <!-- 側邊欄 -->
+    <aside id="sidebar" class="sidebar">
+        <ul class="sidebar-nav" id="sidebar-nav">
+            <!-- 儀表板 -->
+            <li class="nav-item">
+                <a class="nav-link" href="/user-dashboard/">
+                    <i class="bi bi-grid"></i>
+                    <span>儀表板</span>
+                </a>
+            </li>
+
+            <!-- 功能管理 -->
+            <li class="nav-heading">功能管理</li>
+
+            <!-- 討論區管理 -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseDiscussion">
+                    <i class="bi bi-chat-square-text"></i>
+                    <span>討論區管理</span>
+                    <i class="bi bi-chevron-down ms-auto"></i>
+                </a>
+                <ul id="collapseDiscussion" class="nav-content collapse" data-bs-parent="#sidebar-nav">
+                    <li>
+                        <a href="/user-dashboard/forum/posts">
+                            <i class="bi bi-file-text"></i><span>文章列表</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/user-dashboard/forum/categories">
+                            <i class="bi bi-tag"></i><span>分類管理</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/user-dashboard/forum/comments">
+                            <i class="bi bi-chat-dots"></i><span>評論管理</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- API測試 -->
+            <li class="nav-heading">API測試</li>
+
+            <!-- 討論區API -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseAPI">
+                    <i class="bi bi-code-slash"></i>
+                    <span>討論區API</span>
+                    <i class="bi bi-chevron-down ms-auto"></i>
+                </a>
+                <ul id="collapseAPI" class="nav-content collapse" data-bs-parent="#sidebar-nav">
+                    <li>
+                        <a href="/user-dashboard/api/posts/" target="_blank">
+                            <i class="bi bi-file-code"></i><span>文章 API</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/user-dashboard/api/categories/" target="_blank">
+                            <i class="bi bi-diagram-3"></i><span>分類 API</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/user-dashboard/api/comments/" target="_blank">
+                            <i class="bi bi-chat-text"></i><span>評論 API</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- 主要內容區 -->
+    <main id="main" class="main">
+        <div class="pagetitle">
+            <h1>{% block page_title %}{% endblock %}</h1>
+            <nav>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/user-dashboard/">首頁</a></li>
+                    {% block breadcrumb %}{% endblock %}
+                </ol>
+            </nav>
+        </div>
+
+        <section class="section">
+            {% block content %}{% endblock %}
+        </section>
+    </main>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Custom Scripts -->
+    {% block scripts %}{% endblock %}
+
+    <style>
+        /* 側邊欄樣式 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 300px;
+            z-index: 996;
+            transition: all 0.3s;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f6f9ff;
+            border-right: 1px solid #e4e9f7;
+        }
+
+        .sidebar-nav {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .sidebar-nav li {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .sidebar-nav .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-heading {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #899bbd;
+            font-weight: 600;
+            margin: 10px 0 5px 15px;
+        }
+
+        .sidebar-nav .nav-link {
+            display: flex;
+            align-items: center;
+            font-size: 15px;
+            font-weight: 600;
+            color: #4154f1;
+            padding: 10px 15px;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .sidebar-nav .nav-link i {
+            font-size: 16px;
+            margin-right: 10px;
+            color: #4154f1;
+        }
+
+        .sidebar-nav .nav-link.collapsed {
+            color: #012970;
+            background: #fff;
+        }
+
+        .sidebar-nav .nav-link.collapsed i {
+            color: #899bbd;
+        }
+
+        .sidebar-nav .nav-link:hover {
+            color: #4154f1;
+            background: #f6f9ff;
+        }
+
+        .sidebar-nav .nav-link:hover i {
+            color: #4154f1;
+        }
+
+        .sidebar-nav .nav-content {
+            padding: 5px 0 0 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .sidebar-nav .nav-content a {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 400;
+            color: #012970;
+            padding: 10px 0 10px 40px;
+            transition: 0.3s;
+        }
+
+        .sidebar-nav .nav-content a i {
+            font-size: 6px;
+            margin-right: 8px;
+            line-height: 0;
+            border-radius: 50%;
+        }
+
+        .sidebar-nav .nav-content a:hover,
+        .sidebar-nav .nav-content a.active {
+            color: #4154f1;
+        }
+
+        .sidebar-nav .nav-content a.active i {
+            background-color: #4154f1;
+        }
+
+        /* 主要內容區樣式 */
+        .main {
+            margin-left: 300px;
+            padding: 20px;
+        }
+
+        .pagetitle {
+            margin-bottom: 10px;
+        }
+
+        .pagetitle h1 {
+            font-size: 24px;
+            margin-bottom: 0;
+            font-weight: 600;
+            color: #012970;
+        }
+    </style>
+</body>
+</html> 

@@ -1,0 +1,41 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>確認刪除</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="alert alert-warning">
+                                <h4>您確定要刪除以下商品嗎？</h4>
+                                <p>商品名稱：{{ product.name }}</p>
+                                <p>商品類別：{{ product.category }}</p>
+                                <p>商品價格：${{ product.price }}</p>
+                                <p class="text-danger">此操作無法撤銷！</p>
+                            </div>
+                            
+                            <form method="post">
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    <div class="col-sm-4 col-sm-offset-2">
+                                        <a class="btn btn-white" href="{% url 'product_list' %}">取消</a>
+                                        <button type="submit" class="btn btn-danger">確認刪除</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

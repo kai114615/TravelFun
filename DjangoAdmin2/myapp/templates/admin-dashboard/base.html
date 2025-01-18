@@ -1,0 +1,356 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="renderer" content="webkit">
+
+    <title>{% block title %}儀表板{% endblock %}</title>
+
+    <meta name="keywords" content="H+後台主題,後台bootstrap框架,會員中心主題,後台HTML,響應式後台">
+    <meta name="description" content="H+是一個完全響應式，基於Bootstrap3最新版本開發的扁平化主題，她採用了主流的左右兩欄式布局，使用了Html5+CSS3等現代技術">
+
+    <!--[if lt IE 9]>
+    <meta http-equiv="refresh" content="0;ie.html" />
+    <![endif]-->
+
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}"> 
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/font-awesome.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/animate.css' %}" rel="stylesheet">
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="{% static 'css/plugins/dataTables/dataTables.bootstrap.css' %}" rel="stylesheet">
+    <link href="{% static 'css/plugins/dataTables/dataTables.responsive.css' %}" rel="stylesheet">
+    <link href="{% static 'css/plugins/dataTables/dataTables.tableTools.min.css' %}" rel="stylesheet">
+    
+    {% block styles %}{% endblock %}
+    
+    <style>
+        /* 移除所有高度限制 */
+        html, body {
+            height: auto !important;
+            min-height: 100%;
+            overflow-y: auto !important;
+        }
+
+        #wrapper {
+            position: relative;
+            height: auto !important;
+            min-height: 100vh;
+        }
+
+        /* 固定側邊欄 */
+        .navbar-static-side {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 220px;
+            z-index: 1000;
+            background-color: #2f4050;
+            overflow-y: auto;
+        }
+
+        /* 主要內容區域 */
+        #page-wrapper {
+            position: relative;
+            margin-left: 220px;
+            min-height: 100vh;
+            height: auto !important;
+            padding: 20px;
+            background-color: #f3f3f4;
+        }
+
+        /* 內容區塊 */
+        .wrapper-content {
+            padding: 20px;
+            height: auto !important;
+        }
+
+        /* 響應式調整 */
+        @media (max-width: 768px) {
+            #page-wrapper {
+                margin-left: 0;
+            }
+            .navbar-static-side {
+                display: none;
+            }
+        }
+
+        /* 確保內容不被遮擋 */
+        .content-wrapper {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        /* 移除固定高度限制的類 */
+        .fixed-sidebar.full-height-layout.gray-bg {
+            height: auto !important;
+            overflow: visible !important;
+        }
+    </style>
+</head>
+
+<body class="fixed-sidebar full-height-layout gray-bg">
+    <div id="wrapper">
+        <!--左側導航開始-->
+        <nav class="navbar-default navbar-static-side" role="navigation">
+            <div class="nav-close"><i class="fa fa-times-circle"></i></div>
+            <div class="sidebar-collapse">
+                <ul class="nav" id="side-menu">
+                    <li class="nav-header">
+                        <div class="dropdown profile-element">
+                            <span>
+                                <img alt="image" class="img-circle" src="{{ request.user.get_avatar_url }}" style="width: 48px; height: 48px;" />
+                            </span>
+                            <a data-toggle="dropdown" class="dropdown-toggle" href="#">
+                                <span class="clear">
+                                    <span class="block m-t-xs">
+                                        <strong class="font-bold">{{ request.user.username }}</strong>
+                                    </span>
+                                </span>
+                            </a>
+                            <ul class="dropdown-menu animated fadeInRight m-t-xs">
+                                <li><a href="{% url 'profile_update' %}">個人資料設定</a></li>
+                                <li class="divider"></li>
+                                <li><a href="{% url 'logout' %}">安全登出</a></li>
+                            </ul>
+                        </div>
+                        <div class="logo-element">H+</div>
+                    </li>
+
+                    <li>
+                        <a href="{% url 'admin_dashboard' %}">
+                            <i class="fa fa-dashboard"></i>
+                            <span class="nav-label">儀表板</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a href="#">
+                            <i class="fa fa-comments"></i>
+                            <span class="nav-label">討論區系統</span>
+                            <span class="fa arrow"></span>
+                        </a>
+                        <ul class="nav nav-second-level">
+                            <li>
+                                <a href="/user-dashboard/forum/articles/">
+                                    <i class="fa fa-file-text"></i> 文章列表
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/user-dashboard/forum/categories/">
+                                    <i class="fa fa-tags"></i> 分類管理
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/user-dashboard/forum/comments/">
+                                    <i class="fa fa-comments-o"></i> 評論管理
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/user-dashboard/forum/api-test/">
+                                    <i class="fa fa-code"></i> API測試
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li>
+                        <a href="#">
+                            <i class="fa fa-users"></i>
+                            <span class="nav-label">會員系統</span>
+                            <span class="fa arrow"></span>
+                        </a>
+                        <ul class="nav nav-second-level">
+                            <li>
+                                <a href="/admin-dashboard/users/list/">
+                                    <i class="fa fa-list"></i> 管理會員
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/admin-dashboard/users/api-test/">
+                                    <i class="fa fa-code"></i> API測試
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li {% if active_section == 'travel' %}class="active"{% endif %}>
+                        <a href="#">
+                            <i class="fa fa-map"></i>
+                            <span class="nav-label">行程規劃</span>
+                            <span class="fa arrow"></span>
+                        </a>
+                        <ul class="nav nav-second-level">
+                            <li {% if active_menu == 'travel_register' %}class="active"{% endif %}>
+                                <a href="{% url 'travel:register' %}">
+                                    <i class="fa fa-plus"></i> 新增行程
+                                </a>
+                            </li>
+                            <li {% if active_menu == 'travel_list' %}class="active"{% endif %}>
+                                <a href="{% url 'travel:travel' %}">
+                                    <i class="fa fa-list"></i> 行程列表
+                                </a>
+                            </li>
+                            <li {% if active_menu == 'travel_api_test' %}class="active"{% endif %}>
+                                <a href="/admin-dashboard/travel_app/api-test/">
+                                    <i class="fa fa-code"></i> API測試
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li>
+                        <a href="#">
+                            <i class="fa fa-shopping-cart"></i>
+                            <span class="nav-label">商城系統</span>
+                            <span class="fa arrow"></span>
+                        </a>
+                        <ul class="nav nav-second-level">
+                            <li>
+                                <a href="/admin-dashboard/shop/layout/">
+                                    <i class="fa fa-desktop"></i> 版面管理
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/shop/admin-dashboard/shop/products/">
+                                    <i class="fa fa-cubes"></i> 商品列表
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/admin-dashboard/shop/api-test/">
+                                    <i class="fa fa-code"></i> API測試
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li>
+                        <a href="#">
+                            <i class="fa fa-star"></i>
+                            <span class="nav-label">主題育樂</span>
+                            <span class="fa arrow"></span>
+                        </a>
+                        <ul class="nav nav-second-level">
+                            <li>
+                                <a href="/admin-dashboard/entertainment/activities/">
+                                    <i class="fa fa-calendar"></i> 活動列表
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/admin-dashboard/entertainment/api-test/">
+                                    <i class="fa fa-code"></i> API測試
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        <!--左側導航結束-->
+        
+        <!--右側部分開始-->
+        <div id="page-wrapper" class="gray-bg dashbard-1">
+            <div class="row border-bottom">
+                <nav class="navbar navbar-static-top" role="navigation" style="margin-bottom: 0">
+                    <div class="navbar-header">
+                        <a class="navbar-minimalize minimalize-styl-2 btn btn-primary" href="#"><i class="fa fa-bars"></i></a>
+                        <form role="search" class="navbar-form-custom" method="post" action="search_results.html">
+                            <div class="form-group">
+                                <input type="text" placeholder="請輸入您需要查找的內容 …" class="form-control" name="top-search" id="top-search">
+                            </div>
+                        </form>
+                    </div>
+                    <ul class="nav navbar-top-links navbar-right">
+                        <li class="dropdown">
+                            <a class="dropdown-toggle count-info" data-toggle="dropdown" href="#">
+                                <i class="fa fa-envelope"></i> <span class="label label-warning">16</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-messages">
+                                <li class="m-t-xs">
+                                    <div class="dropdown-messages-box">
+                                        <a href="profile.html" class="pull-left">
+                                            <img alt="image" class="img-circle" src="{% static 'img/a7.jpg' %}">
+                                        </a>
+                                        <div class="media-body">
+                                            <small class="pull-right">46小時前</small>
+                                            <strong>小四</strong> 是不是只有我覺得 H+後台主題好用！
+                                            <br>
+                                            <small class="text-muted">3天前 2014.11.8</small>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li class="divider"></li>
+                                <li>
+                                    <div class="dropdown-messages-box">
+                                        <a href="profile.html" class="pull-left">
+                                            <img alt="image" class="img-circle" src="{% static 'img/a4.jpg' %}">
+                                        </a>
+                                        <div class="media-body ">
+                                            <small class="pull-right text-navy">25小時前</small>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="dropdown">
+                            <a class="dropdown-toggle count-info" data-toggle="dropdown" href="#">
+                                <i class="fa fa-bell"></i> <span class="label label-primary">8</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-alerts">
+                                <li>
+                                    <a href="mailbox.html">
+                                        <div>
+                                            <i class="fa fa-envelope fa-fw"></i> 您有16條未讀消息
+                                            <span class="pull-right text-muted small">4分鐘前</span>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li class="divider"></li>
+                                <li>
+                                    <a href="profile.html">
+                                        <div>
+                                            <i class="fa fa-qq fa-fw"></i> 3條新回復
+                                            <span class="pull-right text-muted small">12分鐘前</span>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li class="divider"></li>
+                                <li>
+                                    <div class="text-center link-block">
+                                        <a class="J_menuItem" href="notifications.html">
+                                            <strong>查看所有 </strong>
+                                            <i class="fa fa-angle-right"></i>
+                                        </a>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            
+            {% block content %}{% endblock %}
+            
+        </div>
+        <!--右側部分結束-->
+    </div>
+    
+    <!-- 基礎 JS -->
+    <script src="{% static 'js/jquery.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'js/plugins/metisMenu/jquery.metisMenu.js' %}"></script>
+    <script src="{% static 'js/plugins/slimscroll/jquery.slimscroll.min.js' %}"></script>
+    <script src="{% static 'js/plugins/layer/layer.min.js' %}"></script>
+    <script src="{% static 'js/hplus.js' %}"></script>
+    <script src="{% static 'js/contabs.js' %}"></script>
+    <script src="{% static 'js/plugins/pace/pace.min.js' %}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

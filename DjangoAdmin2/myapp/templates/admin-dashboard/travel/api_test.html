@@ -1,0 +1,221 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}行程規劃 API 測試{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 行程 API 測試 -->
+    <div class="col-sm-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">行程 API</h3>
+            </div>
+            <div class="panel-body">
+                <div class="form-group">
+                    <label>行程ID (用於PUT/DELETE):</label>
+                    <input type="number" class="form-control" id="travelId">
+                </div>
+                <div class="form-group">
+                    <label>API URL:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="travelApiUrl" value="/api/travel/" readonly>
+                        <span class="input-group-btn">
+                            <button class="btn btn-default" onclick="copyToClipboard('travelApiUrl')">複製</button>
+                        </span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApi('travel', 'GET')" class="btn btn-primary">GET</button>
+                    <button onclick="testApi('travel', 'POST')" class="btn btn-success">POST</button>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApiWithId('travel', 'PUT')" class="btn btn-warning">PUT</button>
+                    <button onclick="testApiWithId('travel', 'DELETE')" class="btn btn-danger">DELETE</button>
+                </div>
+                <div class="api-response"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 行程分類 API 測試 -->
+    <div class="col-sm-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">行程分類 API</h3>
+            </div>
+            <div class="panel-body">
+                <div class="form-group">
+                    <label>分類ID (用於PUT/DELETE):</label>
+                    <input type="number" class="form-control" id="travelClassId">
+                </div>
+                <div class="form-group">
+                    <label>API URL:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="travelClassApiUrl" value="/api/travelclass/" readonly>
+                        <span class="input-group-btn">
+                            <button class="btn btn-default" onclick="copyToClipboard('travelClassApiUrl')">複製</button>
+                        </span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApi('travelclass', 'GET')" class="btn btn-primary">GET</button>
+                    <button onclick="testApi('travelclass', 'POST')" class="btn btn-success">POST</button>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApiWithId('travelclass', 'PUT')" class="btn btn-warning">PUT</button>
+                    <button onclick="testApiWithId('travelclass', 'DELETE')" class="btn btn-danger">DELETE</button>
+                </div>
+                <div class="api-response"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 國家/地區 API 測試 -->
+    <div class="col-sm-4">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">國家/地區 API</h3>
+            </div>
+            <div class="panel-body">
+                <div class="form-group">
+                    <label>國家ID (用於PUT/DELETE):</label>
+                    <input type="number" class="form-control" id="countryId">
+                </div>
+                <div class="form-group">
+                    <label>API URL:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="countryApiUrl" value="/api/country/" readonly>
+                        <span class="input-group-btn">
+                            <button class="btn btn-default" onclick="copyToClipboard('countryApiUrl')">複製</button>
+                        </span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApi('country', 'GET')" class="btn btn-primary">GET</button>
+                    <button onclick="testApi('country', 'POST')" class="btn btn-success">POST</button>
+                </div>
+                <div class="btn-group">
+                    <button onclick="testApiWithId('country', 'PUT')" class="btn btn-warning">PUT</button>
+                    <button onclick="testApiWithId('country', 'DELETE')" class="btn btn-danger">DELETE</button>
+                </div>
+                <div class="api-response"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function testApi(resource, method) {
+    const url = `/api/${resource}/`;
+    const responseDiv = event.target.parentElement.parentElement.querySelector('.api-response');
+    
+    $.ajax({
+        url: url,
+        method: method,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        success: function(response) {
+            responseDiv.innerHTML = `<pre>${JSON.stringify(response, null, 2)}</pre>`;
+        },
+        error: function(xhr) {
+            responseDiv.innerHTML = `<pre class="error">Error: ${xhr.status} - ${xhr.statusText}</pre>`;
+        }
+    });
+}
+
+function testApiWithId(resource, method) {
+    const idInput = document.getElementById(`${resource.slice(0, -1)}Id`);
+    const id = idInput.value;
+    
+    if (!id) {
+        alert(`請輸入${resource.slice(0, -1)}ID`);
+        return;
+    }
+    
+    const url = `/api/${resource}/${id}/`;
+    const responseDiv = event.target.parentElement.parentElement.querySelector('.api-response');
+    
+    $.ajax({
+        url: url,
+        method: method,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        success: function(response) {
+            responseDiv.innerHTML = `<pre>${JSON.stringify(response, null, 2)}</pre>`;
+        },
+        error: function(xhr) {
+            responseDiv.innerHTML = `<pre class="error">Error: ${xhr.status} - ${xhr.statusText}</pre>`;
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    element.select();
+    document.execCommand('copy');
+    
+    // 取得當前網站的域名和埠號
+    const baseUrl = window.location.origin;
+    // 複製完整URL（包含域名）
+    const fullUrl = baseUrl + element.value;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+        alert('API URL已複製到剪貼簿！');
+    });
+}
+
+// 當ID輸入框值改變時，更新對應的API URL
+document.getElementById('travelId').addEventListener('input', function(e) {
+    const url = e.target.value ? `/api/travel/${e.target.value}/` : '/api/travel/';
+    document.getElementById('travelApiUrl').value = url;
+});
+
+document.getElementById('travelClassId').addEventListener('input', function(e) {
+    const url = e.target.value ? `/api/travelclass/${e.target.value}/` : '/api/travelclass/';
+    document.getElementById('travelClassApiUrl').value = url;
+});
+
+document.getElementById('countryId').addEventListener('input', function(e) {
+    const url = e.target.value ? `/api/country/${e.target.value}/` : '/api/country/';
+    document.getElementById('countryApiUrl').value = url;
+});
+</script>
+
+<style>
+.api-response {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+.api-response pre {
+    margin: 0;
+    white-space: pre-wrap;
+}
+.api-response pre.error {
+    color: red;
+}
+.btn-group {
+    margin-right: 10px;
+}
+.input-group {
+    margin-bottom: 10px;
+}
+</style>
+{% endblock %} 

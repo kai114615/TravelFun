@@ -1,0 +1,153 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}評論管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">評論列表</h3>
+        </div>
+        <div class="card-body">
+            <!-- 篩選表單 -->
+            <form method="get" class="mb-3">
+                <div class="input-group">
+                    <input type="text" name="post_id" class="form-control" placeholder="輸入文章ID進行篩選" value="{{ request.GET.post_id }}">
+                    <button type="submit" class="btn btn-primary">篩選</button>
+                </div>
+            </form>
+
+            <!-- 評論列表 -->
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>評論內容</th>
+                            <th>作者</th>
+                            <th>文章</th>
+                            <th>發布時間</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comment in comments %}
+                        <tr>
+                            <td>{{ comment.id }}</td>
+                            <td>{{ comment.content }}</td>
+                            <td>{{ comment.author.username }}</td>
+                            <td>{{ comment.post.title }}</td>
+                            <td>{{ comment.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm delete-comment" data-id="{{ comment.id }}">
+                                    刪除
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">暫無評論</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分頁 -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.post_id %}&post_id={{ request.GET.post_id }}{% endif %}">上一頁</a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.post_id %}&post_id={{ request.GET.post_id }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.post_id %}&post_id={{ request.GET.post_id }}{% endif %}">下一頁</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 刪除確認對話框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">確認刪除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                確定要刪除這條評論嗎？
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">確定刪除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        let commentIdToDelete = null;
+        
+        // 點擊刪除按鈕
+        $('.delete-comment').click(function() {
+            commentIdToDelete = $(this).data('id');
+            $('#deleteModal').modal('show');
+        });
+
+        // 確認刪除
+        $('#confirmDelete').click(function() {
+            if (commentIdToDelete) {
+                $.ajax({
+                    url: `/admin/api/comments/${commentIdToDelete}/delete_comment/`,
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    success: function(response) {
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('刪除失敗，請稍後再試');
+                    }
+                });
+            }
+            $('#deleteModal').modal('hide');
+        });
+
+        // 獲取 CSRF Token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %} 

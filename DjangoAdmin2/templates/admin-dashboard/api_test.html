@@ -1,0 +1,202 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">API 測試工具</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form id="apiForm" onsubmit="return false;">
+                <div class="form-group">
+                    <label for="endpoint">API 端點</label>
+                    <select class="form-control" id="endpoint">
+                        <option value="/admin-dashboard/shop/api/products/">商品列表 API</option>
+                        <option value="/admin-dashboard/shop/api/products/1/">單個商品 API</option>
+                        <option value="/admin-dashboard/shop/api/carousels/">輪播圖 API</option>
+                        <option value="/admin-dashboard/shop/api/categories/">分類展示 API</option>
+                        <option value="/admin-dashboard/shop/api/recommended/">推薦商品 API</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="method">請求方法</label>
+                    <select class="form-control" id="method">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="requestBodyGroup">
+                    <label for="requestBody">請求內容 (JSON)</label>
+                    <textarea class="form-control" id="requestBody" rows="5"></textarea>
+                </div>
+                
+                <button type="button" class="btn btn-primary" id="sendBtn">發送請求</button>
+            </form>
+            
+            <div class="mt-4">
+                <h5>請求資訊：</h5>
+                <pre id="requestInfo" class="bg-light p-3" style="max-height: 100px; overflow-y: auto;"></pre>
+                
+                <h5>響應結果：</h5>
+                <div id="loading" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+                <pre id="response" class="bg-light p-3" style="max-height: 300px; overflow-y: auto;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 等待 DOM 完全加載
+document.addEventListener('DOMContentLoaded', function() {
+    // 綁定按鈕點擊事件
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', sendRequest);
+        console.log('Send button event listener added');
+    } else {
+        console.error('Send button not found');
+    }
+    
+    // 綁定方法選擇事件
+    const methodSelect = document.getElementById('method');
+    if (methodSelect) {
+        methodSelect.addEventListener('change', handleMethodChange);
+        // 初始化頁面
+        handleMethodChange({ target: methodSelect });
+        console.log('Method select event listener added');
+    } else {
+        console.error('Method select not found');
+    }
+});
+
+// 處理方法變更
+function handleMethodChange(event) {
+    const requestBodyGroup = document.getElementById('requestBodyGroup');
+    const requestBody = document.getElementById('requestBody');
+    
+    if (event.target.value === 'GET' || event.target.value === 'DELETE') {
+        requestBodyGroup.style.display = 'none';
+    } else {
+        requestBodyGroup.style.display = 'block';
+        
+        // 設置預設的請求內容
+        if (event.target.value === 'POST') {
+            requestBody.value = JSON.stringify({
+                name: "商品名稱",
+                category: "分類",
+                price: "100.00",
+                description: "商品描述",
+                stock: 10,
+                is_active: true,
+                image_url: ""
+            }, null, 2);
+        } else if (event.target.value === 'PUT') {
+            requestBody.value = JSON.stringify({
+                name: "更新的商品名稱",
+                price: "150.00"
+            }, null, 2);
+        }
+    }
+}
+
+// 發送請求
+async function sendRequest() {
+    const endpoint = document.getElementById('endpoint').value;
+    const method = document.getElementById('method').value;
+    const requestBody = document.getElementById('requestBody').value;
+    const responseElement = document.getElementById('response');
+    const requestInfoElement = document.getElementById('requestInfo');
+    const loadingElement = document.getElementById('loading');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    // 顯示載入中
+    responseElement.textContent = '';
+    loadingElement.style.display = 'block';
+    sendBtn.disabled = true;
+    
+    try {
+        // 準備請求選項
+        const csrfToken = getCookie('csrftoken');
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'same-origin'
+        };
+        
+        if (method !== 'GET' && method !== 'DELETE' && requestBody) {
+            options.body = requestBody;
+        }
+        
+        // 顯示請求資訊
+        const requestInfo = {
+            url: window.location.origin + endpoint,
+            method: method,
+            headers: options.headers,
+            body: options.body
+        };
+        requestInfoElement.textContent = JSON.stringify(requestInfo, null, 2);
+        
+        // 發送請求
+        console.log('Sending request to:', window.location.origin + endpoint);
+        const response = await fetch(window.location.origin + endpoint, options);
+        
+        // 處理響應
+        const contentType = response.headers.get('content-type');
+        let data;
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            data = await response.text();
+        }
+        
+        // 顯示響應結果
+        const responseInfo = {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries([...response.headers]),
+            data: data
+        };
+        
+        responseElement.textContent = JSON.stringify(responseInfo, null, 2);
+        responseElement.style.color = response.ok ? 'green' : 'red';
+        
+    } catch (error) {
+        console.error('Error:', error);
+        responseElement.textContent = '錯誤：' + error.message;
+        responseElement.style.color = 'red';
+    } finally {
+        loadingElement.style.display = 'none';
+        sendBtn.disabled = false;
+    }
+}
+
+// 獲取 CSRF Token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 

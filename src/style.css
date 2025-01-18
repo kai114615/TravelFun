@@ -1,0 +1,39 @@
+/* Google Fonts - Noto Sans TC */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+/* jf-openhuninn 字體 */
+@font-face {
+  font-family: 'jf-openhuninn';
+  src: url('https://cdn.jsdelivr.net/gh/justfont/open-huninn-font@2.0/font/jf-openhuninn.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/justfont/open-huninn-font@2.0/font/jf-openhuninn.woff') format('woff');
+}
+
+:root {
+  /* 其他 CSS 變數 */
+}
+
+/* 全域字體設定 */
+body {
+  font-family: 'jf-openhuninn', 'Noto Sans TC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 標題特別設定 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'jf-openhuninn', 'Noto Sans TC', sans-serif;
+  font-weight: 700;
+}
+
+/* 按鈕文字設定 */
+button, 
+.n-button {
+  font-family: 'jf-openhuninn', 'Noto Sans TC', sans-serif !important;
+}
+
+/* 輸入框文字設定 */
+input, 
+textarea,
+.n-input {
+  font-family: 'Noto Sans TC', sans-serif !important;
+} 

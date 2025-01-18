@@ -1,0 +1,106 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>商品列表</h5>
+                    <div class="ibox-tools">
+                        <a href="{% url 'shopping_system:product_create' %}" class="btn btn-primary btn-xs">新增商品</a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>圖片</th>
+                                    <th>名稱</th>
+                                    <th>類別</th>
+                                    <th>價格</th>
+                                    <th>庫存</th>
+                                    <th>狀態</th>
+                                    <th>更新時間</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr>
+                                    <td>{{ product.id }}</td>
+                                    <td>
+                                        <img src="{{ product.get_image_url }}" alt="{{ product.name }}" class="img-thumbnail" style="max-width: 50px;">
+                                    </td>
+                                    <td>{{ product.name }}</td>
+                                    <td>{{ product.category }}</td>
+                                    <td>${{ product.price }}</td>
+                                    <td>{{ product.stock }}</td>
+                                    <td>
+                                        {% if product.is_active %}
+                                        <span class="label label-primary">已上架</span>
+                                        {% else %}
+                                        <span class="label label-default">未上架</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ product.updated_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'shopping_system:product_detail' product.id %}" class="btn btn-white btn-xs">
+                                            <i class="fa fa-eye"></i> 查看
+                                        </a>
+                                        <a href="{% url 'shopping_system:product_update' product.id %}" class="btn btn-white btn-xs">
+                                            <i class="fa fa-pencil"></i> 編輯
+                                        </a>
+                                        <a href="{% url 'shopping_system:product_delete' product.id %}" class="btn btn-danger btn-xs">
+                                            <i class="fa fa-trash"></i> 刪除
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center">暫無商品</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+    $(document).ready(function() {
+        $('.table').DataTable({
+            pageLength: 25,
+            responsive: true,
+            dom: '<"html5buttons"B>lTfgitp',
+            buttons: [
+                {extend: 'copy'},
+                {extend: 'csv'},
+                {extend: 'excel', title: 'ProductList'},
+                {extend: 'pdf', title: 'ProductList'},
+                {
+                    extend: 'print',
+                    customize: function (win){
+                        $(win.document.body).addClass('white-bg');
+                        $(win.document.body).css('font-size', '10px');
+                        $(win.document.body).find('table')
+                            .addClass('compact')
+                            .css('font-size', 'inherit');
+                    }
+                }
+            ]
+        });
+    });
+</script>
+{% endblock %} 

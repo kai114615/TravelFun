@@ -1,0 +1,195 @@
+{% extends 'admin-dashboard/base.html' %}
+
+{% block title %}檢舉管理{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>檢舉列表</h5>
+                    <div class="ibox-tools">
+                        <a class="collapse-link">
+                            <i class="fa fa-chevron-up"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <!-- 搜尋和過濾 -->
+                            <div class="input-group m-b">
+                                <input type="text" class="form-control" id="searchInput" placeholder="搜尋檢舉...">
+                                <span class="input-group-btn">
+                                    <button type="button" class="btn btn-primary" onclick="searchReports()">
+                                        <i class="fa fa-search"></i> 搜尋
+                                    </button>
+                                </span>
+                            </div>
+                            <!-- 狀態過濾 -->
+                            <div class="btn-group m-b">
+                                <button type="button" class="btn btn-white" onclick="filterReports('all')">全部</button>
+                                <button type="button" class="btn btn-white" onclick="filterReports('pending')">待處理</button>
+                                <button type="button" class="btn btn-white" onclick="filterReports('processing')">處理中</button>
+                                <button type="button" class="btn btn-white" onclick="filterReports('resolved')">已解決</button>
+                                <button type="button" class="btn btn-white" onclick="filterReports('rejected')">已駁回</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 檢舉列表表格 -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>檢舉類型</th>
+                                    <th>被檢舉者</th>
+                                    <th>檢舉者</th>
+                                    <th>檢舉原因</th>
+                                    <th>檢舉時間</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in reports %}
+                                <tr>
+                                    <td>{{ report.id }}</td>
+                                    <td>{{ report.get_type_display }}</td>
+                                    <td>{{ report.reported_user.username }}</td>
+                                    <td>{{ report.reporter.username }}</td>
+                                    <td>{{ report.reason|truncatechars:30 }}</td>
+                                    <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        {% if report.status == 'pending' %}
+                                            <span class="label label-warning">待處理</span>
+                                        {% elif report.status == 'processing' %}
+                                            <span class="label label-primary">處理中</span>
+                                        {% elif report.status == 'resolved' %}
+                                            <span class="label label-success">已解決</span>
+                                        {% else %}
+                                            <span class="label label-danger">已駁回</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-xs btn-info" onclick="viewReport({{ report.id }})">
+                                            <i class="fa fa-eye"></i> 查看
+                                        </button>
+                                        <button class="btn btn-xs btn-warning" onclick="processReport({{ report.id }})">
+                                            <i class="fa fa-gavel"></i> 處理
+                                        </button>
+                                        {% if report.status == 'pending' %}
+                                            <button class="btn btn-xs btn-danger" onclick="rejectReport({{ report.id }})">
+                                                <i class="fa fa-times"></i> 駁回
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 分頁 -->
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="pagination">
+                                <span class="step-links">
+                                    {% if reports.has_previous %}
+                                        <a href="?page=1">&laquo; 第一頁</a>
+                                        <a href="?page={{ reports.previous_page_number }}">上一頁</a>
+                                    {% endif %}
+
+                                    <span class="current">
+                                        第 {{ reports.number }} 頁，共 {{ reports.paginator.num_pages }} 頁
+                                    </span>
+
+                                    {% if reports.has_next %}
+                                        <a href="?page={{ reports.next_page_number }}">下一頁</a>
+                                        <a href="?page={{ reports.paginator.num_pages }}">最後一頁 &raquo;</a>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 檢舉詳情模態框 -->
+<div class="modal inmodal" id="reportModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content animated fadeIn">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">檢舉詳情</h4>
+            </div>
+            <div class="modal-body" id="reportModalBody">
+                <!-- 檢舉詳情將通過AJAX載入 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-white" data-dismiss="modal">關閉</button>
+                <button type="button" class="btn btn-primary" onclick="saveReportChanges()">保存處理結果</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function searchReports() {
+    const searchTerm = document.getElementById('searchInput').value;
+    window.location.href = `?search=${searchTerm}`;
+}
+
+function filterReports(status) {
+    window.location.href = `?status=${status}`;
+}
+
+function viewReport(reportId) {
+    $.get(`/admin-dashboard/users/reports/${reportId}/detail/`, function(data) {
+        $('#reportModalBody').html(data);
+        $('#reportModal').modal('show');
+    });
+}
+
+function processReport(reportId) {
+    $.get(`/admin-dashboard/users/reports/${reportId}/process/`, function(data) {
+        $('#reportModalBody').html(data);
+        $('#reportModal').modal('show');
+    });
+}
+
+function rejectReport(reportId) {
+    if (confirm('確定要駁回此檢舉嗎？')) {
+        $.post(`/admin-dashboard/users/reports/${reportId}/reject/`, {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        }, function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('操作失敗：' + response.message);
+            }
+        });
+    }
+}
+
+function saveReportChanges() {
+    const form = $('#reportModalBody form');
+    $.post(form.attr('action'), form.serialize(), function(response) {
+        if (response.success) {
+            $('#reportModal').modal('hide');
+            location.reload();
+        } else {
+            alert('保存失敗：' + response.message);
+        }
+    });
+}
+</script>
+{% endblock %} 
