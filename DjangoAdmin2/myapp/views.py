@@ -662,6 +662,7 @@ def check_auth(request):
             'full_name': f"{user.first_name} {user.last_name}".strip(),
             'last_login': user.last_login,
             'updated_at': user.date_joined,
+            'avatar': user.get_avatar_url()  # 添加頭像 URL
         }
         
         return Response({
