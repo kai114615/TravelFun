@@ -11,10 +11,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'corsheaders',
     'django_ckeditor_5',
+    'myapp',
     'forum_system',
     'shopping_system',
 ]
@@ -51,10 +52,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS 設定
+# CORS 設置
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3333',  # 前端開發服務器
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 CORS_ALLOW_METHODS = [
@@ -76,6 +80,16 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+]
+
+# Cookie 設定
+SESSION_COOKIE_SAMESITE = 'Lax'  # 或 'None' 如果需要跨站點請求
+CSRF_COOKIE_SAMESITE = 'Lax'  # 或 'None' 如果需要跨站點請求
+SESSION_COOKIE_SECURE = True  # 僅通過 HTTPS 發送
+CSRF_COOKIE_SECURE = True  # 僅通過 HTTPS 發送
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3333',
+    'http://127.0.0.1:3333',
 ]
 
 # REST Framework 設定
@@ -123,7 +137,24 @@ STATIC_ROOT = BASE_DIR / 'static'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media' 
 
-# CSRF 設定
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3334',
-] 
+# 調試日誌配置
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+} 

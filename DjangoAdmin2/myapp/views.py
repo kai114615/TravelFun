@@ -15,10 +15,12 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.core.serializers import serialize
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
+from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 
 logger = logging.getLogger(__name__)
 
@@ -59,17 +61,215 @@ def login_view(request):
             messages.error(request, "用戶名或密碼不正確")
     return render(request, 'login.html')
 
-def register(request):
-    if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST, request.FILES)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, "註冊成功！")
-            return redirect('dashboard')
-    else:
-        form = CustomUserCreationForm()
-    return render(request, 'register.html', {'form': form})
+def register_view(request):
+    """
+    註冊頁面視圖
+    """
+    return render(request, 'register.html')
+
+def register_v2_view(request):
+    """
+    註冊頁面視圖 V2 版本
+    """
+    return render(request, 'register_v2.html')
+
+@api_view(['POST'])
+@permission_classes([AllowAny])  # 允許未認證用戶訪問
+def signin(request):
+    """
+    登入 API 視圖
+    """
+    try:
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        print('登入請求:', {
+            'username': username,
+            'has_password': bool(password)
+        })
+
+        # 驗證必要字段
+        if not username or not password:
+            return Response({
+                'success': False,
+                'message': '請提供用戶名和密碼'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 驗證用戶
+        user = authenticate(username=username, password=password)
+        
+        if user is not None:
+            # 生成 JWT token
+            refresh = RefreshToken.for_user(user)
+            
+            response_data = {
+                'success': True,
+                'message': '登入成功',
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+                }
+            }
+
+            print('登入成功，返回數據:', response_data)
+            return Response(response_data, status=status.HTTP_200_OK)
+        else:
+            print('登入失敗：用戶名或密碼錯誤')
+            return Response({
+                'success': False,
+                'message': '用戶名或密碼錯誤'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+    except Exception as e:
+        print(f"登入錯誤: {str(e)}")
+        import traceback
+        print('錯誤詳情:', traceback.format_exc())
+        return Response({
+            'success': False,
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])  # 允許未認證用戶訪問
+def register_api(request):
+    """
+    註冊 API 視圖
+    """
+    try:
+        # 打印完整的請求數據
+        print('收到註冊請求:', {
+            'data': request.data,
+            'content_type': request.content_type,
+            'method': request.method,
+            'headers': dict(request.headers)
+        })
+
+        # 獲取並驗證必要字段
+        required_fields = ['username', 'email', 'password1', 'password2']
+        missing_fields = [field for field in required_fields if not request.data.get(field)]
+        
+        if missing_fields:
+            print(f'缺少必要字段: {missing_fields}')
+            return Response({
+                'success': False,
+                'message': f'請提供以下必要信息: {", ".join(missing_fields)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 獲取數據
+        username = request.data.get('username')
+        email = request.data.get('email')
+        password1 = request.data.get('password1')
+        password2 = request.data.get('password2')
+        full_name = request.data.get('full_name', '')
+
+        # 打印處理後的數據（不包含密碼）
+        print('處理註冊數據:', {
+            'username': username,
+            'email': email,
+            'full_name': full_name,
+            'has_password1': bool(password1),
+            'has_password2': bool(password2)
+        })
+
+        # 驗證密碼是否匹配
+        if password1 != password2:
+            print('密碼不匹配')
+            return Response({
+                'success': False,
+                'message': '兩次輸入的密碼不一致'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 驗證密碼長度
+        if len(password1) < 6:
+            print('密碼太短')
+            return Response({
+                'success': False,
+                'message': '密碼長度至少需要6個字符'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 檢查用戶名是否已存在
+        if User.objects.filter(username=username).exists():
+            print(f'用戶名已存在: {username}')
+            return Response({
+                'success': False,
+                'message': '用戶名已存在'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 檢查郵箱是否已存在
+        if User.objects.filter(email=email).exists():
+            print(f'郵箱已被使用: {email}')
+            return Response({
+                'success': False,
+                'message': '郵箱已被使用'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 創建新用戶
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password1
+            )
+            print(f'用戶對象創建成功: {user.username} (ID: {user.id})')
+        except Exception as e:
+            print(f'創建用戶時出錯: {str(e)}')
+            return Response({
+                'success': False,
+                'message': '創建用戶時出錯'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 如果提供了全名，分割並設置
+        if full_name:
+            try:
+                name_parts = full_name.split(' ', 1)
+                user.first_name = name_parts[0]
+                if len(name_parts) > 1:
+                    user.last_name = name_parts[1]
+                user.save()
+                print(f'已更新用戶全名: {full_name}')
+            except Exception as e:
+                print(f'更新全名時出錯: {str(e)}')
+                # 不返回錯誤，因為這不是關鍵操作
+
+        # 生成 JWT token
+        try:
+            refresh = RefreshToken.for_user(user)
+            print('JWT token 生成成功')
+        except Exception as e:
+            print(f'生成 token 時出錯: {str(e)}')
+            return Response({
+                'success': False,
+                'message': '生成認證令牌時出錯'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        response_data = {
+            'success': True,
+            'message': '註冊成功',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+            }
+        }
+
+        print('註冊成功，返回數據:', response_data)
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        print(f"註冊過程中發生錯誤: {str(e)}")
+        import traceback
+        print('錯誤詳情:', traceback.format_exc())
+        return Response({
+            'success': False,
+            'message': f'註冊過程中發生錯誤: {str(e)}'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 @login_required
 def dashboard(request):
@@ -295,11 +495,6 @@ def index(request):
 
 def sweetalert_view(request):
     return render(request, 'sweetalert.html')
-
-def register_v2_view(request):
-    return render(request, 'register_v2.html')
-
-# 為其他 H-v4 HTML 文件添加類似的視圖函數
 
 @login_required
 def inbox(request):
@@ -644,6 +839,36 @@ def product_api(request, product_id=None):
             'description': product.description
         })
 
+@api_view(['POST'])
+@require_http_methods(["POST"])
+def logout_api(request):
+    """
+    登出 API 視圖
+    """
+    try:
+        # 執行 Django 的登出
+        django_logout(request)
+        
+        # 準備響應
+        response = Response({
+            'success': True,
+            'message': '登出成功'
+        }, status=status.HTTP_200_OK)
+        
+        # 清除相關的 cookies
+        response.delete_cookie('token')
+        response.delete_cookie('refresh_token')
+        response.delete_cookie('sessionid')  # 清除 Django session cookie
+        
+        return response
+        
+    except Exception as e:
+        print(f"登出錯誤: {str(e)}")
+        return Response({
+            'success': False,
+            'message': f'登出時發生錯誤: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_auth(request):
@@ -662,6 +887,7 @@ def check_auth(request):
             'full_name': f"{user.first_name} {user.last_name}".strip(),
             'last_login': user.last_login,
             'updated_at': user.date_joined,
+            'avatar': user.get_avatar_url() if hasattr(user, 'get_avatar_url') else None
         }
         
         return Response({
@@ -677,27 +903,92 @@ def check_auth(request):
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['POST'])
-@require_http_methods(["POST"])
-def logout(request):
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def profile_api(request):
     """
-    登出視圖 - 不需要驗證，因為即使 token 無效也應該允許登出
+    用戶資料 API 視圖
+    GET: 獲取用戶資料
+    PUT: 更新用戶資料
     """
     try:
-        # 執行 Django 的登出
-        django_logout(request)
+        user = request.user
+
+        if request.method == 'GET':
+            # 構建用戶資料
+            profile_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                'date_joined': user.date_joined,
+                'last_login': user.last_login,
+                'avatar': user.get_avatar_url() if hasattr(user, 'get_avatar_url') else None
+            }
+
+            return Response({
+                'success': True,
+                'profile': profile_data
+            })
+
+        elif request.method == 'PUT':
+            # 獲取更新數據
+            data = request.data
+            
+            # 更新基本信息
+            if 'first_name' in data:
+                user.first_name = data['first_name']
+            if 'last_name' in data:
+                user.last_name = data['last_name']
+            if 'email' in data:
+                # 檢查郵箱是否已被其他用戶使用
+                if User.objects.exclude(id=user.id).filter(email=data['email']).exists():
+                    return Response({
+                        'success': False,
+                        'message': '此郵箱已被使用'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                user.email = data['email']
+            
+            # 如果提供了新密碼
+            if 'current_password' in data and 'new_password' in data:
+                if not user.check_password(data['current_password']):
+                    return Response({
+                        'success': False,
+                        'message': '當前密碼不正確'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                user.set_password(data['new_password'])
+            
+            # 保存更改
+            user.save()
+
+            # 如果更新了密碼，需要重新生成 token
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                'success': True,
+                'message': '資料更新成功',
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'profile': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                    'date_joined': user.date_joined,
+                    'last_login': user.last_login,
+                    'avatar': user.get_avatar_url() if hasattr(user, 'get_avatar_url') else None
+                }
+            })
+
     except Exception as e:
-        print(f"Logout warning: {str(e)}")  # 僅記錄警告，不返回錯誤
-    
-    # 無論如何都返回成功
-    response = Response({
-        'success': True,
-        'message': '登出成功'
-    }, status=status.HTTP_200_OK)
-    
-    # 清除相關的 cookies
-    response.delete_cookie('token')
-    response.delete_cookie('refresh_token')
-    response.delete_cookie('sessionid')
-    
-    return response
+        print(f"用戶資料操作錯誤: {str(e)}")
+        import traceback
+        print('錯誤詳情:', traceback.format_exc())
+        return Response({
+            'success': False,
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
