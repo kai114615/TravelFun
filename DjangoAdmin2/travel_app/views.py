@@ -7,6 +7,13 @@ import time
 import json
 from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from rest_framework import viewsets, filters, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication
+from .serializers import TravelSerializers,TravelClassSerializers,TaiwanSerializers,TravelFilterSerializer,CountrySerializers
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 
 # Create your views here.
 from django.core.paginator import Paginator
@@ -404,7 +411,6 @@ def travelTown(request):
 
 
 from rest_framework import viewsets, filters,status
-from .serializers import TravelSerializers,TravelClassSerializers,TaiwanSerializers,TravelFilterSerializer,CountrySerializers
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -413,18 +419,26 @@ from django_filters.rest_framework import DjangoFilterBackend
 class CountryViewSet(viewsets.ModelViewSet):
     queryset = Counties.objects.all()
     serializer_class = CountrySerializers
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
 
 class TravelViewSet(viewsets.ModelViewSet):
     queryset = Travel.objects.all()
     serializer_class = TravelSerializers
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
 
 class TravelClassViewSet(viewsets.ModelViewSet):
     queryset = TravelClass.objects.all()
     serializer_class = TravelClassSerializers
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
 
 class TaiwanViewSet(viewsets.ModelViewSet):
     queryset = Taiwan.objects.all()
     serializer_class = TaiwanSerializers
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
 
 class SpotimagesspotPagination(PageNumberPagination):
     page_size=9 # 一頁幾筆資料
@@ -440,6 +454,8 @@ class SpotimagesspotPagination(PageNumberPagination):
 class TravelFilterViewSet(viewsets.ModelViewSet):
     queryset = Travel.objects.all()
     serializer_class = TravelFilterSerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter ]
     search_fields = ['travel_name']
 

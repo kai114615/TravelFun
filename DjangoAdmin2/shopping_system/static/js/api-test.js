@@ -1,3 +1,8 @@
+// 獲取 Token 的輔助函數
+function getToken() {
+    return document.cookie.replace(/(?:(?:^|.*;\s*)token\s*=\s*([^;]*).*$)|^.*$/, '$1');
+}
+
 // 獲取 CSRF Token 的輔助函數
 function getCookie(name) {
     let cookieValue = null;
@@ -35,7 +40,8 @@ async function testApi(method) {
             method: method,
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${getToken()}`  // 添加 JWT token
             }
         };
         
@@ -53,8 +59,14 @@ async function testApi(method) {
         }
         
         console.log(`發送請求到: ${url}`);
+        console.log('請求選項:', options);  // 添加日誌
+        
         const response = await fetch(url, options);
         const contentType = response.headers.get('content-type');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         if (contentType && contentType.includes('application/json')) {
             const data = await response.json();
@@ -68,6 +80,12 @@ async function testApi(method) {
     } catch (error) {
         console.error('API 請求出錯:', error);
         apiResponse.textContent = `錯誤: ${error.message}`;
+        
+        // 如果是認證錯誤，提示用戶重新登入
+        if (error.message.includes('401')) {
+            alert('認證已過期，請重新登入');
+            window.location.href = '/login/';
+        }
     }
 }
 
@@ -89,6 +107,14 @@ function updateFullUrl() {
 // 初始化函數
 export function initializeApiTest() {
     console.log('初始化 API 測試頁面');
+    
+    // 檢查是否已登入
+    const token = getToken();
+    if (!token) {
+        alert('請先登入');
+        window.location.href = '/login/';
+        return;
+    }
     
     // 初始化剪貼簿功能
     new ClipboardJS('#copyUrl');

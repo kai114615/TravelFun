@@ -58,7 +58,7 @@
 
 {% block extra_js %}
 <script>
-function sendRequest() {
+async function sendRequest() {
     const endpoint = document.getElementById('apiEndpoint').value;
     const method = document.getElementById('requestMethod').value;
     const params = document.getElementById('requestParams').value;
@@ -72,7 +72,9 @@ function sendRequest() {
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken')
-        }
+        },
+        // 添加 credentials 以發送 cookies
+        credentials: 'same-origin'
     };
 
     // 如果有請求參數且不是GET請求
@@ -85,14 +87,19 @@ function sendRequest() {
         }
     }
 
-    fetch(endpoint, fetchOptions)
-        .then(response => response.json())
-        .then(data => {
-            responseArea.innerHTML = JSON.stringify(data, null, 2);
-        })
-        .catch(error => {
-            responseArea.innerHTML = '錯誤：' + error.message;
-        });
+    try {
+        let response = await fetch(endpoint, fetchOptions);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        responseArea.innerHTML = JSON.stringify(data, null, 2);
+    } catch (error) {
+        responseArea.innerHTML = '錯誤：' + error.message;
+        console.error('API Error:', error);
+    }
 }
 
 // 獲取CSRF Token的函數
@@ -110,5 +117,10 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+// 頁面加載時顯示就緒狀態
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('responseArea').innerHTML = 'API 測試就緒，請選擇端點並發送請求';
+});
 </script>
 {% endblock %} 

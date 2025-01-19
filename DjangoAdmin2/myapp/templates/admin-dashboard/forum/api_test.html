@@ -113,21 +113,26 @@ function testApi(resource, method) {
         url: url,
         method: method,
         headers: {
-            'X-CSRFToken': getCookie('csrftoken')
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        xhrFields: {
+            withCredentials: true
         },
         success: function(response) {
             responseDiv.innerHTML = `<pre>${JSON.stringify(response, null, 2)}</pre>`;
         },
         error: function(xhr) {
             responseDiv.innerHTML = `<pre class="error">Error: ${xhr.status} - ${xhr.statusText}</pre>`;
+            if (xhr.status === 401) {
+                console.log('Session may have expired. Please ensure you are logged in.');
+            }
         }
     });
 }
 
 function testApiWithId(resource, method) {
-    const idInput = document.getElementById(`${resource.slice(0, -1)}Id`);
-    const id = idInput.value;
-    
+    const id = document.getElementById(`${resource.slice(0, -1)}Id`).value;
     if (!id) {
         alert(`請輸入${resource.slice(0, -1)}ID`);
         return;
@@ -140,13 +145,20 @@ function testApiWithId(resource, method) {
         url: url,
         method: method,
         headers: {
-            'X-CSRFToken': getCookie('csrftoken')
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        xhrFields: {
+            withCredentials: true
         },
         success: function(response) {
             responseDiv.innerHTML = `<pre>${JSON.stringify(response, null, 2)}</pre>`;
         },
         error: function(xhr) {
             responseDiv.innerHTML = `<pre class="error">Error: ${xhr.status} - ${xhr.statusText}</pre>`;
+            if (xhr.status === 401) {
+                console.log('Session may have expired. Please ensure you are logged in.');
+            }
         }
     });
 }

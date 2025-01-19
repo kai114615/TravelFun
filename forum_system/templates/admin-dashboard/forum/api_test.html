@@ -1,0 +1,158 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}API 測試{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">API 測試</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="apiUrl" class="form-label">API URL：</label>
+                <div class="input-group">
+                    <input type="text" id="apiUrl" class="form-control" value="/api/test/posts/">
+                    <button class="btn btn-outline-secondary" type="button" id="copyUrl">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="text-muted">完整 URL：<span id="fullUrl"></span></small>
+            </div>
+
+            <div class="mb-3">
+                <label for="productId" class="form-label">ID：</label>
+                <input type="text" id="productId" class="form-control">
+            </div>
+
+            <div class="btn-group mb-3">
+                <button type="button" class="btn btn-primary" data-method="GET">GET</button>
+                <button type="button" class="btn btn-success" data-method="POST">POST</button>
+                <button type="button" class="btn btn-warning" data-method="PUT">PUT</button>
+                <button type="button" class="btn btn-danger" data-method="DELETE">DELETE</button>
+            </div>
+
+            <form id="requestForm" style="display: none;" class="mb-3">
+                <div class="mb-3">
+                    <label for="name" class="form-label">名稱：</label>
+                    <input type="text" id="name" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">描述：</label>
+                    <textarea id="description" class="form-control"></textarea>
+                </div>
+            </form>
+
+            <div class="mb-3">
+                <label class="form-label">API 響應：</label>
+                <pre id="apiResponse" class="border p-3 bg-light"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const apiUrlInput = document.getElementById('apiUrl');
+    const productIdInput = document.getElementById('productId');
+    const fullUrl = document.getElementById('fullUrl');
+    const copyButton = document.getElementById('copyUrl');
+    const apiResponse = document.getElementById('apiResponse');
+    const requestForm = document.getElementById('requestForm');
+
+    function updateFullUrl() {
+        const baseUrl = window.location.origin;
+        const apiUrl = apiUrlInput.value;
+        const productId = productIdInput.value;
+        fullUrl.textContent = `${baseUrl}${apiUrl}${productId ? productId + '/' : ''}`;
+    }
+
+    apiUrlInput.addEventListener('input', updateFullUrl);
+    productIdInput.addEventListener('input', updateFullUrl);
+    updateFullUrl();
+
+    copyButton.addEventListener('click', function() {
+        const textToCopy = fullUrl.textContent;
+        navigator.clipboard.writeText(textToCopy).then(function() {
+            alert('URL 已複製到剪貼簿');
+        });
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    async function sendRequest(method) {
+        try {
+            const baseUrl = window.location.origin;
+            const apiUrl = apiUrlInput.value;
+            const productId = productIdInput.value;
+            const url = `${baseUrl}${apiUrl}${productId ? productId + '/' : ''}`;
+
+            const csrftoken = getCookie('csrftoken');
+            if (!csrftoken) {
+                throw new Error('CSRF token not found');
+            }
+
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                credentials: 'same-origin'  // 確保發送 cookies
+            };
+
+            if (method !== 'GET' && method !== 'DELETE') {
+                const formData = {
+                    name: document.getElementById('name').value,
+                    description: document.getElementById('description').value
+                };
+                options.body = JSON.stringify(formData);
+            }
+
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                if (response.status === 401) {
+                    window.location.href = '/login/';  // 重定向到登入頁面
+                    return;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            apiResponse.textContent = JSON.stringify(data, null, 2);
+            apiResponse.classList.remove('text-danger');
+        } catch (error) {
+            apiResponse.textContent = `錯誤: ${error.message}`;
+            apiResponse.classList.add('text-danger');
+        }
+    }
+
+    document.querySelectorAll('[data-method]').forEach(button => {
+        button.addEventListener('click', function() {
+            const method = this.getAttribute('data-method');
+            if (method === 'POST' || method === 'PUT') {
+                requestForm.style.display = 'block';
+            } else {
+                requestForm.style.display = 'none';
+            }
+            sendRequest(method);
+        });
+    });
+});
+</script>
+{% endblock %} 

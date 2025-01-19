@@ -15,6 +15,7 @@ from .permissions import IsAuthorOrReadOnly, IsAdminOrReadOnly
 from django.views.generic import ListView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework.views import APIView
+from rest_framework.authentication import SessionAuthentication
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """討論區分類視圖集"""
@@ -289,6 +290,9 @@ class TestPostApiView(APIView):
 
 class TestCategoryApiView(APIView):
     """分類API測試"""
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request, pk=None):
         if pk:
             return Response({

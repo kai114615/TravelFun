@@ -1,0 +1,61 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}API 測試{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">API 測試</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="apiUrl" class="form-label">API URL：</label>
+                <div class="input-group">
+                    <input type="text" id="apiUrl" class="form-control" value="/api/test/posts/">
+                    <button class="btn btn-outline-secondary" type="button" id="copyUrl">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="text-muted">完整 URL：<span id="fullUrl"></span></small>
+            </div>
+
+            <div class="mb-3">
+                <label for="productId" class="form-label">ID：</label>
+                <input type="text" id="productId" class="form-control">
+            </div>
+
+            <div class="btn-group mb-3">
+                <button type="button" class="btn btn-primary" data-method="GET">GET</button>
+                <button type="button" class="btn btn-success" data-method="POST">POST</button>
+                <button type="button" class="btn btn-warning" data-method="PUT">PUT</button>
+                <button type="button" class="btn btn-danger" data-method="DELETE">DELETE</button>
+            </div>
+
+            <form id="requestForm" style="display: none;" class="mb-3">
+                <div class="mb-3">
+                    <label for="name" class="form-label">名稱：</label>
+                    <input type="text" id="name" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">描述：</label>
+                    <textarea id="description" class="form-control"></textarea>
+                </div>
+            </form>
+
+            <div class="mb-3">
+                <label class="form-label">API 響應：</label>
+                <pre id="apiResponse" class="border p-3 bg-light"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.8/dist/clipboard.min.js"></script>
+<script type="module">
+    import { initializeApiTest } from "{% static 'js/api-test.js' %}";
+    initializeApiTest();
+</script>
+{% endblock %} 
