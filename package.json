@@ -17,6 +17,7 @@
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@vicons/antd": "^0.12.0",
+    "@vicons/ionicons5": "^0.13.0",
     "@vicons/material": "^0.12.0",
     "@voomap/core": "0.0.1-beta.25",
     "@voomap/map": "0.0.1-beta.25",
