@@ -4,6 +4,7 @@ from django.templatetags.static import static
 from ckeditor.fields import RichTextField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
+import os
 
 class Member(AbstractUser):
     USER_LEVELS = (
@@ -15,15 +16,35 @@ class Member(AbstractUser):
     full_name = models.CharField(max_length=255, unique=True, blank=True, null=True, verbose_name='全名')
     google_id = models.CharField(max_length=255, blank=True, null=True, verbose_name='Google ID')
     level = models.CharField(max_length=10, choices=USER_LEVELS, default='user', verbose_name='等級')
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name='頭像')
+    avatar = models.ImageField(
+        upload_to='avatars/%Y/%m/%d/',  # 按日期組織文件
+        blank=True,
+        null=True,
+        verbose_name='頭像',
+        help_text='支持 jpg、jpeg、png 格式，文件大小不超過 2MB'
+    )
     favorite_restaurants = models.ManyToManyField('Restaurant', related_name='favorited_by', blank=True, verbose_name='喜愛的餐廳')
     favorite_products = models.ManyToManyField('Product', related_name='favorited_by', blank=True, verbose_name='喜愛的商品')
     address = models.CharField(max_length=255, blank=True, null=True, verbose_name='地址')
 
     def get_avatar_url(self):
-        if self.avatar:
-            return self.avatar.url
+        if self.avatar and hasattr(self.avatar, 'url'):
+            # 確保返回的 URL 使用正斜線
+            return self.avatar.url.replace('\\', '/')
         return static('img/ex1.jpg')  # 使用 ex1.jpg 作為預設頭像
+
+    def save(self, *args, **kwargs):
+        # 如果上傳了新頭像，刪除舊頭像
+        if self.pk:
+            try:
+                old_instance = Member.objects.get(pk=self.pk)
+                if old_instance.avatar and self.avatar != old_instance.avatar:
+                    # 確保文件存在且不是預設頭像
+                    if os.path.isfile(old_instance.avatar.path):
+                        os.remove(old_instance.avatar.path)
+            except (Member.DoesNotExist, ValueError, OSError):
+                pass  # 忽略任何錯誤
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = '會員'

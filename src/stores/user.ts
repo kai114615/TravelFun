@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { apiUserSignin, apiUserLogout, apiUserCheckSignin } from '../utils/api';
 import { useRouter } from 'vue-router';
 import { successMsg } from '@/utils/api';
@@ -20,8 +20,71 @@ export const useUserStore = defineStore('user', () => {
   const loginStatus = ref(false);
   const isLoading = ref(false);
 
+  // 計算屬性：用戶顯示名稱
+  const displayName = computed(() => {
+    return userInfo.value?.full_name || userInfo.value?.username || '';
+  });
+
+  // 更新用戶狀態
+  const updateUserState = (user: UserInfo | null, status: boolean = true) => {
+    console.log('Updating user state:', { user, status });
+    userInfo.value = user;
+    loginStatus.value = status;
+    
+    // 同步更新到 localStorage 和 sessionStorage
+    if (user) {
+      localStorage.setItem('userInfo', JSON.stringify(user));
+      localStorage.setItem('loginStatus', 'true');
+      sessionStorage.setItem('userInfo', JSON.stringify(user));
+      sessionStorage.setItem('loginStatus', 'true');
+    } else {
+      localStorage.removeItem('userInfo');
+      localStorage.removeItem('loginStatus');
+      sessionStorage.removeItem('userInfo');
+      sessionStorage.removeItem('loginStatus');
+    }
+  };
+
+  // 初始化用戶狀態
+  const initializeUserState = () => {
+    console.log('Initializing user state');
+    // 優先從 sessionStorage 讀取
+    const sessionUserInfo = sessionStorage.getItem('userInfo');
+    const sessionLoginStatus = sessionStorage.getItem('loginStatus');
+    
+    if (sessionUserInfo && sessionLoginStatus === 'true') {
+      try {
+        const parsedUserInfo = JSON.parse(sessionUserInfo);
+        updateUserState(parsedUserInfo, true);
+        console.log('User state initialized from sessionStorage');
+        return;
+      } catch (error) {
+        console.error('Error parsing session user info:', error);
+      }
+    }
+    
+    // 如果 sessionStorage 沒有，則從 localStorage 讀取
+    const localUserInfo = localStorage.getItem('userInfo');
+    const localLoginStatus = localStorage.getItem('loginStatus');
+    
+    if (localUserInfo && localLoginStatus === 'true') {
+      try {
+        const parsedUserInfo = JSON.parse(localUserInfo);
+        updateUserState(parsedUserInfo, true);
+        console.log('User state initialized from localStorage');
+      } catch (error) {
+        console.error('Error parsing stored user info:', error);
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('loginStatus');
+      }
+    } else {
+      updateUserState(null, false);
+    }
+  };
+
   // 登入功能
   const signin = async (data: { username: string; password: string; rememberMe?: boolean }) => {
+    console.log('Signing in...');
     isLoading.value = true;
 
     try {
@@ -30,29 +93,35 @@ export const useUserStore = defineStore('user', () => {
         password: data.password,
       });
 
-      const { data: { success, token, user } } = res;
+      const { data: responseData } = res;
+      console.log('Sign in response:', responseData);
 
-      if (success) {
+      if (responseData.success) {
         // 設置 cookie 過期時間
         const expires = data.rememberMe
           ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString()
           : '';
 
-        document.cookie = `token=${token};path=/;expires=${expires}`;
-        if (res.data.refresh) {
-          document.cookie = `refresh_token=${res.data.refresh};path=/;expires=${expires}`;
+        // 保存 token
+        document.cookie = `token=${responseData.data.token};path=/;expires=${expires}`;
+        if (responseData.data.refresh) {
+          document.cookie = `refresh_token=${responseData.data.refresh};path=/;expires=${expires}`;
         }
 
-        loginStatus.value = true;
-        userInfo.value = user;
+        // 更新用戶狀態
+        updateUserState(responseData.data.user, true);
+        
+        // 強制保存到 sessionStorage，確保頁面重新載入時能恢復狀態
+        sessionStorage.setItem('userInfo', JSON.stringify(responseData.data.user));
+        sessionStorage.setItem('loginStatus', 'true');
 
-        // 如果選擇記住我，保存用戶資料
-        if (data.rememberMe) {
-          localStorage.setItem('userInfo', JSON.stringify(user));
-        }
+        // 等待一下確保狀態已更新
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-        // 登入成功後不在這裡處理導向，由調用方處理
+        console.log('User state updated after sign in');
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -64,48 +133,37 @@ export const useUserStore = defineStore('user', () => {
   // 檢查登入狀態
   const checkLoginStatus = async () => {
     try {
-      // 先檢查 cookie 中是否有 token
-      const token = document.cookie.replace(/(?:(?:^|.*;\s*)token\s*=\s*([^;]*).*$)|^.*$/, '$1');
+      const response = await apiUserCheckSignin();
+      const { success, isAuthenticated, user } = response.data;
       
-      if (!token) {
-        loginStatus.value = false;
-        userInfo.value = null;
-        localStorage.removeItem('userInfo');
-        return false;
-      }
-
-      const res = await apiUserCheckSignin();
-      const { data: { success, isAuthenticated, user } } = res;
-
-      if (success && isAuthenticated) {
-        loginStatus.value = true;
+      loginStatus.value = isAuthenticated;
+      if (isAuthenticated && user) {
         userInfo.value = user;
-        return true;
       } else {
-        loginStatus.value = false;
         userInfo.value = null;
-        localStorage.removeItem('userInfo');
-        // 清除無效的 token
-        document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-        document.cookie = 'refresh_token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-        return false;
       }
+      
+      return isAuthenticated;
     } catch (error) {
-      console.error('Check login status failed:', error);
+      console.error('檢查登入狀態時發生錯誤:', error);
       loginStatus.value = false;
       userInfo.value = null;
-      localStorage.removeItem('userInfo');
       return false;
     }
   };
 
+  // 設置登入狀態
+  const setLoginStatus = (status: boolean, user = null) => {
+    loginStatus.value = status;
+    userInfo.value = user;
+  };
+
   // 登出功能
   const logout = async () => {
+    console.log('Logging out...');
     try {
-      // 無論 API 呼叫是否成功，都清除本地資料
-      userInfo.value = null;
-      loginStatus.value = false;
-      localStorage.removeItem('userInfo');
+      // 清除用戶狀態
+      updateUserState(null, false);
       
       // 清除所有相關的 cookies
       document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
@@ -120,8 +178,8 @@ export const useUserStore = defineStore('user', () => {
       // 顯示登出成功訊息
       successMsg('已成功登出');
 
-      // 跳轉到登入頁面
-      router.push('/login');
+      // 跳轉到首頁
+      router.push('/');
       
       return true;
     } catch (error) {
@@ -130,12 +188,18 @@ export const useUserStore = defineStore('user', () => {
     }
   };
 
+  // 初始化
+  initializeUserState();
+
   return {
     userInfo,
     loginStatus,
     isLoading,
+    displayName,
     signin,
     logout,
     checkLoginStatus,
+    setLoginStatus,
+    updateUserState,
   };
 });

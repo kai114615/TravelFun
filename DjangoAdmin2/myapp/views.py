@@ -21,6 +21,7 @@ from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 from rest_framework_simplejwt.tokens import RefreshToken
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -107,22 +108,27 @@ def signin(request):
                 'message': '登入成功',
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+                'data': {
+                    'token': str(refresh.access_token),
+                    'refresh': str(refresh),
+                    'success': True,
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+                    }
                 }
             }
 
             print('登入成功，返回數據:', response_data)
             return Response(response_data, status=status.HTTP_200_OK)
-        else:
-            print('登入失敗：用戶名或密碼錯誤')
-            return Response({
-                'success': False,
-                'message': '用戶名或密碼錯誤'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        print('登入失敗：用戶名或密碼錯誤')
+        return Response({
+            'success': False,
+            'message': '用戶名或密碼錯誤'
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
     except Exception as e:
         print(f"登入錯誤: {str(e)}")
@@ -134,7 +140,7 @@ def signin(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # 允許未認證用戶訪問
+@permission_classes([AllowAny])
 def register_api(request):
     """
     註冊 API 視圖
@@ -145,8 +151,21 @@ def register_api(request):
             'data': request.data,
             'content_type': request.content_type,
             'method': request.method,
-            'headers': dict(request.headers)
+            'headers': dict(request.headers),
+            'files': list(request.FILES.keys()) if request.FILES else []
         })
+
+        # 檢查文件
+        if 'avatar' in request.FILES:
+            avatar = request.FILES['avatar']
+            print('收到頭像文件:', {
+                'name': avatar.name,
+                'content_type': avatar.content_type,
+                'size': avatar.size,
+                'charset': getattr(avatar, 'charset', None)
+            })
+        else:
+            print('請求中沒有頭像文件')
 
         # 獲取並驗證必要字段
         required_fields = ['username', 'email', 'password1', 'password2']
@@ -172,7 +191,8 @@ def register_api(request):
             'email': email,
             'full_name': full_name,
             'has_password1': bool(password1),
-            'has_password2': bool(password2)
+            'has_password2': bool(password2),
+            'has_avatar': bool('avatar' in request.FILES)
         })
 
         # 驗證密碼是否匹配
@@ -215,8 +235,65 @@ def register_api(request):
                 password=password1
             )
             print(f'用戶對象創建成功: {user.username} (ID: {user.id})')
+            
+            # 處理頭像上傳
+            if 'avatar' in request.FILES:
+                avatar = request.FILES['avatar']
+                try:
+                    print('開始處理頭像:', {
+                        'name': avatar.name,
+                        'content_type': avatar.content_type,
+                        'size': avatar.size
+                    })
+
+                    # 檢查文件類型
+                    if not avatar.content_type.startswith('image/'):
+                        raise ValueError('請上傳圖片檔案')
+                    
+                    # 檢查文件大小（例如限制為 2MB）
+                    if avatar.size > 2 * 1024 * 1024:
+                        raise ValueError('圖片大小不能超過 2MB')
+
+                    # 設置保存路徑
+                    current_date = timezone.now()
+                    relative_path = os.path.join('avatars', str(current_date.year), str(current_date.month))
+                    upload_path = os.path.join('media', relative_path)
+                    
+                    # 確保目錄存在
+                    os.makedirs(upload_path, exist_ok=True)
+                    
+                    # 生成文件名
+                    file_extension = os.path.splitext(avatar.name)[1].lower()
+                    unique_filename = f"{user.username}_{current_date.strftime('%Y%m%d_%H%M%S')}{file_extension}"
+                    
+                    # 完整的相對路徑（用於數據庫）
+                    avatar_path = os.path.join(relative_path, unique_filename)
+                    full_path = os.path.join('media', avatar_path)
+                    
+                    print(f'準備保存頭像到: {full_path}')
+                    
+                    # 保存文件
+                    with open(full_path, 'wb+') as destination:
+                        for chunk in avatar.chunks():
+                            destination.write(chunk)
+                    
+                    # 更新用戶頭像路徑
+                    user.avatar = avatar_path
+                    user.save()
+                    
+                    print(f'頭像成功保存，路徑: {avatar_path}')
+                    
+                except Exception as e:
+                    print(f'頭像上傳失敗: {str(e)}')
+                    import traceback
+                    print('錯誤詳情:', traceback.format_exc())
+            else:
+                print('沒有收到頭像文件，跳過頭像處理')
+            
         except Exception as e:
             print(f'創建用戶時出錯: {str(e)}')
+            import traceback
+            print('錯誤詳情:', traceback.format_exc())
             return Response({
                 'success': False,
                 'message': '創建用戶時出錯'
@@ -246,29 +323,37 @@ def register_api(request):
                 'message': '生成認證令牌時出錯'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        # 修改頭像 URL 的處理
+        avatar_url = user.avatar.url if user.avatar else None
+        if avatar_url:
+            # 確保使用正斜線，移除開頭的斜線以匹配 MEDIA_URL
+            avatar_url = avatar_url.replace('\\', '/').lstrip('/')
+            avatar_url = f'/media/{avatar_url}'
+
         response_data = {
             'success': True,
-            'message': '註冊成功',
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
+            'message': '註冊成功！',
             'user': {
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
-                'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
-            }
+                'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                'avatar_url': avatar_url
+            },
+            'access': str(refresh.access_token),
+            'refresh': str(refresh)
         }
 
-        print('註冊成功，返回數據:', response_data)
+        print('返回的用戶數據:', response_data['user'])
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        print(f"註冊過程中發生錯誤: {str(e)}")
+        print(f"註冊錯誤: {str(e)}")
         import traceback
         print('錯誤詳情:', traceback.format_exc())
         return Response({
             'success': False,
-            'message': f'註冊過程中發生錯誤: {str(e)}'
+            'message': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
 
 @login_required

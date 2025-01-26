@@ -10,7 +10,7 @@ import { storeToRefs } from 'pinia';
 import { computed, ref, onMounted, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import ShopCart from './ShopCart.vue';
-import { navList } from './navList.ts';
+import { createNavList } from './navList.ts';
 import { HamburgerMenu } from './Hamburger';
 import { websiteConfig } from '@/config/website.config';
 import { useCartStore, useDeviceStore, useFavoriteStore, useUserStore } from '@/stores';
@@ -27,14 +27,14 @@ const userStore = useUserStore();
 const { totalNum, cartList } = storeToRefs(cartStore);
 const { isMobile } = storeToRefs(deviceStore);
 const { favoriteList } = storeToRefs(favoriteStore);
-const { loginStatus, userInfo } = storeToRefs(userStore);
+const { loginStatus, displayName } = storeToRefs(userStore);
 
 const cartRef = ref<InstanceType<typeof ShopCart>>();
 const hamBurRef = ref<InstanceType<typeof HamburgerMenu>>();
 
-const isFixed = computed(() => new Set(['Home', 'City', 'Country', 'Member']).has(route.name!.toString()));
+const isFixed = computed(() => new Set(['Home', 'City', 'Country', 'Member']).has(route.name?.toString() || ''));
 
-const navListComponent = computed(() => navList.filter(({ component }) => component));
+const navListComponent = computed(() => createNavList().filter(({ component }) => component));
 
 function handleClick(target: string) {
   if (target === 'cart')
@@ -45,17 +45,28 @@ function handleClick(target: string) {
 
 const handleLogout = async () => {
   await userStore.logout();
-  router.push('/');
 };
 
-watch(loginStatus, (newStatus) => {
+// 監聽登入狀態變化
+watch(loginStatus, async (newStatus) => {
   console.log('Login status changed:', newStatus);
-});
+  if (newStatus) {
+    await userStore.checkLoginStatus();
+  }
+}, { immediate: true });
+
+// 監聽路由變化
+watch(
+  () => route.path,
+  async () => {
+    await userStore.checkLoginStatus();
+  }
+);
 
 onMounted(async () => {
-  console.log('Component mounted, checking login status...');
+  console.log('Header component mounted');
+  // 組件掛載時檢查登入狀態
   await userStore.checkLoginStatus();
-  console.log('Login status after check:', loginStatus.value);
 });
 </script>
 
@@ -86,7 +97,7 @@ onMounted(async () => {
         </div>
         <div class="flex items-center justify-between lg:w-[256px]">
           <div class="hidden place-content-center md:grid">
-            <RouterLink class="leading-none" :to="{ name: 'WishList' }">
+            <RouterLink v-if="loginStatus" class="leading-none" :to="{ name: 'WishList' }">
               <NIcon v-if="favoriteList.length !== 0" size="24" color="#EE5220" class="icon-hover">
                 <FavoriteOutlined />
               </NIcon>
@@ -96,7 +107,7 @@ onMounted(async () => {
             </RouterLink>
           </div>
           <div v-if="loginStatus" class="hidden lg:flex items-center justify-center text-base gap-4">
-            <span class="text-white">{{ userInfo?.full_name || userInfo?.username }}</span>
+            <span class="text-white">{{ displayName }}</span>
             <button
               @click="handleLogout"
               class="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"

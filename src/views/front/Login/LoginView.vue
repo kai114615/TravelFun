@@ -108,11 +108,13 @@ const handleSubmit = () => {
         
         // 檢查是否有重定向路徑
         const redirect = route.query.redirect as string;
-        if (redirect) {
-          router.push(redirect);
-        } else {
-          router.push('/member/dashboard');
-        }
+        setTimeout(() => {
+          if (redirect) {
+            window.location.href = window.location.origin + '/#' + redirect;
+          } else {
+            window.location.href = window.location.origin + '/#/member/dashboard';
+          }
+        }, 500);
       } catch (error: any) {
         message.error(error.response?.data?.detail || error.message || '登入失敗');
         generateCaptcha(); // 重新生成驗證碼

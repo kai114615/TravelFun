@@ -132,10 +132,27 @@ CKEDITOR_5_UPLOAD_PATH = "uploads/"  # 媒體文件上傳路徑
 
 # 靜態文件和媒體文件設定
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'static'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media' 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# 確保媒體文件目錄存在
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+
+# 文件上傳設定
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+# 添加文件處理相關設置
+FILE_UPLOAD_HANDLERS = [
+    'django.core.files.uploadhandler.MemoryFileUploadHandler',
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
+]
 
 # 調試日誌配置
 LOGGING = {

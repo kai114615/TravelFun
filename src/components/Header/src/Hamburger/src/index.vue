@@ -3,9 +3,9 @@ import {
   KeyboardArrowRightRound,
 } from '@vicons/material';
 import { NCollapse, NCollapseItem, NDrawer, NIcon } from 'naive-ui';
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { onBeforeRouteUpdate } from 'vue-router';
-import { handleItemHeaderClick, navList } from '../../navList.ts';
+import { handleItemHeaderClick, createNavList } from '../../navList.ts';
 import HamburgerBtn from './Btn.vue';
 import type { DrawerActive } from '@/types';
 
@@ -21,6 +21,8 @@ const activate: DrawerActive = reactive({
   active: false,
   placement: 'bottom',
 });
+
+const navList = computed(() => createNavList());
 
 function toggleActive() {
   if (!activate.active)
@@ -58,8 +60,7 @@ defineExpose({
         }"
         accordion
         arrow-placement="right"
-        @item-header-click="handleItemHeaderClick
-        "
+        @item-header-click="handleItemHeaderClick"
       >
         <template #arrow>
           <NIcon size="24">

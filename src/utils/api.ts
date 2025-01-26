@@ -201,7 +201,74 @@ const api = {
 };
 
 // API USER
-const apiUserRegister = (data: FormData) => request.post(api.user.register, data);
+const apiUserRegister = async (data: FormData) => {
+  try {
+    // 先檢查服務器狀態
+    const isServerOnline = await checkServerStatus();
+    if (!isServerOnline) {
+      errorMsg(
+        '連接失敗',
+        '後端服務器未啟動或無法訪問，請檢查：\n' +
+        '1. Django 服務器是否已啟動 (python manage.py runserver)\n' +
+        '2. 端口 8000 是否被占用\n' +
+        '3. 防火牆設置是否正確\n' +
+        '4. Django settings.py 中的 CORS 設定是否正確\n' +
+        '5. Django 是否已安裝 django-cors-headers'
+      );
+      throw new Error('後端服務器未啟動或無法訪問');
+    }
+
+    // 檢查 FormData 內容
+    console.log('準備發送的註冊數據:');
+    for (let [key, value] of data.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}:`, {
+          name: value.name,
+          type: value.type,
+          size: value.size
+        });
+      } else {
+        console.log(`${key}:`, value);
+      }
+    }
+    
+    const response = await request.post(api.user.register, data, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    console.log('註冊響應:', response.data);
+
+    if (response.data?.success) {
+      successMsg('註冊成功', '歡迎加入！');
+    }
+    return response;
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    if (error.response) {
+      // 服務器回應了錯誤
+      errorMsg(
+        '註冊失敗',
+        error.response.data?.message || '註冊失敗，請稍後重試'
+      );
+    } else if (error.request) {
+      // 請求發出但沒有收到回應
+      errorMsg(
+        '連接失敗',
+        '無法連接到後端服務器，請檢查：\n' +
+        '1. 後端服務器是否啟動 (http://127.0.0.1:8000)\n' +
+        '2. CORS 設定是否正確\n' +
+        '3. 網路連接是否正常\n' +
+        '4. 瀏覽器控制台是否有其他錯誤'
+      );
+    } else {
+      // 請求配置出錯
+      errorMsg('請求錯誤', error.message);
+    }
+    throw error;
+  }
+};
 const apiUserSignin = async (data: any) => {
   try {
     // 先檢查服務器狀態

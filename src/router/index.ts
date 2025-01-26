@@ -42,6 +42,7 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/front/Member/MemberView.vue'),
         meta: {
           title: '會員中心 - Travel Fun',
+          requiresAuth: true
         },
       },
       {
@@ -235,37 +236,55 @@ const routes: Array<RouteRecordRaw> = [
     path: '/member',
     name: 'MemberLayout',
     component: () => import('@/views/front/Member/MemberLayout.vue'),
-    meta: { requiresAuth: true },
+    meta: { 
+      requiresAuth: true,
+      title: '會員中心'
+    },
     children: [
       {
         path: 'dashboard',
         name: 'MemberDashboard',
         component: () => import('@/views/front/Member/DashboardView.vue'),
-        meta: { title: '會員中心' }
+        meta: { 
+          requiresAuth: true,
+          title: '會員中心' 
+        }
       },
       {
         path: 'profile',
         name: 'MemberProfile',
         component: () => import('@/views/front/Member/ProfileView.vue'),
-        meta: { title: '個人資料' }
+        meta: { 
+          requiresAuth: true,
+          title: '個人資料' 
+        }
       },
       {
         path: 'orders',
         name: 'MemberOrders',
         component: () => import('@/views/front/Member/OrdersView.vue'),
-        meta: { title: '訂單管理' }
+        meta: { 
+          requiresAuth: true,
+          title: '訂單管理' 
+        }
       },
       {
         path: 'messages',
         name: 'MemberMessages',
         component: () => import('@/views/front/Member/MessagesView.vue'),
-        meta: { title: '訊息中心' }
+        meta: { 
+          requiresAuth: true,
+          title: '訊息中心' 
+        }
       },
       {
         path: 'coupons',
         name: 'MemberCoupons',
         component: () => import('@/views/front/Member/CouponsView.vue'),
-        meta: { title: '優惠券' }
+        meta: { 
+          requiresAuth: true,
+          title: '優惠券' 
+        }
       }
     ]
   }
@@ -282,25 +301,45 @@ const router = createRouter({
 // 路由守衛
 router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore();
-  const isAuthenticated = await userStore.checkLoginStatus();
-
-  // 如果用戶已登入且嘗試訪問登入頁面，重定向到首頁
-  if (isAuthenticated && to.name === 'Login') {
-    next({ name: 'Home' });
-    return;
-  }
-
-  // 檢查是否需要認證
-  if (to.meta.requiresAuth || to.path.startsWith('/member')) {
-    if (!isAuthenticated) {
-      // 如果未登入，顯示提示並重定向到登入頁面
-      message.warning('請先登入會員');
-      next({ 
-        name: 'Login',
-        query: { redirect: to.fullPath } // 保存原目標路徑
-      });
+  
+  // 檢查是否需要認證的路由
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth || to.path.includes('/member'));
+  
+  if (requiresAuth) {
+    try {
+      const isAuthenticated = await userStore.checkLoginStatus();
+      if (!isAuthenticated) {
+        message.warning('請先登入會員');
+        next({ 
+          name: 'Login',
+          query: { redirect: to.fullPath }
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('檢查登入狀態時發生錯誤:', error);
+      message.error('驗證登入狀態時發生錯誤，請稍後再試');
+      next({ name: 'Login' });
       return;
     }
+  }
+
+  // 如果用戶已登入且嘗試訪問登入/註冊頁面，重定向到首頁
+  if (to.name === 'Login' || to.name === 'Register') {
+    try {
+      const isAuthenticated = await userStore.checkLoginStatus();
+      if (isAuthenticated) {
+        next({ name: 'Home' });
+        return;
+      }
+    } catch (error) {
+      console.error('檢查登入狀態時發生錯誤:', error);
+    }
+  }
+
+  // 更新頁面標題
+  if (to.meta.title) {
+    document.title = to.meta.title;
   }
 
   next();

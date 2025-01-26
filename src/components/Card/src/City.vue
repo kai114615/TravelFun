@@ -16,7 +16,7 @@ const getImage = computed(() => `/images/city/city_${city}.jpg`);
 <template>
   <RouterLink
     class="relative block w-full overflow-hidden rounded-m"
-    :to="{ name: 'City', params: { cityName: city } }"
+    :to="{ name: 'Home' }"
   >
     <div
       class="clear-scale h-40 w-full cursor-pointer rounded-m bg-cc-other-3 bg-cover bg-center transition-transform duration-500 md:h-60"
