@@ -3,6 +3,9 @@ from django.conf import settings
 from django.utils import timezone
 from django_ckeditor_5.fields import CKEditor5Field
 from myapp.models import Member  # 引入 Member 模型
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class Category(models.Model):
     """討論區分類"""
@@ -32,6 +35,7 @@ class Post(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='posts', verbose_name='分類')
     views = models.PositiveIntegerField('瀏覽次數', default=0)
     likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='liked_posts', blank=True, verbose_name='按讚')
+    tags = models.ManyToManyField('Tag', related_name='posts', blank=True, verbose_name='標籤')
     created_at = models.DateTimeField('發布時間', default=timezone.now)
     updated_at = models.DateTimeField('更新時間', auto_now=True)
     is_deleted = models.BooleanField('是否刪除', default=False)
@@ -147,3 +151,19 @@ class ProductRanking(models.Model):
 
     def __str__(self):
         return self.title
+
+class Tag(models.Model):
+    """文章標籤模型"""
+    name = models.CharField('標籤名稱', max_length=50, unique=True)
+    icon = models.CharField('標籤圖標', max_length=50, blank=True)
+    description = models.TextField('標籤描述', blank=True)
+    created_at = models.DateTimeField('創建時間', default=timezone.now)
+    updated_at = models.DateTimeField('更新時間', auto_now=True)
+    
+    class Meta:
+        verbose_name = '標籤'
+        verbose_name_plural = '標籤管理'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.name

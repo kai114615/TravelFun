@@ -264,9 +264,20 @@ const { userInfo } = storeToRefs(userStore)
 
 const baseUrl = 'http://127.0.0.1:8000'
 const avatarUrl = computed(() => {
-  return userInfo.value?.avatar 
-    ? `${baseUrl}${userInfo.value.avatar}`
-    : `${baseUrl}/static/img/ex1.jpg`
+  if (!userInfo.value?.avatar_url) {
+    return `${baseUrl}/static/img/ex1.jpg`
+  }
+  
+  let url = userInfo.value.avatar_url
+  // 移除開頭的斜線（如果存在）
+  url = url.replace(/^\/+/, '')
+  // 移除重複的 media 前綴
+  url = url.replace(/^media\/media\//, 'media/')
+  // 確保使用正斜線
+  url = url.replace(/\\/g, '/')
+  
+  // 組合完整 URL
+  return `${baseUrl}/${url}`
 })
 
 // 模擬數據

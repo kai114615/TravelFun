@@ -1,135 +1,412 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import Banner from '@/components/Banner.vue';
-import { NButton, NIcon, NCarousel, NInput, NSelect, NDatePicker, NModal, NForm, NFormItem, NCard } from 'naive-ui';
-import { 
-  PersonOutlined,
-  EditOutlined,
-  StarOutlined,
-  NewReleasesOutlined,
-  LocalFireDepartmentOutlined,
-  VisibilityOutlined,
-  ChatBubbleOutlined,
-  CategoryOutlined,
-  NavigateNextOutlined,
-  GroupsOutlined,
-  LocalOfferOutlined,
-  SearchOutlined,
-  SortOutlined,
-  FilterAltOutlined,
-  AddOutlined
-} from '@vicons/material';
+import { computed, onMounted, ref, watch } from 'vue';
+import axios from 'axios';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores';
+import Banner from '@/components/Banner.vue';
+import { 
+  AddOutlined,
+  CategoryOutlined,
+  ChatBubbleOutlined,
+  EditOutlined,
+  FilterAltOutlined,
+  GroupsOutlined,
+  LocalFireDepartmentOutlined,
+  LocalOfferOutlined,
+  NavigateNextOutlined,
+  NewReleasesOutlined,
+  PersonOutlined,
+  SearchOutlined,
+  SortOutlined,
+  StarOutlined,
+  VisibilityOutlined,
+} from '@vicons/material';
+import { 
+  NButton, 
+  NCard, 
+  NCarousel, 
+  NDatePicker, 
+  NForm, 
+  NFormItem, 
+  NIcon, 
+  NInput, 
+  NModal, 
+  NSelect, 
+  NSwitch, 
+  useMessage,
+} from 'naive-ui';
 
 const router = useRouter();
 const userStore = useUserStore();
 const isLoggedIn = computed(() => userStore.loginStatus);
+const message = useMessage();
 
 const title = ref('討論區');
 const activeCategory = ref('國內旅遊');
 
 // 分類列表
-const categories = [
-  { name: '國內旅遊', count: 328 },
-  { name: '旅遊規劃', count: 156 },
-  { name: '行程分享', count: 245 },
-  { name: '閒聊中心', count: 89 }
-];
+const categories = ref([]);
 
 // 頂部按鈕列表
-const topButtons = [
-  '國內旅遊',
-  '旅遊規劃',
-  '行程分享',
-  '閒聊中心'
-];
+const topButtons = ref([]);
 
 // 文章列表
-const posts = ref([
-  {
-    type: '遊記',
-    title: '【台北三天兩夜】跟著在地人吃喝玩樂，精華景點全攻略',
-    isNew: true,
-    postDate: '2024-01-10 10:45',
-    lastReply: '12分鐘前',
-    views: 1239,
-    replies: 124,
-    author: {
-      name: '背包客阿明',
-      title: '旅遊達人',
-      avatar: 'https://picsum.photos/201'
-    }
-  },
-  {
-    type: '規劃',
-    title: '新手規劃環島行程，需要注意什麼？',
-    isNew: true,
-    postDate: '2024-01-10 09:30',
-    lastReply: '25分鐘前',
-    views: 856,
-    replies: 67,
-    author: {
-      name: '小茹看世界',
-      title: '精選作者',
-      avatar: 'https://picsum.photos/202'
-    }
-  },
-  {
-    type: '分享',
-    title: '2024春節花蓮行程分享，包含訂房及交通建議',
-    isNew: false,
-    postDate: '2024-01-09 15:20',
-    lastReply: '1小時前',
-    views: 723,
-    replies: 45,
-    author: {
-      name: '老王遊台灣',
-      title: '在地嚮導',
-      avatar: 'https://picsum.photos/203'
-    }
-  },
-  {
-    type: '閒聊',
-    title: '大家最喜歡的台灣小吃是什麼？來分享一下！',
-    isNew: false,
-    postDate: '2024-01-09 14:15',
-    lastReply: '2小時前',
-    views: 512,
-    replies: 93,
-    author: {
-      name: '美食探險家',
-      title: '美食專家',
-      avatar: 'https://picsum.photos/204'
-    }
-  }
-]);
+const posts = ref([]);
+const isLoading = ref(false);
 
 // 版務人員
-const moderator = {
-  avatar: 'https://picsum.photos/200',
-  name: '旅遊顧問',
-  status: '線上'
-};
+const moderator = ref({
+  avatar: '',
+  name: '',
+  status: ''
+});
 
 // 活躍作者
-const activeAuthors = [
-  {
-    avatar: 'https://picsum.photos/201',
-    name: '背包客阿明',
-    title: '旅遊達人'
-  },
-  {
-    avatar: 'https://picsum.photos/202',
-    name: '小茹看世界',
-    title: '精選作者'
-  },
-  {
-    avatar: 'https://picsum.photos/203',
-    name: '老王遊台灣',
-    title: '在地嚮導'
+const activeAuthors = ref([]);
+
+// 分類選項
+const categoryOptions = ref([]);
+
+// 標籤列表
+const tags = ref([]);
+const selectedTags = ref([]);
+
+// 加載分類列表
+const loadCategories = async () => {
+  try {
+    console.log('開始載入分類列表...');
+    const response = await axios.get('http://localhost:8000/api/public/categories/', {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('分類列表響應:', response.data);
+    
+    if (response.data && response.data.status === 'success' && Array.isArray(response.data.data)) {
+      // 確保每個分類都有必要的欄位
+      const validCategories = response.data.data.filter(category => 
+        category && typeof category.id === 'number' && typeof category.name === 'string'
+      );
+      
+      if (validCategories.length === 0) {
+        console.error('沒有有效的分類數據');
+        message.error('無法載入分類列表');
+        return;
+      }
+
+      categoryOptions.value = validCategories.map(category => ({
+        label: category.name,
+        value: category.id,
+        description: category.description || '',
+        post_count: category.post_count || 0
+      }));
+      
+      categories.value = categoryOptions.value;
+      topButtons.value = categories.value.map(c => c.label);
+      
+      console.log('分類列表已更新:', categoryOptions.value);
+    } else {
+      console.error('無效的分類資料格式:', response.data);
+      message.error('分類資料格式錯誤');
+      categoryOptions.value = [];
+      categories.value = [];
+      topButtons.value = [];
+    }
+  } catch (error) {
+    console.error('載入分類列表失敗:', error);
+    console.error('錯誤詳情:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data
+    });
+    message.error('載入分類列表失敗');
+    categoryOptions.value = [];
+    categories.value = [];
+    topButtons.value = [];
   }
-];
+};
+
+// 加載文章列表
+const loadPosts = async () => {
+  try {
+    console.log('開始加載文章列表...');
+    isLoading.value = true;
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await axios.get('http://localhost:8000/api/public/posts/', { headers });
+    
+    console.log('文章列表響應:', response.data);
+    
+    if (Array.isArray(response.data)) {
+      posts.value = response.data.map((post: any) => ({
+        id: post.id || 0,
+        title: post.title || '',
+        content: post.content || '',
+        category_id: post.category?.id || null,
+        category: {
+          id: post.category?.id || null,
+          name: post.category?.name || '未知分類'
+        },
+        author: {
+          id: post.author?.id || 0,
+          username: post.author?.username || '匿名用戶'
+        },
+        created_at: post.created_at || new Date().toISOString(),
+        views: post.views || 0,
+        likes_count: post.like_count || 0,
+        comments_count: post.comment_count || 0,
+        tags: Array.isArray(post.tags) ? post.tags.map(tag => ({
+          id: tag.id,
+          name: tag.name,
+          description: tag.description || ''
+        })) : []
+      }));
+      console.log('更新後的文章列表:', posts.value);
+    } else {
+      console.error('無效的響應格式:', response.data);
+      posts.value = [];
+    }
+  } catch (error: any) {
+    console.error('加載文章列表失敗:', error);
+    posts.value = [];
+    message.error(error.response?.data?.message || '加載文章列表失敗，請稍後重試');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 加載標籤列表
+const loadTags = async () => {
+  try {
+    console.log('開始載入標籤列表...');
+    const response = await axios.get('http://localhost:8000/api/public/tags/', {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('標籤API響應:', response.data);
+
+    if (Array.isArray(response.data)) {
+      tags.value = response.data.map(tag => ({
+        label: tag.name,
+        value: tag.id,
+        description: tag.description || ''
+      }));
+      console.log('處理後的標籤數據:', tags.value);
+    } else {
+      console.error('標籤數據格式不正確:', response.data);
+      tags.value = [];
+    }
+  } catch (error) {
+    console.error('載入標籤列表失敗:', error);
+    message.error('載入標籤列表失敗');
+    tags.value = [];
+  }
+};
+
+// 判斷是否為新文章（24小時內）
+const isNewPost = (created_at) => {
+  const postDate = new Date(created_at);
+  const now = new Date();
+  return (now - postDate) < 24 * 60 * 60 * 1000;
+};
+
+// 格式化日期
+const formatDate = (date) => {
+  return new Date(date).toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// 發文表單
+const showPostModal = ref(false);
+const postForm = ref({
+  category_id: null,
+  title: '',
+  content: '',
+  tags: [],
+  is_public: true,
+  allow_comments: true
+});
+
+// 重置表單
+const resetForm = () => {
+  postForm.value = {
+    category_id: null,
+    title: '',
+    content: '',
+    tags: [],
+    is_public: true,
+    allow_comments: true
+  };
+  selectedTags.value = [];
+};
+
+// 表單驗證規則
+const rules = {
+  category_id: {
+    required: true,
+    type: 'number',
+    message: '請選擇文章分類',
+    trigger: ['blur', 'change', 'input']
+  },
+  title: {
+    required: true,
+    message: '請輸入文章標題',
+    trigger: ['blur', 'input'],
+    min: 2,
+    max: 100
+  },
+  content: {
+    required: true,
+    message: '請輸入文章內容',
+    trigger: ['blur', 'input'],
+    min: 10
+  }
+};
+
+// 狀態
+const isSubmitting = ref(false);
+const showLoginModal = ref(false);
+
+// 獲取分類名稱
+const getCategoryName = (categoryId) => {
+  const category = categoryOptions.value.find(c => c.value === categoryId);
+  return category ? category.label : '未知分類';
+}
+
+// 監聽登入狀態變化
+watch(isLoggedIn, async (newValue) => {
+  if (!newValue) {
+    try {
+      // 呼叫後端登出 API
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        await axios.post('http://localhost:8000/api/auth/logout/', null, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+      }
+      
+      // 清除本地存儲和狀態
+      localStorage.clear();
+      userStore.setLoginStatus(false);
+      userStore.clearUserInfo();
+      message.success('已登出系統');
+      
+      // 重新加載文章列表（不需要認證）
+      await loadPosts();
+      
+      router.push('/login');
+    } catch (error) {
+      console.error('登出錯誤:', error);
+      // 即使後端 API 呼叫失敗，仍然清除本地數據
+      localStorage.clear();
+      userStore.setLoginStatus(false);
+      userStore.clearUserInfo();
+      message.warning('登出時發生錯誤，但已清除本地登入狀態');
+      
+      // 重新加載文章列表（不需要認證）
+      await loadPosts();
+      
+      router.push('/login');
+    }
+  } else {
+    // 重新加載數據
+    await loadCategories();
+    await loadPosts();
+    await loadTags();
+  }
+});
+
+// 提交表單
+const handleSubmit = async () => {
+  try {
+    isSubmitting.value = true;
+    
+    // 檢查登入狀態
+    if (!isLoggedIn.value) {
+      message.error('請先登入');
+      showLoginModal.value = true;
+      isSubmitting.value = false;
+      return;
+    }
+
+    // 獲取 token
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      message.error('登入已過期，請重新登入');
+      showLoginModal.value = true;
+      isSubmitting.value = false;
+      return;
+    }
+
+    // 準備發送的數據
+    const response = await axios.post(
+      'http://localhost:8000/api/public/posts/',
+      {
+        title: postForm.value.title.trim(),
+        content: postForm.value.content.trim(),
+        category_id: Number(postForm.value.category_id),
+        tags_ids: selectedTags.value,  // 修改欄位名稱
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        }
+      }
+    );
+
+    console.log('API 響應:', response.data);
+
+    if (response.data && response.data.data) {
+      message.success('發文成功');
+      showPostModal.value = false;
+      resetForm();
+      // 延遲一下再重新加載文章列表
+      setTimeout(async () => {
+        await loadPosts();
+      }, 500);
+    } else {
+      throw new Error(response.data.message || '發文失敗');
+    }
+  } catch (error) {
+    console.error('發文錯誤:', error);
+    if (error.response) {
+      const errorMessage = error.response.data.message || error.response.data.detail || '發文失敗';
+      message.error(errorMessage);
+      console.error('API 錯誤詳情:', error.response.data);
+    } else {
+      message.error(error.message || '發文失敗，請稍後重試');
+    }
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// 在組件掛載時加載數據
+onMounted(async () => {
+  await loadCategories();
+  await loadPosts();
+  await loadTags();  // 添加載入標籤
+});
 
 // 輪播圖片列表
 const carouselImages = [
@@ -199,15 +476,6 @@ const filterOptions = ref({
   author: null
 });
 
-// 發文表單
-const showPostModal = ref(false);
-const newPost = ref({
-  title: '',
-  content: '',
-  type: '',
-  tags: []
-});
-
 // 處理搜尋
 const handleSearch = () => {
   // TODO: 實作搜尋邏輯
@@ -226,13 +494,6 @@ const handleFilter = () => {
   console.log('篩選條件:', filterOptions.value);
 };
 
-// 處理發文
-const handlePost = () => {
-  // TODO: 實作發文邏輯
-  console.log('新文章:', newPost.value);
-  showPostModal.value = false;
-};
-
 // 處理發文按鈕點擊
 const handlePostButtonClick = () => {
   if (!isLoggedIn.value) {
@@ -241,9 +502,6 @@ const handlePostButtonClick = () => {
   }
   showPostModal.value = true;
 };
-
-// 登入提示彈窗
-const showLoginModal = ref(false);
 
 // 跳轉到註冊頁面
 const goToRegister = () => {
@@ -308,20 +566,21 @@ const goToRegister = () => {
               討論分類
             </h3>
             <ul class="space-y-2.5">
-              <li v-for="category in categories" :key="category.name">
+              <li v-for="category in categoryOptions" :key="category.value">
                 <a
                   href="#"
                   class="flex items-center justify-between p-3 rounded-lg transition-all duration-300"
                   :class="{ 
-                    'bg-primary/5 text-primary font-medium': category.name === activeCategory,
-                    'text-gray-600 hover:bg-gray-50': category.name !== activeCategory
+                    'bg-primary/5 text-primary font-medium': category.value === postForm.category_id,
+                    'text-gray-600 hover:bg-gray-50': category.value !== postForm.category_id
                   }"
+                  @click.prevent="postForm.category_id = category.value"
                 >
-                  <span>{{ category.name }}</span>
+                  <span>{{ category.label }}</span>
                   <span class="px-2.5 py-1 rounded-full text-xs" :class="{
-                    'bg-primary/10 text-primary': category.name === activeCategory,
-                    'bg-gray-100 text-gray-500': category.name !== activeCategory
-                  }">{{ category.count }}</span>
+                    'bg-primary/10 text-primary': category.value === postForm.category_id,
+                    'bg-gray-100 text-gray-500': category.value !== postForm.category_id
+                  }">{{ category.post_count }}</span>
                 </a>
               </li>
             </ul>
@@ -417,48 +676,57 @@ const goToRegister = () => {
             </div>
 
             <!-- 文章列表 -->
-            <div class="divide-y divide-gray-100">
-              <div
-                v-for="(post, index) in posts"
-                :key="index"
-                class="p-5 hover:bg-gray-50/70 transition-colors duration-300"
-              >
-                <div class="flex items-start justify-between">
-                  <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-2">
-                      <img :src="post.author.avatar" :alt="post.author.name" class="w-8 h-8 rounded-full ring-1 ring-gray-200">
-                      <div>
-                        <div class="flex items-center gap-2">
-                          <span class="font-medium text-gray-800">{{ post.author.name }}</span>
-                          <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ post.author.title }}</span>
-                        </div>
+            <div class="bg-white rounded-lg shadow-md p-6 mt-4">
+              <h2 class="text-2xl font-bold mb-4">文章列表</h2>
+              <div v-if="!posts || posts.length === 0" class="text-gray-500 text-center py-4">
+                暫無文章
+              </div>
+              <div v-else class="space-y-4">
+                <div v-for="post in posts" :key="post.id" 
+                  class="border-b pb-4 hover:bg-gray-50 p-4 rounded-lg transition-all duration-300">
+                  <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-xl font-semibold text-gray-800 hover:text-primary cursor-pointer"
+                      @click="goToPostDetail(post.id)">
+                      {{ post.title }}
+                    </h3>
+                    <span class="text-sm text-gray-500">
+                      {{ formatDate(post.created_at) }}
+                    </span>
+                  </div>
+                  <p class="text-gray-600 mt-2 line-clamp-3">{{ post.content }}</p>
+                  <div class="flex items-center justify-between mt-3">
+                    <div class="flex items-center gap-4">
+                      <div class="flex items-center text-gray-500 text-sm">
+                        <NIcon size="16" class="mr-1"><PersonOutlined /></NIcon>
+                        {{ post.author?.username || '匿名用戶' }}
+                      </div>
+                      <div class="flex items-center text-gray-500 text-sm">
+                        <NIcon size="16" class="mr-1"><CategoryOutlined /></NIcon>
+                        {{ getCategoryName(post.category_id) }}
+                      </div>
+                      <div class="flex items-center text-gray-500 text-sm">
+                        <NIcon size="16" class="mr-1"><LocalOfferOutlined /></NIcon>
+                        <template v-if="post.tags && post.tags.length > 0">
+                          <span v-for="(tag, index) in post.tags" :key="tag.id">
+                            {{ tag.name }}{{ index < post.tags.length - 1 ? ', ' : '' }}
+                          </span>
+                        </template>
+                        <template v-else>無標籤</template>
                       </div>
                     </div>
-                    <h3 class="text-lg font-medium mb-2 flex items-center gap-2">
-                      <span class="text-primary bg-primary/5 px-2 py-0.5 rounded-md text-sm">[{{ post.type }}]</span>
-                      <a 
-                        href="#" 
-                        class="text-gray-800 hover:text-primary transition-colors duration-300"
-                        @click.prevent="goToPostDetail(index + 1)"
-                      >
-                        {{ post.title }}
-                      </a>
-                      <span v-if="post.isNew" class="bg-red-50 text-red-500 text-xs px-2 py-0.5 rounded-full">NEW</span>
-                    </h3>
-                    <div class="text-sm text-gray-500 flex items-center gap-2">
-                      <span>發表於 {{ post.postDate }}</span>
-                      <span class="w-1 h-1 rounded-full bg-gray-300"></span>
-                      <span>最後回覆 {{ post.lastReply }}</span>
-                    </div>
-                  </div>
-                  <div class="text-right space-y-1">
-                    <div class="text-sm text-gray-500 flex items-center justify-end gap-1">
-                      <NIcon size="16"><VisibilityOutlined /></NIcon>
-                      {{ post.views }}
-                    </div>
-                    <div class="text-sm text-gray-500 flex items-center justify-end gap-1">
-                      <NIcon size="16"><ChatBubbleOutlined /></NIcon>
-                      {{ post.replies }}
+                    <div class="flex items-center gap-4">
+                      <div class="flex items-center text-gray-500 text-sm">
+                        <NIcon size="16" class="mr-1"><VisibilityOutlined /></NIcon>
+                        {{ post.views || 0 }}
+                      </div>
+                      <div class="flex items-center text-gray-500 text-sm">
+                        <NIcon size="16" class="mr-1"><ChatBubbleOutlined /></NIcon>
+                        {{ post.comments_count || 0 }}
+                      </div>
+                      <div class="flex items-center text-gray-500 text-sm">
+                        <NIcon size="16" class="mr-1"><StarOutlined /></NIcon>
+                        {{ post.likes_count || 0 }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -541,7 +809,7 @@ const goToRegister = () => {
   </main>
 
   <!-- 發文彈窗 -->
-  <NModal v-model:show="showPostModal" style="width: 600px">
+  <NModal v-model:show="showPostModal" style="width: 800px">
     <NCard
       title="發表新主題"
       :bordered="false"
@@ -549,45 +817,85 @@ const goToRegister = () => {
       role="dialog"
       aria-modal="true"
     >
-      <NForm>
-        <NFormItem label="文章分類">
+      <NForm ref="formRef" :model="postForm" :rules="rules">
+        <NFormItem label="文章分類" path="category_id" required>
           <NSelect
-            v-model:value="newPost.type"
-            :options="categories.map(c => ({ label: c.name, value: c.name }))"
+            v-model:value="postForm.category_id"
+            :options="categoryOptions"
             placeholder="請選擇分類"
+            :disabled="isSubmitting"
+            @update:value="(val) => {
+              console.log('選擇的分類值:', val);
+              if (!val) {
+                postForm.category_id = null;
+                message.warning('請選擇文章分類');
+                return;
+              }
+              const selectedCategory = categoryOptions.value.find(cat => cat.value === val);
+              if (selectedCategory) {
+                postForm.category_id = val;
+                message.success(`已選擇分類: ${selectedCategory.label}`);
+              } else {
+                postForm.category_id = null;
+                message.error('無效的分類選擇');
+              }
+            }"
           />
         </NFormItem>
-        <NFormItem label="文章標題">
-          <NInput v-model:value="newPost.title" placeholder="請輸入標題" />
+        <NFormItem label="文章標題" path="title" required>
+          <NInput 
+            v-model:value="postForm.title" 
+            placeholder="請輸入標題（2-100字）"
+            :maxlength="100"
+            show-count
+          />
         </NFormItem>
-        <NFormItem label="文章內容">
+        <NFormItem label="文章內容" path="content" required>
           <NInput
-            v-model:value="newPost.content"
+            v-model:value="postForm.content"
             type="textarea"
-            placeholder="請輸入內容"
-            :rows="6"
+            placeholder="請輸入內容（至少10字）"
+            :rows="10"
+            show-count
           />
         </NFormItem>
-        <NFormItem label="標籤">
+        <NFormItem label="標籤" path="tags">
           <NSelect
-            v-model:value="newPost.tags"
+            v-model:value="selectedTags"
+            :options="tags"
             multiple
             placeholder="請選擇標籤"
-            :options="[
-              { label: '台北美食', value: 'taipei-food' },
-              { label: '環島旅行', value: 'round-island' },
-              { label: '花蓮景點', value: 'hualien' },
-              { label: '親子遊', value: 'family' },
-              { label: '自由行', value: 'free-travel' },
-              { label: '住宿推薦', value: 'accommodation' }
-            ]"
+            :disabled="isSubmitting"
+            @update:value="(val) => {
+              console.log('選擇的標籤:', val);
+              selectedTags.value = val;
+            }"
           />
+        </NFormItem>
+        <NFormItem label="文章設定">
+          <div class="space-y-2">
+            <NSwitch v-model:value="postForm.is_public">
+              <template #checked>公開</template>
+              <template #unchecked>私密</template>
+            </NSwitch>
+            <NSwitch v-model:value="postForm.allow_comments">
+              <template #checked>允許評論</template>
+              <template #unchecked>禁止評論</template>
+            </NSwitch>
+          </div>
         </NFormItem>
       </NForm>
       <template #footer>
         <div class="flex justify-end gap-4">
           <NButton @click="showPostModal = false">取消</NButton>
-          <NButton type="primary" @click="handlePost">發表</NButton>
+          <NButton 
+            type="primary" 
+            @click="handleSubmit"
+            :loading="isSubmitting"
+            :disabled="!postForm.category_id || !postForm.title.trim() || !postForm.content.trim()"
+          >
+            發表文章
+          </NButton>
         </div>
       </template>
     </NCard>

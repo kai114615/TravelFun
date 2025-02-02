@@ -88,11 +88,9 @@ request.interceptors.request.use(
         }
       }
 
-      // 從 cookie 中獲取 token
-      const token = document.cookie.replace(
-        /(?:(?:^|.*;\s*)token\s*=\s*([^;]*).*$)|^.*$/,
-        '$1',
-      );
+      // 從 localStorage 獲取 token
+      const token = localStorage.getItem('access_token');
+      console.log('請求攔截器中的 token:', token);
       
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -130,50 +128,19 @@ request.interceptors.response.use(
   (res: AxiosResponse) => {
     // JWT token 處理
     if (res.data?.access) {
-      document.cookie = `token=${res.data.access}; path=/; SameSite=Lax`;
+      localStorage.setItem('access_token', res.data.access);
     }
     if (res.data?.refresh) {
-      document.cookie = `refresh_token=${res.data.refresh}; path=/; SameSite=Lax`;
+      localStorage.setItem('refresh_token', res.data.refresh);
     }
     return res;
   },
   async (error) => {
-    // 檢查是否為登出相關請求
-    const isLogoutRequest = error.config?.url?.includes('logout') || 
-                          error.config?.url?.includes('check-auth');
-    
-    if (error.response && !isLogoutRequest) {
-      switch (error.response.status) {
-        case 401:
-          errorMsg('登入失敗', error.response.data?.detail || '帳號或密碼錯誤');
-          break;
-        case 403:
-          errorMsg('權限不足', error.response.data?.detail || '請確認您的帳號權限');
-          break;
-        case 404:
-          errorMsg('請求失敗', 'API 端點不存在');
-          break;
-        case 500:
-          errorMsg('伺服器錯誤', '請稍後再試');
-          break;
-        default:
-          if (error.response.data?.detail) {
-            errorMsg(error.response.data.detail);
-          } else {
-            errorMsg('發生錯誤', '請稍後再試');
-          }
-      }
-    } else if (error.request && !isLogoutRequest) {
-      if (error.message.includes('Network Error')) {
-        errorMsg(
-          '網路連接失敗',
-          '請確認：\n1. 後端服務器是否啟動 (http://127.0.0.1:8000)\n2. CORS 設定是否正確\n3. 網路連接是否正常'
-        );
-      } else {
-        errorMsg('網路錯誤', '無法連接到伺服器，請確認伺服器是否運行中');
-      }
-    } else if (!isLogoutRequest) {
-      errorMsg('請求錯誤', error.message);
+    if (error.response?.status === 401) {
+      // 清除無效的 token
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      errorMsg('登入已過期', '請重新登入');
     }
     return Promise.reject(error);
   }
@@ -271,22 +238,7 @@ const apiUserRegister = async (data: FormData) => {
 };
 const apiUserSignin = async (data: any) => {
   try {
-    // 先檢查服務器狀態
-    const isServerOnline = await checkServerStatus();
-    if (!isServerOnline) {
-      errorMsg(
-        '連接失敗',
-        '後端服務器未啟動或無法訪問，請檢查：\n' +
-        '1. Django 服務器是否已啟動 (python manage.py runserver)\n' +
-        '2. 端口 8000 是否被占用\n' +
-        '3. 防火牆設置是否正確\n' +
-        '4. Django settings.py 中的 CORS 設定是否正確\n' +
-        '5. Django 是否已安裝 django-cors-headers'
-      );
-      throw new Error('後端服務器未啟動或無法訪問');
-    }
-
-    console.log('Attempting to sign in with:', { ...data, password: '[REDACTED]' });
+    console.log('開始登入...');
     
     const response = await request.post(api.user.signin, data, {
       headers: {
@@ -295,40 +247,30 @@ const apiUserSignin = async (data: any) => {
       }
     });
 
-    console.log('Sign in response:', response.data);
+    console.log('登入響應:', response.data);
 
     if (response.data?.access) {
-      // 設置 cookie 的 SameSite 屬性
-      document.cookie = `token=${response.data.access}; path=/; SameSite=Lax`;
+      // 保存 token 到 localStorage
+      localStorage.setItem('access_token', response.data.access);
       if (response.data.refresh) {
-        document.cookie = `refresh_token=${response.data.refresh}; path=/; SameSite=Lax`;
+        localStorage.setItem('refresh_token', response.data.refresh);
       }
+      
       // 登入成功後顯示成功消息
       successMsg('登入成功', '歡迎回來！');
-      // 重定向到會員中心儀表板
-      window.location.href = '/#/member/dashboard';
     }
     return response;
   } catch (error: any) {
-    console.error('Sign in error:', error);
+    console.error('登入錯誤:', error);
+    // 清除可能存在的無效 token
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    
     if (error.response) {
-      // 服務器回應了錯誤
-      errorMsg(
-        '登入失敗',
-        error.response.data?.detail || '帳號或密碼錯誤'
-      );
+      errorMsg('登入失敗', error.response.data?.detail || '帳號或密碼錯誤');
     } else if (error.request) {
-      // 請求發出但沒有收到回應
-      errorMsg(
-        '連接失敗',
-        '無法連接到後端服務器，請檢查：\n' +
-        '1. 後端服務器是否啟動 (http://127.0.0.1:8000)\n' +
-        '2. CORS 設定是否正確\n' +
-        '3. 網路連接是否正常\n' +
-        '4. 瀏覽器控制台是否有其他錯誤'
-      );
+      errorMsg('連接失敗', '無法連接到後端服務器');
     } else {
-      // 請求配置出錯
       errorMsg('請求錯誤', error.message);
     }
     throw error;
@@ -337,7 +279,7 @@ const apiUserSignin = async (data: any) => {
 const apiUserLogout = () => request.post(api.user.logout);
 const apiUserCheckSignin = async () => {
   try {
-    const token = document.cookie.replace(/(?:(?:^|.*;\s*)token\s*=\s*([^;]*).*$)|^.*$/, '$1');
+    const token = localStorage.getItem('access_token');
     if (!token) {
       return { data: { success: false, isAuthenticated: false } };
     }
@@ -345,11 +287,11 @@ const apiUserCheckSignin = async () => {
     return response;
   } catch (error: any) {
     console.error('Check signin error:', error);
-    // 如果是 401 或 403 錯誤，表示未認證或 token 無效
     if (error.response?.status === 401 || error.response?.status === 403) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       return { data: { success: false, isAuthenticated: false } };
     }
-    // 其他錯誤則拋出
     throw error;
   }
 };

@@ -220,3 +220,67 @@ class AdminApiTestView(LoginRequiredMixin, TemplateView):
         context['title'] = 'API 測試'
         context['active_menu'] = 'forum_api_test'
         return context 
+
+class PublicTestPostApiView(APIView):
+    """公開的文章API測試"""
+    authentication_classes = []
+    permission_classes = []
+    
+    def get(self, request, pk=None):
+        if pk:
+            return Response({
+                'status': 'success',
+                'message': f'獲取ID為{pk}的文章',
+                'data': {
+                    'id': pk,
+                    'title': '測試文章',
+                    'content': '這是一篇測試文章的內容'
+                }
+            })
+        return Response({
+            'status': 'success',
+            'message': '獲取文章列表',
+            'data': [
+                {'id': 1, 'title': '文章1'},
+                {'id': 2, 'title': '文章2'}
+            ]
+        })
+
+    def post(self, request):
+        return Response({
+            'status': 'success',
+            'message': '創建文章成功',
+            'data': request.data
+        })
+
+class PublicTestCategoryApiView(APIView):
+    """公開的分類API測試"""
+    authentication_classes = []
+    permission_classes = []
+    
+    def get(self, request, pk=None):
+        if pk:
+            return Response({
+                'status': 'success',
+                'message': f'獲取ID為{pk}的分類',
+                'data': {
+                    'id': pk,
+                    'name': '測試分類',
+                    'description': '這是一個測試分類'
+                }
+            })
+        return Response({
+            'status': 'success',
+            'message': '獲取分類列表',
+            'data': [
+                {'id': 1, 'name': '分類1'},
+                {'id': 2, 'name': '分類2'}
+            ]
+        })
+
+    def post(self, request):
+        return Response({
+            'status': 'success',
+            'message': '創建分類成功',
+            'data': request.data
+        }) 

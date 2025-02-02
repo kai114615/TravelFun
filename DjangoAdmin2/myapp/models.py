@@ -5,6 +5,20 @@ from ckeditor.fields import RichTextField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 import os
+import uuid
+from datetime import datetime
+
+def get_avatar_upload_path(instance, filename):
+    # 取得檔案副檔名
+    ext = filename.split('.')[-1]
+    # 生成新的檔案名稱 (使用時間戳)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # 生成唯一的檔案名稱
+    filename = f"{instance.username}_{timestamp}.{ext}"
+    # 返回格式化的路徑，確保月份補零
+    date_path = datetime.now().strftime('%Y/%m/%d')  # 這會自動補零
+    # 返回不含 media 前綴的路徑
+    return os.path.join('avatars', date_path, filename).replace('\\', '/')
 
 class Member(AbstractUser):
     USER_LEVELS = (
@@ -13,25 +27,35 @@ class Member(AbstractUser):
         ('user', '用戶'),
     )
 
-    full_name = models.CharField(max_length=255, unique=True, blank=True, null=True, verbose_name='全名')
+    full_name = models.CharField(
+        max_length=150, 
+        blank=True, 
+        null=True,
+        verbose_name='全名'
+    )
     google_id = models.CharField(max_length=255, blank=True, null=True, verbose_name='Google ID')
     level = models.CharField(max_length=10, choices=USER_LEVELS, default='user', verbose_name='等級')
     avatar = models.ImageField(
-        upload_to='avatars/%Y/%m/%d/',  # 按日期組織文件
-        blank=True,
+        upload_to=get_avatar_upload_path,
         null=True,
-        verbose_name='頭像',
-        help_text='支持 jpg、jpeg、png 格式，文件大小不超過 2MB'
+        blank=True,
+        help_text='支援的格式：jpg、jpeg、png，最大2MB'
     )
     favorite_restaurants = models.ManyToManyField('Restaurant', related_name='favorited_by', blank=True, verbose_name='喜愛的餐廳')
     favorite_products = models.ManyToManyField('Product', related_name='favorited_by', blank=True, verbose_name='喜愛的商品')
     address = models.CharField(max_length=255, blank=True, null=True, verbose_name='地址')
 
     def get_avatar_url(self):
-        if self.avatar and hasattr(self.avatar, 'url'):
-            # 確保返回的 URL 使用正斜線
-            return self.avatar.url.replace('\\', '/')
-        return static('img/ex1.jpg')  # 使用 ex1.jpg 作為預設頭像
+        if self.avatar:
+            # 確保返回的 URL 使用正斜線且不包含重複的 media 前綴
+            url = self.avatar.url
+            # 移除可能的重複 media 前綴
+            if url.startswith('/media/media/'):
+                url = url.replace('/media/media/', '/media/', 1)
+            # 確保使用正斜線
+            return url.replace('\\', '/')
+        # 如果沒有頭像，返回預設頭像
+        return static('img/ex1.jpg')
 
     def save(self, *args, **kwargs):
         # 如果上傳了新頭像，刪除舊頭像
@@ -39,11 +63,10 @@ class Member(AbstractUser):
             try:
                 old_instance = Member.objects.get(pk=self.pk)
                 if old_instance.avatar and self.avatar != old_instance.avatar:
-                    # 確保文件存在且不是預設頭像
                     if os.path.isfile(old_instance.avatar.path):
                         os.remove(old_instance.avatar.path)
             except (Member.DoesNotExist, ValueError, OSError):
-                pass  # 忽略任何錯誤
+                pass
         super().save(*args, **kwargs)
 
     class Meta:
@@ -179,3 +202,44 @@ class Cart(models.Model):
     @property
     def total_price(self):
         return self.quantity * self.product.price
+
+class Category(models.Model):
+    name = models.CharField(max_length=100, verbose_name='分類名稱')
+    description = models.TextField(blank=True, null=True, verbose_name='分類描述')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='創建時間')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新時間')
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = '文章分類'
+        verbose_name_plural = '文章分類'
+        ordering = ['name']
+
+class Post(models.Model):
+    title = models.CharField(max_length=200, verbose_name='標題')
+    content = RichTextField(verbose_name='內容')
+    author = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='myapp_posts', verbose_name='作者')
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='myapp_posts', verbose_name='分類')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='創建時間')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新時間')
+    views = models.PositiveIntegerField(default=0, verbose_name='瀏覽次數')
+    likes = models.ManyToManyField(Member, related_name='myapp_liked_posts', blank=True, verbose_name='喜歡')
+    tags = models.CharField(max_length=200, blank=True, null=True, verbose_name='標籤')
+    is_deleted = models.BooleanField(default=False, verbose_name='是否刪除')
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = '文章'
+        verbose_name_plural = '文章'
+        ordering = ['-created_at']
+
+    def get_likes_count(self):
+        return self.likes.count()
+
+    def increment_views(self):
+        self.views += 1
+        self.save()

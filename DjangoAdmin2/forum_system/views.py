@@ -1,27 +1,30 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
-from .models import Category, Post, Comment, SavedPost
+from .models import Category, Post, Comment, SavedPost, Tag
 from .serializers import (
     CategorySerializer,
     PostSerializer,
     CommentSerializer,
-    SavedPostSerializer
+    SavedPostSerializer,
+    TagSerializer
 )
 from .permissions import IsAuthorOrReadOnly, IsAdminOrReadOnly
 from django.views.generic import ListView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework.views import APIView
-from rest_framework.authentication import SessionAuthentication
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from django.utils import timezone
+from django.http import JsonResponse
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """討論區分類視圖集"""
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     @action(detail=True, methods=['get'])
     def posts(self, request, pk=None):
@@ -249,32 +252,116 @@ class AdminApiTestView(TemplateView):
 
 class TestPostApiView(APIView):
     """文章API測試"""
+    authentication_classes = [SessionAuthentication]  # 添加認證
+    permission_classes = [IsAuthenticated]  # 需要登入
+    
     def get(self, request, pk=None):
+        """獲取文章列表或單篇文章"""
         if pk:
-            return Response({
-                'status': 'success',
-                'message': f'獲取ID為{pk}的文章',
-                'data': {
-                    'id': pk,
-                    'title': '測試文章',
-                    'content': '這是一篇測試文章的內容'
-                }
-            })
+            try:
+                post = Post.objects.get(pk=pk)
+                return Response({
+                    'status': 'success',
+                    'message': f'獲取ID為{pk}的文章',
+                    'data': {
+                        'id': post.id,
+                        'title': post.title,
+                        'content': post.content,
+                        'category_id': post.category_id,
+                        'author': {
+                            'id': post.author.id,
+                            'username': post.author.username
+                        },
+                        'created_at': post.created_at,
+                        'views': post.views,
+                        'likes_count': post.likes.count(),
+                        'comments_count': post.comments.count()
+                    }
+                })
+            except Post.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': '文章不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+                
+        # 獲取所有非刪除的文章
+        posts = Post.objects.filter(is_deleted=False).select_related('author', 'category')
+        posts_data = [{
+            'id': post.id,
+            'title': post.title,
+            'content': post.content,
+            'category_id': post.category_id,
+            'author': {
+                'id': post.author.id,
+                'username': post.author.username
+            },
+            'created_at': post.created_at,
+            'views': post.views,
+            'likes_count': post.likes.count(),
+            'comments_count': post.comments.count()
+        } for post in posts]
+        
         return Response({
             'status': 'success',
             'message': '獲取文章列表',
-            'data': [
-                {'id': 1, 'title': '文章1'},
-                {'id': 2, 'title': '文章2'}
-            ]
+            'data': posts_data
         })
 
     def post(self, request):
-        return Response({
-            'status': 'success',
-            'message': '創建文章成功',
-            'data': {'id': 3, 'title': '新文章'}
-        })
+        try:
+            # 驗證必填欄位
+            title = request.data.get('title')
+            content = request.data.get('content')
+            category_id = request.data.get('category_id')
+            
+            if not all([title, content, category_id]):
+                return Response({
+                    'status': 'error',
+                    'message': '請填寫所有必填欄位'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            # 檢查分類是否存在
+            try:
+                category = Category.objects.get(id=category_id)
+            except Category.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': '分類不存在'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            # 創建新文章，使用當前登入用戶作為作者
+            post = Post.objects.create(
+                title=title,
+                content=content,
+                category=category,
+                author=request.user  # 使用當前登入用戶
+            )
+            
+            # 返回成功響應
+            return Response({
+                'status': 'success',
+                'message': '文章發表成功',
+                'data': {
+                    'id': post.id,
+                    'title': post.title,
+                    'content': post.content,
+                    'category_id': post.category_id,
+                    'author': {
+                        'id': post.author.id,
+                        'username': post.author.username
+                    },
+                    'created_at': post.created_at,
+                    'views': post.views,
+                    'likes_count': 0,
+                    'comments_count': 0
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk):
         return Response({
@@ -290,27 +377,48 @@ class TestPostApiView(APIView):
 
 class TestCategoryApiView(APIView):
     """分類API測試"""
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    authentication_classes = []  # 移除認證要求
+    permission_classes = []  # 移除權限要求
     
     def get(self, request, pk=None):
         if pk:
-            return Response({
-                'status': 'success',
-                'message': f'獲取ID為{pk}的分類',
-                'data': {
-                    'id': pk,
-                    'name': '測試分類',
-                    'description': '這是一個測試分類'
-                }
+            try:
+                category = Category.objects.get(pk=pk)
+                post_count = Post.objects.filter(category=category, is_deleted=False).count()
+                return Response({
+                    'status': 'success',
+                    'message': f'獲取ID為{pk}的分類',
+                    'data': {
+                        'id': category.id,
+                        'name': category.name,
+                        'description': category.description,
+                        'post_count': post_count,
+                        'created_at': category.created_at
+                    }
+                })
+            except Category.DoesNotExist:
+                return Response({
+                    'status': 'error',
+                    'message': '分類不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+                
+        # 獲取所有分類
+        categories = Category.objects.all()
+        categories_data = []
+        for category in categories:
+            post_count = Post.objects.filter(category=category, is_deleted=False).count()
+            categories_data.append({
+                'id': category.id,
+                'name': category.name,
+                'description': category.description,
+                'post_count': post_count,
+                'created_at': category.created_at
             })
+            
         return Response({
             'status': 'success',
             'message': '獲取分類列表',
-            'data': [
-                {'id': 1, 'name': '分類1'},
-                {'id': 2, 'name': '分類2'}
-            ]
+            'data': categories_data
         })
 
     def post(self, request):
@@ -371,3 +479,414 @@ class TestCommentApiView(APIView):
             'status': 'success',
             'message': f'刪除ID為{pk}的評論成功'
         })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_post(request):
+    try:
+        # 獲取分類
+        category_id = request.data.get('category_id')
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({'success': False, 'message': '無效的分類'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 創建文章
+        post = Post.objects.create(
+            title=request.data.get('title'),
+            content=request.data.get('content'),
+            category=category,
+            author=request.user
+        )
+        
+        # 處理標籤
+        tags = request.data.get('tags', [])
+        if tags:
+            # 確保所有標籤都存在
+            valid_tags = Tag.objects.filter(id__in=tags)
+            if len(valid_tags) != len(tags):
+                return Response({
+                    'success': False,
+                    'message': '部分標籤不存在'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            post.tags.set(valid_tags)
+        
+        serializer = PostSerializer(post)
+        return Response({
+            'success': True,
+            'message': '文章發表成功',
+            'post': serializer.data
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+class PublicPostViewSet(viewsets.ModelViewSet):
+    """公開的文章視圖集，允許已登入用戶發文"""
+    queryset = Post.objects.filter(is_deleted=False)
+    serializer_class = PostSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]  # 允許未登入用戶讀取，但需要登入才能發文
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            return Response({
+                'status': 'success',
+                'message': '文章發表成功',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class PublicCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """公開的分類視圖集，不需要登入即可訪問"""
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = []  # 不需要任何權限
+
+    def list(self, request, *args, **kwargs):
+        """獲取分類列表"""
+        try:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({
+                'status': 'success',
+                'message': '獲取分類列表成功',
+                'data': serializer.data
+            })
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    def retrieve(self, request, *args, **kwargs):
+        """獲取單個分類"""
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response({
+                'status': 'success',
+                'message': '獲取分類詳情成功',
+                'data': serializer.data
+            })
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def menu(self, request):
+        """獲取討論區菜單"""
+        try:
+            categories = self.get_queryset()
+            menu_data = []
+            for category in categories:
+                post_count = Post.objects.filter(category=category, is_deleted=False).count()
+                menu_item = {
+                    'id': category.id,
+                    'name': category.name,
+                    'description': category.description,
+                    'post_count': post_count,
+                    'created_at': category.created_at
+                }
+                menu_data.append(menu_item)
+            return Response({
+                'status': 'success',
+                'message': '獲取討論區菜單成功',
+                'data': menu_data
+            })
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class PublicForumViewSet(viewsets.ModelViewSet):
+    """公開的討論區 API"""
+    queryset = Post.objects.filter(is_deleted=False)
+    serializer_class = PostSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]  # 恢復原始權限設定
+    
+    def get_queryset(self):
+        """獲取文章列表，包含作者和分類信息"""
+        return Post.objects.filter(is_deleted=False).select_related('author', 'category')
+    
+    def perform_create(self, serializer):
+        """創建文章時自動設置作者"""
+        serializer.save(author=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        """發表文章"""
+        try:
+            # 檢查用戶是否登入
+            if not request.user.is_authenticated:
+                return Response({
+                    'status': 'error',
+                    'message': '請先登入'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # 檢查必要欄位
+            if not all(field in request.data for field in ['title', 'content', 'category_id']):
+                return Response({
+                    'status': 'error',
+                    'message': '缺少必要欄位'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 創建文章
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            
+            return Response({
+                'status': 'success',
+                'message': '發文成功',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"發文錯誤: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def list(self, request, *args, **kwargs):
+        """獲取文章列表"""
+        try:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({
+                'status': 'success',
+                'message': '獲取文章列表成功',
+                'data': serializer.data
+            })
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class NewForumViewSet(viewsets.ModelViewSet):
+    """新的論壇 API 視圖集"""
+    serializer_class = PostSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    
+    def get_queryset(self):
+        """獲取文章列表，包含作者和分類信息"""
+        print("正在獲取文章列表...")  # 添加調試信息
+        queryset = Post.objects.filter(is_deleted=False).select_related('author', 'category')
+        print(f"找到 {queryset.count()} 篇文章")  # 添加調試信息
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        """獲取文章列表"""
+        try:
+            print("開始處理文章列表請求...")  # 添加調試信息
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            response_data = {
+                'status': 'success',
+                'message': '獲取文章列表成功',
+                'data': serializer.data
+            }
+            print(f"成功序列化 {len(serializer.data)} 篇文章")  # 添加調試信息
+            return Response(response_data)
+        except Exception as e:
+            print(f"獲取文章列表錯誤: {str(e)}")  # 添加調試信息
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def create(self, request, *args, **kwargs):
+        """發表文章"""
+        try:
+            print("開始處理發文請求...")  # 添加調試信息
+            # 檢查用戶是否登入
+            if not request.user.is_authenticated:
+                return Response({
+                    'status': 'error',
+                    'message': '請先登入'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # 檢查必要欄位
+            required_fields = ['title', 'content', 'category_id']
+            if not all(field in request.data for field in required_fields):
+                return Response({
+                    'status': 'error',
+                    'message': '缺少必要欄位'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 創建文章
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(author=request.user)
+            
+            print(f"成功創建文章: {serializer.data.get('title')}")  # 添加調試信息
+            return Response({
+                'status': 'success',
+                'message': '發文成功',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"發文錯誤: {str(e)}")  # 添加調試信息
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class TagViewSet(viewsets.ModelViewSet):
+    """標籤管理視圖集"""
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]  # 修改權限設置
+    
+    def get_queryset(self):
+        """獲取標籤列表"""
+        print("正在獲取標籤列表...")
+        queryset = Tag.objects.all()
+        print(f"找到 {queryset.count()} 個標籤")
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        """獲取標籤列表"""
+        try:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)  # 直接返回序列化後的數據
+        except Exception as e:
+            print(f"獲取標籤列表錯誤: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def create(self, request, *args, **kwargs):
+        """創建標籤"""
+        try:
+            print("開始創建標籤...")
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            print(f"成功創建標籤: {serializer.data.get('name')}")
+            return Response({
+                'status': 'success',
+                'message': '創建標籤成功',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(f"創建標籤錯誤: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def update(self, request, *args, **kwargs):
+        """更新標籤"""
+        try:
+            print("開始更新標籤...")
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            print(f"成功更新標籤: {serializer.data.get('name')}")
+            return Response({
+                'status': 'success',
+                'message': '更新標籤成功',
+                'data': serializer.data
+            })
+        except Exception as e:
+            print(f"更新標籤錯誤: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def destroy(self, request, *args, **kwargs):
+        """刪除標籤"""
+        try:
+            print("開始刪除標籤...")
+            instance = self.get_object()
+            tag_name = instance.name
+            self.perform_destroy(instance)
+            print(f"成功刪除標籤: {tag_name}")
+            return Response({
+                'status': 'success',
+                'message': '刪除標籤成功'
+            }, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            print(f"刪除標籤錯誤: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class AdminTagListView(LoginRequiredMixin, ListView):
+    """後台標籤管理視圖"""
+    model = Tag
+    template_name = 'forum_system/admin/tag_list.html'
+    context_object_name = 'tags'
+    paginate_by = 10
+
+    def get_queryset(self):
+        print("正在獲取標籤列表...")
+        return Tag.objects.all().order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = '標籤管理'
+        context['total_tags'] = Tag.objects.count()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        print("收到標籤新增請求...")
+        try:
+            name = request.POST.get('name')
+            icon = request.POST.get('icon')
+            description = request.POST.get('description')
+
+            if not name:
+                return JsonResponse({'status': 'error', 'message': '標籤名稱為必填項'})
+
+            # 檢查標籤名稱是否已存在
+            if Tag.objects.filter(name=name).exists():
+                return JsonResponse({'status': 'error', 'message': '此標籤名稱已存在'})
+
+            # 創建新標籤
+            tag = Tag.objects.create(
+                name=name,
+                icon=icon if icon else 'fa fa-tag',
+                description=description
+            )
+            print(f"標籤創建成功: {tag.name}")
+
+            # 返回成功訊息
+            return JsonResponse({
+                'status': 'success',
+                'message': '標籤新增成功',
+                'tag': {
+                    'id': tag.id,
+                    'name': tag.name,
+                    'icon': tag.icon,
+                    'description': tag.description,
+                    'created_at': tag.created_at.strftime('%Y-%m-%d %H:%M')
+                }
+            })
+
+        except Exception as e:
+            print(f"標籤創建失敗: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'標籤創建失敗: {str(e)}'})

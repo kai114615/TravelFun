@@ -59,6 +59,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3333",
+    "http://127.0.0.1:3333",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000"
 ]
 
 CORS_ALLOW_METHODS = [
@@ -83,26 +87,29 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # Cookie 設定
-SESSION_COOKIE_SAMESITE = 'Lax'  # 或 'None' 如果需要跨站點請求
-CSRF_COOKIE_SAMESITE = 'Lax'  # 或 'None' 如果需要跨站點請求
-SESSION_COOKIE_SECURE = True  # 僅通過 HTTPS 發送
-CSRF_COOKIE_SECURE = True  # 僅通過 HTTPS 發送
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False  # 開發環境設為 False
+CSRF_COOKIE_SECURE = False    # 開發環境設為 False
+CSRF_USE_SESSIONS = False     # 使用 Cookie 存儲 CSRF token
+CSRF_COOKIE_HTTPONLY = False  # 允許 JavaScript 讀取 CSRF token
+
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3333',
     'http://127.0.0.1:3333',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000'
 ]
 
 # REST Framework 設定
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
+    'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
 }
 
 # JWT 設定
@@ -137,16 +144,21 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
-MEDIA_URL = '/media/'
+# 媒體文件設定
+MEDIA_URL = '/media/'  # 改回 /media/
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# 確保媒體文件目錄存在
+# 確保上傳目錄存在
 os.makedirs(MEDIA_ROOT, exist_ok=True)
+os.makedirs(os.path.join(MEDIA_ROOT, 'avatars'), exist_ok=True)
 
 # 文件上傳設定
-FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # 2MB
+
+# 強制使用正斜線作為路徑分隔符
+os.path.sep = '/'
 
 # 添加文件處理相關設置
 FILE_UPLOAD_HANDLERS = [

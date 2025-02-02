@@ -298,51 +298,24 @@ const router = createRouter({
   },
 });
 
-// 路由守衛
-router.beforeEach(async (to, from, next) => {
+// 全局前置守衛
+router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
   
-  // 檢查是否需要認證的路由
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth || to.path.includes('/member'));
-  
-  if (requiresAuth) {
-    try {
-      const isAuthenticated = await userStore.checkLoginStatus();
-      if (!isAuthenticated) {
-        message.warning('請先登入會員');
-        next({ 
-          name: 'Login',
-          query: { redirect: to.fullPath }
-        });
-        return;
-      }
-    } catch (error) {
-      console.error('檢查登入狀態時發生錯誤:', error);
-      message.error('驗證登入狀態時發生錯誤，請稍後再試');
-      next({ name: 'Login' });
-      return;
+  // 檢查路由是否需要認證
+  if (to.meta.requiresAuth && !userStore.loginStatus) {
+    // 如果需要認證但用戶未登入，重定向到登入頁面
+    next({ 
+      name: 'Login',
+      query: { redirect: to.fullPath }
+    });
+  } else {
+    // 更新頁面標題
+    if (to.meta.title) {
+      document.title = to.meta.title;
     }
+    next();
   }
-
-  // 如果用戶已登入且嘗試訪問登入/註冊頁面，重定向到首頁
-  if (to.name === 'Login' || to.name === 'Register') {
-    try {
-      const isAuthenticated = await userStore.checkLoginStatus();
-      if (isAuthenticated) {
-        next({ name: 'Home' });
-        return;
-      }
-    } catch (error) {
-      console.error('檢查登入狀態時發生錯誤:', error);
-    }
-  }
-
-  // 更新頁面標題
-  if (to.meta.title) {
-    document.title = to.meta.title;
-  }
-
-  next();
 });
 
 export default router;
