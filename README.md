@@ -20,7 +20,7 @@
 
 ## **專案說明**
 > * 使用 `Vue.js` 和 `Vite` 進行開發
-> * 使用 `Composition API` 和 `TypeScript` 進行編程
+> * 使用 `Composition API` 進行編程
 > * 使用 `Vue Router` 路由設定
 > * 使用 `Axios` 串接後台 API 資料
 > * 使用 `props` `emit` `pinia` 進行元件間資料的傳遞
