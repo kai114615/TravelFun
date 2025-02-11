@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { NButton, NInput, NModal, NCard, NIcon } from 'naive-ui';
+import { NButton, NInput, NModal, NCard, NIcon, useMessage } from 'naive-ui';
 import { 
   FavoriteOutlined,
+  FavoriteBorderOutlined,
   ShareOutlined,
   VisibilityOutlined,
   ChatBubbleOutlined,
@@ -13,9 +14,14 @@ import {
 } from '@vicons/material';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores';
+import { apiForumToggleLike, apiForumAddComment, apiForumDeleteComment } from '@/utils/api';
 
 const router = useRouter();
 const userStore = useUserStore();
+const message = useMessage();
+
+// 添加評論區域的 ref
+const commentSection = ref(null);
 
 // 判斷是否登入
 const isLoggedIn = computed(() => userStore.loginStatus);
@@ -82,31 +88,62 @@ const post = ref({
   ]
 });
 
-// 新留言內容
+// 新增評論相關功能
 const newComment = ref('');
+const isSubmitting = ref(false);
 const showLoginModal = ref(false);
 
-// 處理留言提交
-const handleComment = () => {
+// 處理發表評論
+const handleComment = async () => {
   if (!isLoggedIn.value) {
     showLoginModal.value = true;
     return;
   }
 
-  if (newComment.value.trim()) {
-    // TODO: 實際提交留言到後端
-    post.value.comments.push({
-      id: post.value.comments.length + 1,
-      author: {
-        name: '當前用戶',
-        title: '會員',
-        avatar: 'https://picsum.photos/205'
-      },
-      content: newComment.value,
-      postDate: new Date().toLocaleString(),
-      likes: 0
-    });
-    newComment.value = '';
+  if (!newComment.value.trim()) {
+    message.warning('請輸入評論內容');
+    return;
+  }
+
+  try {
+    isSubmitting.value = true;
+    const response = await apiForumAddComment(post.value.id, newComment.value);
+    
+    if (response.data.status === 'success') {
+      // 將新評論添加到列表
+      post.value.comments.unshift({
+        id: response.data.data.id,
+        content: newComment.value,
+        author: {
+          name: userStore.displayName,
+          title: '會員',
+          avatar: userStore.userInfo?.avatar || 'https://picsum.photos/205'
+        },
+        postDate: new Date().toLocaleString(),
+        likes: 0
+      });
+      
+      // 清空輸入框
+      newComment.value = '';
+      message.success('評論發表成功');
+    }
+  } catch (error) {
+    console.error('發表評論失敗:', error);
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// 處理刪除評論
+const handleDeleteComment = async (commentId: number) => {
+  try {
+    const response = await apiForumDeleteComment(commentId);
+    if (response.data.status === 'success') {
+      // 從列表中移除該評論
+      post.value.comments = post.value.comments.filter(comment => comment.id !== commentId);
+    }
+  } catch (error) {
+    console.error('刪除評論失敗:', error);
   }
 };
 
@@ -119,6 +156,39 @@ const goToLogin = () => {
 // 返回上一頁
 const goBack = () => {
   router.back();
+};
+
+// 處理按讚
+const handleLike = async () => {
+  if (!isLoggedIn.value) {
+    message.warning('請先登入後再按讚');
+    return;
+  }
+
+  try {
+    const response = await apiForumToggleLike(post.value.id);
+    
+    if (response.data.status === 'success') {
+      // 使用後端返回的數據更新狀態
+      post.value.is_liked = response.data.data.is_liked;
+      post.value.likes = response.data.data.like_count;
+      message.success(response.data.message);
+    }
+  } catch (error) {
+    console.error('按讚失敗:', error);
+    // 不需要顯示錯誤消息，因為 API 函數已經處理了
+  }
+};
+
+// 添加跳轉到評論區域的方法
+const scrollToComments = () => {
+  const commentSection = document.getElementById('comment-section');
+  if (commentSection) {
+    commentSection.scrollIntoView({ 
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
 };
 </script>
 
@@ -165,13 +235,18 @@ const goBack = () => {
           {{ post.views }} 瀏覽
         </span>
         <span class="flex items-center gap-1">
-          <NIcon size="16"><FavoriteOutlined /></NIcon>
+          <NIcon size="16">
+            <component :is="post.is_liked ? FavoriteOutlined : FavoriteBorderOutlined" />
+          </NIcon>
           {{ post.likes }} 喜歡
         </span>
-        <span class="flex items-center gap-1">
+        <button 
+          class="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+          @click="scrollToComments"
+        >
           <NIcon size="16"><ChatBubbleOutlined /></NIcon>
-          {{ post.comments.length }} 留言
-        </span>
+          {{ post.comments?.length || 0 }} 留言
+        </button>
       </div>
 
       <!-- 文章內容 -->
@@ -181,11 +256,18 @@ const goBack = () => {
 
       <!-- 互動按鈕 -->
       <div class="flex items-center gap-4 border-t border-gray-100 pt-6">
-        <NButton type="primary" ghost class="rounded-full">
+        <NButton 
+          :type="post.is_liked ? 'error' : 'default'" 
+          ghost 
+          class="rounded-full"
+          @click="handleLike"
+        >
           <template #icon>
-            <NIcon><FavoriteOutlined /></NIcon>
+            <NIcon>
+              <component :is="post.is_liked ? FavoriteOutlined : FavoriteBorderOutlined" />
+            </NIcon>
           </template>
-          喜歡
+          {{ post.is_liked ? '已喜歡' : '喜歡' }}
         </NButton>
         <NButton class="rounded-full">
           <template #icon>
@@ -197,7 +279,7 @@ const goBack = () => {
     </div>
 
     <!-- 留言區 -->
-    <div class="bg-white rounded-xl shadow-sm p-6">
+    <div ref="commentSection" id="comment-section" class="bg-white rounded-xl shadow-sm p-6">
       <h2 class="text-xl font-bold text-gray-800 mb-6">留言區 ({{ post.comments.length }})</h2>
 
       <!-- 發表留言 -->
@@ -208,9 +290,16 @@ const goBack = () => {
           placeholder="分享您的想法..."
           :rows="3"
           class="mb-4"
+          :disabled="isSubmitting"
         />
-        <NButton type="primary" @click="handleComment" class="rounded-full">
-          發表留言
+        <NButton 
+          type="primary" 
+          @click="handleComment" 
+          class="rounded-full"
+          :loading="isSubmitting"
+          :disabled="isSubmitting || !newComment.trim()"
+        >
+          {{ isLoggedIn ? '發表留言' : '請先登入' }}
         </NButton>
       </div>
 
@@ -234,9 +323,13 @@ const goBack = () => {
                   <NIcon size="16"><ThumbUpOutlined /></NIcon>
                   {{ comment.likes }}
                 </button>
-                <button class="hover:text-primary transition-colors flex items-center gap-1">
-                  <NIcon size="16"><ReplyOutlined /></NIcon>
-                  回覆
+                <button 
+                  v-if="userStore.userInfo?.id === comment.author.id"
+                  class="text-red-500 hover:text-red-600 transition-colors flex items-center gap-1"
+                  @click="handleDeleteComment(comment.id)"
+                >
+                  <i class="fas fa-trash-alt"></i>
+                  刪除
                 </button>
               </div>
             </div>

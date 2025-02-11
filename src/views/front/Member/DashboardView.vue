@@ -264,11 +264,11 @@ const { userInfo } = storeToRefs(userStore)
 
 const baseUrl = 'http://127.0.0.1:8000'
 const avatarUrl = computed(() => {
-  if (!userInfo.value?.avatar_url) {
-    return `${baseUrl}/static/img/ex1.jpg`
+  if (!userInfo.value?.avatar) {
+    return 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
   }
   
-  let url = userInfo.value.avatar_url
+  let url = userInfo.value.avatar
   // 移除開頭的斜線（如果存在）
   url = url.replace(/^\/+/, '')
   // 移除重複的 media 前綴
@@ -346,44 +346,73 @@ watch(() => userInfo.value, (newUserInfo) => {
 
 const message = useMessage()
 
-// 保存用戶資料
-const saveProfile = async () => {
-  try {
-    const formData = new FormData()
-    formData.append('full_name', userForm.value.full_name)
-    formData.append('address', userForm.value.address)
-    
-    const response = await axiosInstance.post('/profile/update/', formData)
-
-    if (response.status === 200) {
-      message.success('個人資料更新成功')
-      await userStore.checkLoginStatus()
-    }
-  } catch (error) {
-    console.error('更新個人資料失敗:', error)
-    message.error('更新個人資料失敗，請稍後再試')
-  }
-}
-
 // 處理頭像上傳
 const handleAvatarUpload = async (options: { file: UploadFileInfo }) => {
   try {
-    const formData = new FormData()
-    formData.append('avatar', options.file.file as File)
-    formData.append('full_name', userForm.value.full_name)
-    formData.append('address', userForm.value.address)
+    const formData = new FormData();
+    formData.append('avatar', options.file.file as File);
 
-    const response = await axiosInstance.post('/profile/update/', formData)
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('請先登入');
+    }
+
+    const response = await axios.post('http://127.0.0.1:8000/api/member/profile/update/', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      withCredentials: true
+    });
 
     if (response.status === 200) {
-      message.success('頭像上傳成功')
-      await userStore.checkLoginStatus()
+      message.success('頭像上傳成功');
+      // 更新用戶資料
+      await userStore.checkLoginStatus();
+      // 更新本地頭像顯示
+      userInfo.value.avatar = response.data.avatar;
+    } else {
+      throw new Error(response.data.message || '上傳失敗');
     }
-  } catch (error) {
-    console.error('上傳頭像失敗:', error)
-    message.error('上傳頭像失敗，請稍後再試')
+  } catch (error: any) {
+    console.error('上傳頭像失敗:', error);
+    message.error(error.response?.data?.message || '上傳頭像失敗，請稍後再試');
   }
-}
+};
+
+// 保存個人資料
+const saveProfile = async () => {
+  try {
+    const formData = new FormData();
+    formData.append('full_name', userForm.value.full_name);
+    formData.append('address', userForm.value.address);
+
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('請先登入');
+    }
+
+    const response = await axios.post('http://127.0.0.1:8000/api/member/profile/update/', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      withCredentials: true
+    });
+
+    if (response.status === 200) {
+      message.success('個人資料更新成功');
+      await userStore.checkLoginStatus();
+    } else {
+      throw new Error('更新失敗');
+    }
+  } catch (error: any) {
+    console.error('更新個人資料失敗:', error);
+    message.error('更新個人資料失敗，請稍後再試');
+  }
+};
 
 // 在組件掛載時獲取最新數據
 onMounted(async () => {

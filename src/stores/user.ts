@@ -31,8 +31,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo.value = user;
     loginStatus.value = status;
     
-    // 同步更新到 localStorage 和 sessionStorage
-    if (user) {
+    if (user && status) {
       localStorage.setItem('userInfo', JSON.stringify(user));
       localStorage.setItem('loginStatus', 'true');
       sessionStorage.setItem('userInfo', JSON.stringify(user));
@@ -40,44 +39,40 @@ export const useUserStore = defineStore('user', () => {
     } else {
       localStorage.removeItem('userInfo');
       localStorage.removeItem('loginStatus');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       sessionStorage.removeItem('userInfo');
       sessionStorage.removeItem('loginStatus');
+      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      document.cookie = 'sessionid=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     }
   };
 
   // 初始化用戶狀態
-  const initializeUserState = () => {
+  const initializeUserState = async () => {
     console.log('Initializing user state');
-    // 優先從 sessionStorage 讀取
     const sessionUserInfo = sessionStorage.getItem('userInfo');
     const sessionLoginStatus = sessionStorage.getItem('loginStatus');
-    
-    if (sessionUserInfo && sessionLoginStatus === 'true') {
-      try {
-        const parsedUserInfo = JSON.parse(sessionUserInfo);
-        updateUserState(parsedUserInfo, true);
-        console.log('User state initialized from sessionStorage');
-        return;
-      } catch (error) {
-        console.error('Error parsing session user info:', error);
-      }
-    }
-    
-    // 如果 sessionStorage 沒有，則從 localStorage 讀取
     const localUserInfo = localStorage.getItem('userInfo');
     const localLoginStatus = localStorage.getItem('loginStatus');
+    const token = localStorage.getItem('access_token');
     
-    if (localUserInfo && localLoginStatus === 'true') {
-      try {
-        const parsedUserInfo = JSON.parse(localUserInfo);
-        updateUserState(parsedUserInfo, true);
-        console.log('User state initialized from localStorage');
-      } catch (error) {
-        console.error('Error parsing stored user info:', error);
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('loginStatus');
+    if (!token) {
+      updateUserState(null, false);
+      return;
+    }
+
+    try {
+      // 檢查後端登入狀態
+      const response = await apiUserCheckSignin();
+      if (response.data?.isAuthenticated && response.data?.user) {
+        updateUserState(response.data.user, true);
+      } else {
+        throw new Error('Not authenticated');
       }
-    } else {
+    } catch (error) {
+      console.error('Failed to verify authentication:', error);
       updateUserState(null, false);
     }
   };
@@ -124,6 +119,7 @@ export const useUserStore = defineStore('user', () => {
       return false;
     } catch (error) {
       console.error('Login failed:', error);
+      updateUserState(null, false);
       throw error;
     } finally {
       isLoading.value = false;
@@ -133,48 +129,39 @@ export const useUserStore = defineStore('user', () => {
   // 檢查登入狀態
   const checkLoginStatus = async () => {
     try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        updateUserState(null, false);
+        return false;
+      }
+
       const response = await apiUserCheckSignin();
       const { success, isAuthenticated, user } = response.data;
       
-      loginStatus.value = isAuthenticated;
       if (isAuthenticated && user) {
-        userInfo.value = user;
+        updateUserState(user, true);
+        return true;
       } else {
-        userInfo.value = null;
+        updateUserState(null, false);
+        return false;
       }
-      
-      return isAuthenticated;
     } catch (error) {
       console.error('檢查登入狀態時發生錯誤:', error);
-      loginStatus.value = false;
-      userInfo.value = null;
+      updateUserState(null, false);
       return false;
     }
-  };
-
-  // 設置登入狀態
-  const setLoginStatus = (status: boolean, user = null) => {
-    loginStatus.value = status;
-    userInfo.value = user;
   };
 
   // 登出功能
   const logout = async () => {
     console.log('Logging out...');
     try {
-      // 清除用戶狀態
+      // 先呼叫後端登出 API
+      await apiUserLogout();
+      
+      // 清除所有狀態和存儲
       updateUserState(null, false);
       
-      // 清除所有相關的 cookies
-      document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-      document.cookie = 'refresh_token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-      document.cookie = 'sessionid=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-
-      // 嘗試呼叫後端登出 API，但不等待回應
-      apiUserLogout().catch(() => {
-        console.log('Backend logout API call failed, but local logout successful');
-      });
-
       // 顯示登出成功訊息
       successMsg('已成功登出');
 
@@ -183,8 +170,10 @@ export const useUserStore = defineStore('user', () => {
       
       return true;
     } catch (error) {
-      console.log('Local logout process completed');
-      return true;  // 即使有錯誤也返回成功
+      console.error('Logout error:', error);
+      // 即使後端 API 呼叫失敗，仍然清除前端狀態
+      updateUserState(null, false);
+      return true;
     }
   };
 
@@ -199,7 +188,6 @@ export const useUserStore = defineStore('user', () => {
     signin,
     logout,
     checkLoginStatus,
-    setLoginStatus,
     updateUserState,
   };
 });

@@ -20,6 +20,8 @@ import {
   SortOutlined,
   StarOutlined,
   VisibilityOutlined,
+  FavoriteOutlined,
+  FavoriteBorderOutlined,
 } from '@vicons/material';
 import { 
   NButton, 
@@ -35,11 +37,36 @@ import {
   NSwitch, 
   useMessage,
 } from 'naive-ui';
+import { apiForumToggleLike } from '@/utils/api';
+import PostDetailModal from './components/PostDetailModal.vue'
 
 const router = useRouter();
 const userStore = useUserStore();
 const isLoggedIn = computed(() => userStore.loginStatus);
 const message = useMessage();
+
+// 添加 baseUrl 變量
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// 處理頭像 URL 的函數
+const getAuthorAvatar = (author: any) => {
+  if (!author?.avatar) {
+    return 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+  }
+  
+  let avatarUrl = author.avatar;
+  
+  // 如果是完整的 URL，直接返回
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    return avatarUrl;
+  }
+  
+  // 移除開頭的 media/ 或 /media/（如果存在）
+  avatarUrl = avatarUrl.replace(/^media\/|^\/media\//, '');
+  
+  // 構建完整的 URL
+  return `${baseUrl}/media/${avatarUrl}`;
+};
 
 const title = ref('討論區');
 const activeCategory = ref('國內旅遊');
@@ -159,7 +186,8 @@ const loadPosts = async () => {
         },
         author: {
           id: post.author?.id || 0,
-          username: post.author?.username || '匿名用戶'
+          username: post.author?.username || '匿名用戶',
+          avatar: post.author?.avatar || null
         },
         created_at: post.created_at || new Date().toISOString(),
         views: post.views || 0,
@@ -169,7 +197,8 @@ const loadPosts = async () => {
           id: tag.id,
           name: tag.name,
           description: tag.description || ''
-        })) : []
+        })) : [],
+        is_liked: post.is_liked || false,
       }));
       console.log('更新後的文章列表:', posts.value);
     } else {
@@ -405,7 +434,8 @@ const handleSubmit = async () => {
 onMounted(async () => {
   await loadCategories();
   await loadPosts();
-  await loadTags();  // 添加載入標籤
+  await loadTags();
+  await loadModerators();
 });
 
 // 輪播圖片列表
@@ -453,9 +483,13 @@ const carouselImages = [
 ];
 
 // 跳轉到文章詳情頁
-const goToPostDetail = (postId: number) => {
-  router.push(`/forum/post/${postId}`);
-};
+const showPostDetailModal = ref(false)
+const selectedPost = ref(null)
+
+const goToPostDetail = (post) => {
+  selectedPost.value = post
+  showPostDetailModal.value = true
+}
 
 // 搜尋關鍵字
 const searchKeyword = ref('');
@@ -508,6 +542,68 @@ const goToRegister = () => {
   router.push('/register');
   showLoginModal.value = false;
 };
+
+// 在 script setup 區塊的開頭添加新的 ref
+const moderators = ref([]);
+
+// 在 script setup 區塊中添加新的函數
+const loadModerators = async () => {
+  try {
+    console.log('開始載入版務人員資訊...');
+    const response = await axios.get('http://localhost:8000/api/forum/moderators/', {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('版務人員資訊響應:', response.data);
+
+    if (response.data?.status === 'success' && Array.isArray(response.data.data)) {
+      moderators.value = response.data.data.map(mod => ({
+        ...mod,
+        avatar: mod.avatar 
+          ? getAuthorAvatar(mod) 
+          : 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
+      }));
+    } else {
+      console.error('無效的版務人員資料格式:', response.data);
+      moderators.value = [];
+    }
+  } catch (error) {
+    console.error('載入版務人員資訊失敗:', error);
+    moderators.value = [];
+  }
+};
+
+// 處理按讚
+const handleLike = async (post: any, index: number) => {
+  if (!isLoggedIn.value) {
+    return
+  }
+
+  try {
+    // 樂觀更新 UI
+    const isCurrentlyLiked = post.is_liked
+    post.is_liked = !isCurrentlyLiked
+    post.likes_count += isCurrentlyLiked ? -1 : 1
+
+    // 發送請求到後端
+    const response = await apiForumToggleLike(post.id)
+    
+    if (response.data.status === 'success') {
+      // 使用後端返回的實際數據更新
+      post.is_liked = response.data.data.is_liked
+      post.likes_count = response.data.data.like_count
+    } else {
+      // 如果請求失敗，恢復原始狀態
+      post.is_liked = isCurrentlyLiked
+      post.likes_count += isCurrentlyLiked ? 1 : -1
+      throw new Error(response.data.message)
+    }
+  } catch (error: any) {
+    console.error('按讚失敗:', error)
+  }
+}
 </script>
 
 <template>
@@ -676,56 +772,45 @@ const goToRegister = () => {
             </div>
 
             <!-- 文章列表 -->
-            <div class="bg-white rounded-lg shadow-md p-6 mt-4">
-              <h2 class="text-2xl font-bold mb-4">文章列表</h2>
+            <div class="bg-white rounded-lg p-4">
               <div v-if="!posts || posts.length === 0" class="text-gray-500 text-center py-4">
                 暫無文章
               </div>
-              <div v-else class="space-y-4">
-                <div v-for="post in posts" :key="post.id" 
-                  class="border-b pb-4 hover:bg-gray-50 p-4 rounded-lg transition-all duration-300">
-                  <div class="flex justify-between items-start mb-2">
-                    <h3 class="text-xl font-semibold text-gray-800 hover:text-primary cursor-pointer"
-                      @click="goToPostDetail(post.id)">
-                      {{ post.title }}
-                    </h3>
-                    <span class="text-sm text-gray-500">
-                      {{ formatDate(post.created_at) }}
-                    </span>
-                  </div>
-                  <p class="text-gray-600 mt-2 line-clamp-3">{{ post.content }}</p>
-                  <div class="flex items-center justify-between mt-3">
-                    <div class="flex items-center gap-4">
-                      <div class="flex items-center text-gray-500 text-sm">
-                        <NIcon size="16" class="mr-1"><PersonOutlined /></NIcon>
-                        {{ post.author?.username || '匿名用戶' }}
+              <div v-else class="divide-y divide-gray-100">
+                <div v-for="(post, index) in posts" :key="post.id" 
+                  class="py-4 hover:bg-gray-50 transition-all duration-300 cursor-pointer"
+                  @click="goToPostDetail(post)">
+                  <div class="flex items-start space-x-3">
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-2 mb-2">
+                        <img 
+                          :src="getAuthorAvatar(post.author)"
+                          :alt="post.author.username"
+                          class="w-6 h-6 rounded-full object-cover"
+                          @error="(e) => e.target.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'"
+                        >
+                        <span class="text-sm text-gray-600">{{ post.author.username }}</span>
+                        <span class="text-gray-400">·</span>
+                        <span class="text-sm text-gray-500">{{ formatDate(post.created_at) }}</span>
                       </div>
-                      <div class="flex items-center text-gray-500 text-sm">
-                        <NIcon size="16" class="mr-1"><CategoryOutlined /></NIcon>
-                        {{ getCategoryName(post.category_id) }}
-                      </div>
-                      <div class="flex items-center text-gray-500 text-sm">
-                        <NIcon size="16" class="mr-1"><LocalOfferOutlined /></NIcon>
-                        <template v-if="post.tags && post.tags.length > 0">
-                          <span v-for="(tag, index) in post.tags" :key="tag.id">
-                            {{ tag.name }}{{ index < post.tags.length - 1 ? ', ' : '' }}
-                          </span>
-                        </template>
-                        <template v-else>無標籤</template>
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-4">
-                      <div class="flex items-center text-gray-500 text-sm">
-                        <NIcon size="16" class="mr-1"><VisibilityOutlined /></NIcon>
-                        {{ post.views || 0 }}
-                      </div>
-                      <div class="flex items-center text-gray-500 text-sm">
-                        <NIcon size="16" class="mr-1"><ChatBubbleOutlined /></NIcon>
-                        {{ post.comments_count || 0 }}
-                      </div>
-                      <div class="flex items-center text-gray-500 text-sm">
-                        <NIcon size="16" class="mr-1"><StarOutlined /></NIcon>
-                        {{ post.likes_count || 0 }}
+                      <h3 class="text-lg font-medium text-gray-900 hover:text-primary mb-2">
+                        {{ post.title }}
+                      </h3>
+                      <div class="flex items-center space-x-4 text-sm text-gray-500">
+                        <span class="flex items-center space-x-1">
+                          <NIcon size="16"><VisibilityOutlined /></NIcon>
+                          <span>{{ post.views }}</span>
+                        </span>
+                        <span class="flex items-center space-x-1">
+                          <NIcon size="16">
+                            <component :is="post.is_liked ? FavoriteOutlined : FavoriteBorderOutlined" />
+                          </NIcon>
+                          <span>{{ post.likes_count }}</span>
+                        </span>
+                        <span class="flex items-center space-x-1">
+                          <NIcon size="16"><ChatBubbleOutlined /></NIcon>
+                          <span>{{ post.comments_count }}</span>
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -757,16 +842,37 @@ const goToRegister = () => {
               <NIcon size="20"><PersonOutlined /></NIcon>
               版務人員
             </h3>
-            <div class="flex items-center gap-4">
-              <img :src="moderator.avatar" :alt="moderator.name" class="w-12 h-12 rounded-full ring-2 ring-primary/20">
-              <div>
-                <div class="font-medium text-gray-800">{{ moderator.name }}</div>
-                <div class="text-sm mt-1">
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-primary bg-primary/5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                    {{ moderator.status }}
-                  </span>
+            <div class="space-y-4">
+              <template v-if="moderators.length > 0">
+                <div v-for="moderator in moderators" :key="moderator.id" 
+                  class="flex items-center gap-4 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-300">
+                  <div class="relative">
+                    <img 
+                      :src="moderator.avatar"
+                      :alt="moderator.username"
+                      class="w-12 h-12 rounded-full object-cover ring-2 shadow-sm"
+                      :class="moderator.status === '在線' ? 'ring-green-500' : 'ring-gray-300'"
+                      @error="(e) => e.target.src = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'"
+                    >
+                    <span 
+                      class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white"
+                      :class="moderator.status === '在線' ? 'bg-green-500' : 'bg-gray-400'"
+                    ></span>
+                  </div>
+                  <div>
+                    <div class="font-medium text-gray-800">{{ moderator.username }}</div>
+                    <div class="text-sm text-gray-500 mt-0.5">
+                      <span class="inline-flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full"
+                          :class="moderator.status === '在線' ? 'bg-green-500' : 'bg-gray-400'"></span>
+                        {{ moderator.status }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
+              </template>
+              <div v-else class="text-center text-gray-500 py-4">
+                暫無版務人員
               </div>
             </div>
           </div>
@@ -923,6 +1029,34 @@ const goToRegister = () => {
       </div>
     </NCard>
   </NModal>
+
+  <PostDetailModal
+    v-model:show="showPostDetailModal"
+    :post="selectedPost"
+    @like="(data) => {
+      if (selectedPost) {
+        selectedPost.is_liked = data.is_liked
+        selectedPost.like_count = data.like_count
+      }
+      // 更新列表中的文章數據
+      const postIndex = posts.value.findIndex(p => p.id === selectedPost?.id)
+      if (postIndex !== -1) {
+        posts.value[postIndex].is_liked = data.is_liked
+        posts.value[postIndex].like_count = data.like_count
+      }
+    }"
+    @comment="(data) => {
+      if (selectedPost) {
+        selectedPost.comment_count = (selectedPost.comment_count || 0) + 1
+        selectedPost.comments = [...(selectedPost.comments || []), data]
+      }
+      // 更新列表中的文章數據
+      const postIndex = posts.value.findIndex(p => p.id === selectedPost?.id)
+      if (postIndex !== -1) {
+        posts.value[postIndex].comment_count = (posts.value[postIndex].comment_count || 0) + 1
+      }
+    }"
+  />
 </template>
 
 <style scoped>

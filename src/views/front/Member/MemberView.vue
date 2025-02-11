@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { 
   NTabs, 
   NTabPane, 
@@ -34,6 +34,9 @@ import {
   PersonOutlined,
   CameraAltOutlined
 } from '@vicons/material';
+import { useUserStore } from '@/stores/user';
+import { useMessage } from 'naive-ui';
+import axios from 'axios';
 
 // 當前選中的標籤頁
 const activeTab = ref('orders');
@@ -188,6 +191,29 @@ const passwordForm = ref({
 // 是否顯示修改密碼表單
 const showPasswordForm = ref(false);
 
+const userStore = useUserStore();
+const isLoggedIn = computed(() => userStore.loginStatus);
+const message = useMessage();
+
+// 頭像 URL 處理
+const baseUrl = 'http://localhost:8000';
+const avatarUrl = computed(() => {
+  if (!userProfile.value.avatar) {
+    return 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
+  }
+  
+  let url = userProfile.value.avatar
+  // 移除開頭的斜線（如果存在）
+  url = url.replace(/^\/+/, '')
+  // 移除重複的 media 前綴
+  url = url.replace(/^media\/media\//, 'media/')
+  // 確保使用正斜線
+  url = url.replace(/\\/g, '/')
+  
+  // 組合完整 URL
+  return `${baseUrl}/${url}`
+})
+
 // 修改密碼
 const changePassword = async () => {
   try {
@@ -231,7 +257,7 @@ const fetchUserProfile = async () => {
       phone: '0912345678',
       birthday: new Date('1990-01-01'),
       address: '台北市信義區信義路五段7號',
-      avatar: 'https://picsum.photos/200',
+      avatar: '',  // 預設為空，將使用 Gravatar 預設頭像
       notifications: {
         email: true,
         push: true
@@ -249,26 +275,77 @@ onMounted(() => {
   fetchUserProfile();
 });
 
-const handleAvatarUpload = async (file: File) => {
+// 處理頭像上傳
+const handleAvatarUpload = async (options: { file: UploadFileInfo }) => {
   try {
-    // TODO: 實作頭像上傳邏輯
-    console.log('上傳頭像:', file);
-    // 模擬上傳成功後更新頭像
-    userProfile.value.avatar = URL.createObjectURL(file);
-  } catch (error) {
+    const formData = new FormData();
+    formData.append('avatar', options.file.file as File);
+
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('請先登入');
+    }
+
+    const response = await axios.post('http://127.0.0.1:8000/api/member/profile/update/', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      withCredentials: true
+    });
+
+    if (response.status === 200) {
+      message.success('頭像上傳成功');
+      // 更新用戶資料
+      await userStore.checkLoginStatus();
+      // 更新本地頭像顯示
+      userProfile.value.avatar = response.data.avatar;
+    } else {
+      throw new Error(response.data.message || '上傳失敗');
+    }
+  } catch (error: any) {
     console.error('上傳頭像失敗:', error);
+    message.error(error.response?.data?.message || '上傳頭像失敗，請稍後再試');
   }
 };
 
+// 保存個人資料
 const saveProfile = async () => {
   try {
-    // TODO: 實作儲存個人資料邏輯
-    console.log('儲存個人資料:', userProfile.value);
-    // 模擬儲存成功
-    window.$message.success('個人資料更新成功');
-  } catch (error) {
-    console.error('儲存個人資料失敗:', error);
-    window.$message.error('個人資料更新失敗');
+    const formData = new FormData();
+    formData.append('full_name', userProfile.value.full_name);
+    formData.append('address', userProfile.value.address);
+
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('請先登入');
+    }
+
+    const response = await axios.post('http://127.0.0.1:8000/api/member/update-profile/', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      withCredentials: true
+    });
+
+    if (response.status === 200) {
+      message.success('個人資料更新成功');
+      // 更新用戶資料
+      await userStore.checkLoginStatus();
+      // 更新本地表單數據
+      userProfile.value = {
+        full_name: response.data.full_name || '',
+        address: response.data.address || ''
+      };
+    } else {
+      throw new Error(response.data.message || '更新失敗');
+    }
+  } catch (error: any) {
+    console.error('更新個人資料失敗:', error);
+    message.error(error.response?.data?.message || '更新個人資料失敗，請稍後再試');
   }
 };
 
@@ -536,7 +613,7 @@ const markAsRead = (notificationId: number) => {
         <NCard class="max-w-2xl mx-auto">
           <div class="flex flex-col items-center mb-8">
             <NAvatar
-              :src="userProfile.avatar || 'https://picsum.photos/200'"
+              :src="avatarUrl"
               :size="100"
               round
               class="mb-4"
@@ -544,6 +621,7 @@ const markAsRead = (notificationId: number) => {
             <NUpload
               accept="image/*"
               :max="1"
+              :show-file-list="false"
               @change="handleAvatarUpload"
             >
               <NButton secondary>
@@ -557,11 +635,11 @@ const markAsRead = (notificationId: number) => {
 
           <NForm>
             <NFormItem label="姓名" required>
-              <NInput v-model:value="userProfile.name" placeholder="請輸入姓名" />
+              <NInput v-model:value="userProfile.full_name" placeholder="請輸入姓名" />
             </NFormItem>
             
             <NFormItem label="Email" required>
-              <NInput v-model:value="userProfile.email" placeholder="請輸入Email" />
+              <NInput v-model:value="userProfile.email" placeholder="請輸入Email" disabled />
             </NFormItem>
             
             <NFormItem label="手機">

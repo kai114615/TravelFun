@@ -7,7 +7,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email']
+        fields = ['id', 'username', 'email', 'avatar']
 
 class CategorySerializer(serializers.ModelSerializer):
     post_count = serializers.SerializerMethodField()
@@ -38,7 +38,7 @@ class PostSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
-    like_count = serializers.IntegerField(read_only=True)
+    like_count = serializers.SerializerMethodField()
     comment_count = serializers.IntegerField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     tags = TagSerializer(many=True, read_only=True)
@@ -63,6 +63,9 @@ class PostSerializer(serializers.ModelSerializer):
     def get_is_saved(self, obj):
         user = self.context['request'].user
         return user.is_authenticated and SavedPost.objects.filter(user=user, post=obj).exists()
+
+    def get_like_count(self, obj):
+        return obj.likes.count()
 
     def create(self, validated_data):
         tags_ids = validated_data.pop('tags_ids', [])

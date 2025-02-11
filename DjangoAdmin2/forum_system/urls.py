@@ -32,6 +32,7 @@ urlpatterns = [
     
     # 後台管理頁面路由
     path('user-dashboard/forum/articles/', views.AdminPostListView.as_view(), name='forum_article_list'),
+    path('user-dashboard/forum/articles/<int:pk>/', views.AdminPostDetailView.as_view(), name='admin-post-detail'),
     path('user-dashboard/forum/categories/', views.AdminCategoryListView.as_view(), name='forum_category_list'),
     path('user-dashboard/forum/comments/', views.AdminCommentListView.as_view(), name='forum_comment_list'),
     path('user-dashboard/forum/tags/', views.AdminTagListView.as_view(), name='forum_tag_list'),

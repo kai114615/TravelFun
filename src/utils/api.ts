@@ -165,6 +165,13 @@ const api = {
     order: `/api/${API_PATH}/admin/order`,
     coupon: `/api/${API_PATH}/admin/coupon`,
   },
+  forum: {
+    posts: '/api/forum/',
+    like: (postId: number) => `/api/forum/${postId}/like/`,
+    comment: (postId: number) => `/api/forum/${postId}/add_comment/`,
+    categories: '/api/forum/categories/',
+    moderators: '/api/forum/moderators/',
+  },
 };
 
 // API USER
@@ -333,6 +340,56 @@ const apiAdminGetCoupons = () => request.get(`${api.admin.coupon}s`);
 const apiAdminPostCoupon = (data: any) => request.post(`${api.admin.coupon}`, data);
 const apiAdminPutCoupon = (id: string, data: any) => request.put(`${api.admin.coupon}/${id}`, data);
 const apiAdminDelCoupon = (id: string) => request.delete(`${api.admin.coupon}/${id}`);
+
+// Forum API functions
+export const apiForumGetPosts = () => request.get(api.forum.posts);
+export const apiForumGetPost = (id: number) => request.get(`${api.forum.posts}${id}/`);
+export const apiForumToggleLike = async (postId: number) => {
+  try {
+    const response = await request.post(`${api.forum.like(postId)}`);
+    return response;
+  } catch (error: any) {
+    console.error('按讚失敗:', error);
+    throw error;
+  }
+};
+
+export const apiForumAddComment = async (postId: number, content: string) => {
+  try {
+    const response = await request.post(api.forum.comment(postId), { content });
+    if (response.data.status === 'success') {
+      successMsg('評論發表成功');
+    }
+    return response;
+  } catch (error: any) {
+    console.error('發表評論失敗:', error);
+    if (error.response?.status === 401) {
+      errorMsg('請先登入', '需要登入才能發表評論');
+    } else {
+      errorMsg('發表失敗', error.response?.data?.message || '請稍後再試');
+    }
+    throw error;
+  }
+};
+
+export const apiForumGetComments = (postId: number) => request.get(`${api.forum.posts}${postId}/comments/`);
+
+export const apiForumDeleteComment = async (commentId: number) => {
+  try {
+    const response = await request.delete(`${api.forum.posts}comments/${commentId}/`);
+    if (response.data.status === 'success') {
+      successMsg('評論已刪除');
+    }
+    return response;
+  } catch (error: any) {
+    console.error('刪除評論失敗:', error);
+    errorMsg('刪除失敗', error.response?.data?.message || '請稍後再試');
+    throw error;
+  }
+};
+
+export const apiForumGetCategories = () => request.get(api.forum.categories);
+export const apiForumGetModerators = () => request.get(api.forum.moderators);
 
 export {
   api,

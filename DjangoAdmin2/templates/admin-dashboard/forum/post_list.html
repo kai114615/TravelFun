@@ -1,0 +1,138 @@
+{% extends "admin-dashboard/base.html" %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">文章列表</h3>
+                    <div class="card-tools">
+                        <span class="badge badge-info">總文章數: {{ total_posts }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table id="articles-table" class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>標題</th>
+                                <th>作者</th>
+                                <th>分類</th>
+                                <th>按讚數</th>
+                                <th>評論數</th>
+                                <th>瀏覽數</th>
+                                <th>發布時間</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for post in posts %}
+                            <tr>
+                                <td>{{ post.id }}</td>
+                                <td>{{ post.title }}</td>
+                                <td>{{ post.author.username }}</td>
+                                <td>{{ post.category.name }}</td>
+                                <td>{{ post.likes_total }}</td>
+                                <td>{{ post.comments_total }}</td>
+                                <td>{{ post.views }}</td>
+                                <td>{{ post.created_at|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{% url 'admin-post-detail' post.id %}" class="btn btn-info btn-sm">
+                                            查看
+                                        </a>
+                                        <a href="{% url 'forum_article_list' %}?edit={{ post.id }}" class="btn btn-warning btn-sm">
+                                            編輯
+                                        </a>
+                                        <button class="btn btn-danger btn-sm delete-post" data-post-id="{{ post.id }}">
+                                            刪除
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 刪除確認對話框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">確認刪除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>確定要刪除這篇文章嗎？此操作無法撤銷。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">確定刪除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 初始化 DataTables
+    $('#articles-table').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Chinese.json"
+        },
+        "order": [[0, "desc"]]
+    });
+
+    // 刪除文章的處理
+    let postIdToDelete = null;
+    
+    $('.delete-post').click(function() {
+        postIdToDelete = $(this).data('post-id');
+        $('#deleteModal').modal('show');
+    });
+
+    $('#confirmDelete').click(function() {
+        if (postIdToDelete) {
+            $.ajax({
+                url: `/api/admin/posts/${postIdToDelete}/delete_post/`,
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                success: function() {
+                    location.reload();
+                },
+                error: function(xhr) {
+                    alert('刪除失敗：' + xhr.responseJSON?.detail || '未知錯誤');
+                }
+            });
+        }
+        $('#deleteModal').modal('hide');
+    });
+
+    // 獲取 CSRF Token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %} 
