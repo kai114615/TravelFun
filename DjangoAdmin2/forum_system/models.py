@@ -25,7 +25,7 @@ class Category(models.Model):
 class Post(models.Model):
     """討論文章"""
     title = models.CharField('標題', max_length=200)
-    content = CKEditor5Field('內容', config_name='default', blank=True)
+    content = CKEditor5Field('內容', config_name='default', blank=True, null=True)
     author = models.ForeignKey(
         Member,  # 改為使用 Member 模型
         on_delete=models.CASCADE,
@@ -36,6 +36,8 @@ class Post(models.Model):
     views = models.PositiveIntegerField('瀏覽次數', default=0)
     likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='liked_posts', blank=True, verbose_name='按讚')
     tags = models.ManyToManyField('Tag', related_name='posts', blank=True, verbose_name='標籤')
+    allow_comments = models.BooleanField('允許評論', default=True)
+    is_published = models.BooleanField('是否發布', default=True)
     created_at = models.DateTimeField('發布時間', default=timezone.now)
     updated_at = models.DateTimeField('更新時間', auto_now=True)
     is_deleted = models.BooleanField('是否刪除', default=False)
@@ -48,12 +50,10 @@ class Post(models.Model):
     def __str__(self):
         return self.title
 
-    @property
-    def like_count(self):
+    def get_like_count(self):
         return self.likes.count()
 
-    @property
-    def comment_count(self):
+    def get_comment_count(self):
         return self.comments.count()
 
 class Comment(models.Model):

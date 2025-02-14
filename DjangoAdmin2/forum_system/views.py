@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
-from .models import Category, Post, Comment, SavedPost, Tag
+from .models import Category, Post, Comment, SavedPost, Tag, Member
 from .serializers import (
     CategorySerializer,
     PostSerializer,
@@ -13,7 +13,7 @@ from .serializers import (
     TagSerializer
 )
 from .permissions import IsAuthorOrReadOnly, IsAdminOrReadOnly
-from django.views.generic import ListView, TemplateView
+from django.views.generic import ListView, TemplateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
@@ -205,14 +205,25 @@ class AdminPostListView(LoginRequiredMixin, ListView):
     model = Post
     template_name = 'admin-dashboard/forum/post_list.html'
     context_object_name = 'posts'
-    paginate_by = 10
 
     def get_queryset(self):
-        return Post.objects.filter(is_deleted=False).annotate(
-            like_count=Count('likes'),
-            save_count=Count('saved_by'),
-            comment_count=Count('comments')
-        ).order_by('-created_at')
+        print("Loading article list...")
+        queryset = Post.objects.filter(is_deleted=False) \
+            .select_related('author', 'category') \
+            .prefetch_related('likes', 'comments', 'saved_by') \
+            .annotate(
+                likes_total=Count('likes', distinct=True),
+                comments_total=Count('comments', distinct=True),
+                saves_total=Count('saved_by', distinct=True)
+            ) \
+            .order_by('-created_at')
+        print(f"Found {queryset.count()} posts")
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_posts'] = self.get_queryset().count()
+        return context
 
 class AdminCategoryListView(LoginRequiredMixin, ListView):
     """分類管理頁面"""
@@ -628,40 +639,11 @@ class PublicForumViewSet(viewsets.ModelViewSet):
         """創建文章時自動設置作者"""
         serializer.save(author=self.request.user)
     
-    def create(self, request, *args, **kwargs):
-        """發表文章"""
-        try:
-            # 檢查用戶是否登入
-            if not request.user.is_authenticated:
-                return Response({
-                    'status': 'error',
-                    'message': '請先登入'
-                }, status=status.HTTP_401_UNAUTHORIZED)
-            
-            # 檢查必要欄位
-            if not all(field in request.data for field in ['title', 'content', 'category_id']):
-                return Response({
-                    'status': 'error',
-                    'message': '缺少必要欄位'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # 創建文章
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            
-            return Response({
-                'status': 'success',
-                'message': '發文成功',
-                'data': serializer.data
-            }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            print(f"發文錯誤: {str(e)}")
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+    def get_serializer_context(self):
+        """添加 request 到序列化器上下文"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
     
     def list(self, request, *args, **kwargs):
         """獲取文章列表"""
@@ -674,6 +656,87 @@ class PublicForumViewSet(viewsets.ModelViewSet):
                 'data': serializer.data
             })
         except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def like(self, request, pk=None):
+        """按讚/取消按讚"""
+        try:
+            post = self.get_object()
+            user = request.user
+            
+            # 檢查用戶是否已經按讚
+            if post.likes.filter(id=user.id).exists():
+                post.likes.remove(user)
+                return Response({
+                    'status': 'success',
+                    'message': '已取消按讚',
+                    'data': {
+                        'is_liked': False,
+                        'like_count': post.likes.count()
+                    }
+                })
+            else:
+                post.likes.add(user)
+                return Response({
+                    'status': 'success',
+                    'message': '已按讚',
+                    'data': {
+                        'is_liked': True,
+                        'like_count': post.likes.count()
+                    }
+                })
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def moderators(self, request):
+        """獲取版務人員（管理員）資訊"""
+        try:
+            # 只獲取管理員權限的用戶
+            moderators = Member.objects.filter(
+                is_staff=True,  # 是管理員
+                is_active=True  # 帳號啟用中
+            ).values(
+                'id', 
+                'username', 
+                'avatar',
+                'last_login'
+            )
+            
+            # 處理每個管理員的狀態
+            moderator_list = []
+            for mod in moderators:
+                status = '在線' if mod['last_login'] and (timezone.now() - mod['last_login']).seconds < 3600 else '離線'
+                
+                # 處理頭像路徑
+                avatar_url = mod['avatar']
+                if avatar_url:
+                    # 移除開頭的 media/ 如果存在
+                    avatar_url = avatar_url.replace('media/', '', 1) if avatar_url.startswith('media/') else avatar_url
+                    # 移除開頭的 /media/ 如果存在
+                    avatar_url = avatar_url.replace('/media/', '', 1) if avatar_url.startswith('/media/') else avatar_url
+                
+                moderator_list.append({
+                    'id': mod['id'],
+                    'username': mod['username'],
+                    'avatar': avatar_url,
+                    'status': status
+                })
+            
+            return Response({
+                'status': 'success',
+                'message': '獲取版務人員資訊成功',
+                'data': moderator_list
+            })
+        except Exception as e:
+            print(f"獲取版務人員資訊錯誤: {str(e)}")
             return Response({
                 'status': 'error',
                 'message': str(e)
@@ -890,3 +953,25 @@ class AdminTagListView(LoginRequiredMixin, ListView):
         except Exception as e:
             print(f"標籤創建失敗: {str(e)}")
             return JsonResponse({'status': 'error', 'message': f'標籤創建失敗: {str(e)}'})
+
+class AdminPostDetailView(LoginRequiredMixin, DetailView):
+    """文章詳情頁面"""
+    model = Post
+    template_name = 'admin-dashboard/forum/post_detail.html'
+    context_object_name = 'post'
+
+    def get_queryset(self):
+        return Post.objects.filter(is_deleted=False).select_related(
+            'author', 'category'
+        ).prefetch_related(
+            'likes', 'comments', 'saved_by', 'tags'
+        ).annotate(
+            likes_total=Count('likes', distinct=True),
+            comments_total=Count('comments', distinct=True),
+            saves_total=Count('saved_by', distinct=True)
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['comments'] = self.object.comments.filter(is_deleted=False).select_related('author')
+        return context

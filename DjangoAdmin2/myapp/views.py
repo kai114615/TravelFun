@@ -1026,3 +1026,40 @@ def create_post(request):
             'success': False,
             'message': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def profile_update_api(request):
+    """
+    更新用戶資料 API 視圖
+    """
+    try:
+        user = request.user
+        
+        # 處理頭像上傳
+        if 'avatar' in request.FILES:
+            user.avatar = request.FILES['avatar']
+        
+        # 處理其他資料更新
+        if 'full_name' in request.data:
+            user.full_name = request.data['full_name']
+        if 'address' in request.data:
+            user.address = request.data['address']
+        
+        # 保存更改
+        user.save()
+        
+        return Response({
+            'success': True,
+            'message': '資料更新成功',
+            'avatar': user.get_avatar_url(),
+            'full_name': user.full_name,
+            'address': user.address
+        })
+        
+    except Exception as e:
+        print(f"更新用戶資料時出錯: {str(e)}")
+        return Response({
+            'success': False,
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)

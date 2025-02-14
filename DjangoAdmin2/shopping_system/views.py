@@ -6,6 +6,8 @@ from django.utils import timezone
 import json
 from .models import Product, Carousel, CategoryDisplay, RecommendedProduct
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
@@ -144,7 +146,8 @@ def shop_api_test(request):
     })
 
 @csrf_exempt
-@require_http_methods(['GET', 'POST', 'PUT', 'DELETE'])
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
+@permission_classes([AllowAny])  # 允許所有用戶訪問
 def product_api(request, product_id=None):
     """商品 API 視圖"""
     print(f"收到 {request.method} 請求，product_id: {product_id}")  # 調試日誌
@@ -164,7 +167,7 @@ def product_api(request, product_id=None):
                     'image_url': product.get_image_url()
                 }
             else:
-                products = Product.objects.all()
+                products = Product.objects.filter(is_active=True)  # 只返回已上架的商品
                 print(f"找到 {products.count()} 個商品")  # 調試日誌
                 data = [{
                     'id': p.id,
@@ -260,31 +263,31 @@ def carousel_api(request, carousel_id=None):
             } for c in carousels]
         return JsonResponse(data, safe=False)
 
-@require_http_methods(['GET', 'POST', 'PUT', 'DELETE'])
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def category_display_api(request, category_id=None):
-    """分類展示 API"""
-    if request.method == 'GET':
+    """分類 API 視圖"""
+    try:
         if category_id:
-            category = get_object_or_404(CategoryDisplay, pk=category_id)
+            category = get_object_or_404(CategoryDisplay, pk=category_id, is_active=True)
             data = {
                 'id': category.id,
-                'category': category.category,
-                'order': category.order,
-                'is_active': category.is_active,
-                'icon': category.icon,
-                'description': category.description
+                'name': category.category,
+                'description': category.description,
+                'icon': category.icon
             }
         else:
-            categories = CategoryDisplay.objects.all()
+            categories = CategoryDisplay.objects.filter(is_active=True).order_by('order')
             data = [{
                 'id': c.id,
-                'category': c.category,
-                'order': c.order,
-                'is_active': c.is_active,
-                'icon': c.icon,
-                'description': c.description
+                'name': c.category,
+                'description': c.description,
+                'icon': c.icon
             } for c in categories]
         return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 @require_http_methods(['GET', 'POST', 'PUT', 'DELETE'])
 def recommended_product_api(request, recommended_id=None):
@@ -319,3 +322,53 @@ def recommended_product_api(request, recommended_id=None):
                 'end_time': r.end_time.isoformat() if r.end_time else None
             } for r in recommended_products]
         return JsonResponse(data, safe=False)
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def export_mall_products_json(request):
+    """
+    導出商城商品資料到JSON檔案
+    此API不會影響現有的商品API功能
+    """
+    try:
+        # 獲取所有商品資料
+        products = Product.objects.all()
+        
+        # 準備JSON資料
+        products_data = []
+        for product in products:
+            product_data = {
+                'id': product.id,
+                'name': product.name,
+                'category': product.category,
+                'price': str(product.price),
+                'description': product.description,
+                'stock': product.stock,
+                'is_active': product.is_active,
+                'image_url': product.get_image_url(),
+                'created_at': product.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': product.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+            products_data.append(product_data)
+        
+        # 將資料寫入JSON檔案
+        import os
+        json_file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                    'src', 'views', 'front', 'Mall', 'data', 'MallProduct.json')
+        
+        with open(json_file_path, 'w', encoding='utf-8') as f:
+            json.dump(products_data, f, ensure_ascii=False, indent=2)
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'成功導出 {len(products_data)} 筆商品資料到 MallProduct.json',
+            'total_products': len(products_data)
+        })
+        
+    except Exception as e:
+        print("導出商品資料時發生錯誤：", str(e))
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)

@@ -3,6 +3,9 @@ from django.utils import timezone
 from django.templatetags.static import static
 from ckeditor.fields import RichTextField
 from myapp.models import Member
+import json
+import os
+from .tasks import update_json_file_async
 
 class Product(models.Model):
     """商品模型"""
@@ -23,6 +26,51 @@ class Product(models.Model):
         if self.image_url:
             return self.image_url
         return static('img/no-image.jpg')
+
+    def save(self, *args, **kwargs):
+        # 先保存商品
+        super().save(*args, **kwargs)
+        # 非阻塞式呼叫更新JSON檔案
+        update_json_file_async.delay()
+
+    def delete(self, *args, **kwargs):
+        # 先刪除商品
+        super().delete(*args, **kwargs)
+        # 非阻塞式呼叫更新JSON檔案
+        update_json_file_async.delay()
+
+    @classmethod
+    def update_json_file(cls):
+        try:
+            # 獲取所有商品資料
+            products = cls.objects.all()
+            products_data = []
+            for product in products:
+                products_data.append({
+                    'id': product.id,
+                    'name': product.name,
+                    'category': product.category,
+                    'price': str(product.price),
+                    'description': product.description,
+                    'stock': product.stock,
+                    'is_active': product.is_active,
+                    'image_url': product.get_image_url(),
+                    'created_at': product.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'updated_at': product.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                })
+
+            # 構建JSON檔案路徑
+            json_file_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                'src', 'views', 'front', 'Mall', 'data', 'MallProduct.json'
+            )
+
+            # 寫入JSON檔案
+            with open(json_file_path, 'w', encoding='utf-8') as f:
+                json.dump(products_data, f, ensure_ascii=False, indent=2)
+
+        except Exception as e:
+            print(f"更新JSON檔案時發生錯誤：{str(e)}")
 
     class Meta:
         verbose_name = '商品'
