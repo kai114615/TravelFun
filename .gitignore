@@ -36,4 +36,5 @@ __pycache__/
 .env
 
 # venv
-F01/
+F01/__pycache__/
+*.pyc
