@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
-import { apiUserSignin, apiUserLogout, apiUserCheckSignin } from '../utils/api';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { apiUserCheckSignin, apiUserLogout, apiUserSignin } from '../utils/api';
 import { successMsg } from '@/utils/api';
 
 export interface UserInfo {
-  id: number;
-  username: string;
-  email: string;
-  full_name: string;
-  avatar?: string;
-  last_login?: string;
-  updated_at?: string;
+  id: number
+  username: string
+  email: string
+  full_name: string
+  avatar?: string
+  last_login?: string
+  updated_at?: string
 }
 
 export const useUserStore = defineStore('user', () => {
@@ -30,13 +30,14 @@ export const useUserStore = defineStore('user', () => {
     console.log('Updating user state:', { user, status });
     userInfo.value = user;
     loginStatus.value = status;
-    
+
     if (user && status) {
       localStorage.setItem('userInfo', JSON.stringify(user));
       localStorage.setItem('loginStatus', 'true');
       sessionStorage.setItem('userInfo', JSON.stringify(user));
       sessionStorage.setItem('loginStatus', 'true');
-    } else {
+    }
+    else {
       localStorage.removeItem('userInfo');
       localStorage.removeItem('loginStatus');
       localStorage.removeItem('access_token');
@@ -57,7 +58,7 @@ export const useUserStore = defineStore('user', () => {
     const localUserInfo = localStorage.getItem('userInfo');
     const localLoginStatus = localStorage.getItem('loginStatus');
     const token = localStorage.getItem('access_token');
-    
+
     if (!token) {
       updateUserState(null, false);
       return;
@@ -66,12 +67,12 @@ export const useUserStore = defineStore('user', () => {
     try {
       // 檢查後端登入狀態
       const response = await apiUserCheckSignin();
-      if (response.data?.isAuthenticated && response.data?.user) {
+      if (response.data?.isAuthenticated && response.data?.user)
         updateUserState(response.data.user, true);
-      } else {
+      else
         throw new Error('Not authenticated');
-      }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to verify authentication:', error);
       updateUserState(null, false);
     }
@@ -99,13 +100,12 @@ export const useUserStore = defineStore('user', () => {
 
         // 保存 token
         document.cookie = `token=${responseData.data.token};path=/;expires=${expires}`;
-        if (responseData.data.refresh) {
+        if (responseData.data.refresh)
           document.cookie = `refresh_token=${responseData.data.refresh};path=/;expires=${expires}`;
-        }
 
         // 更新用戶狀態
         updateUserState(responseData.data.user, true);
-        
+
         // 強制保存到 sessionStorage，確保頁面重新載入時能恢復狀態
         sessionStorage.setItem('userInfo', JSON.stringify(responseData.data.user));
         sessionStorage.setItem('loginStatus', 'true');
@@ -117,11 +117,13 @@ export const useUserStore = defineStore('user', () => {
         return true;
       }
       return false;
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Login failed:', error);
       updateUserState(null, false);
       throw error;
-    } finally {
+    }
+    finally {
       isLoading.value = false;
     }
   };
@@ -137,15 +139,17 @@ export const useUserStore = defineStore('user', () => {
 
       const response = await apiUserCheckSignin();
       const { success, isAuthenticated, user } = response.data;
-      
+
       if (isAuthenticated && user) {
         updateUserState(user, true);
         return true;
-      } else {
+      }
+      else {
         updateUserState(null, false);
         return false;
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('檢查登入狀態時發生錯誤:', error);
       updateUserState(null, false);
       return false;
@@ -158,18 +162,19 @@ export const useUserStore = defineStore('user', () => {
     try {
       // 先呼叫後端登出 API
       await apiUserLogout();
-      
+
       // 清除所有狀態和存儲
       updateUserState(null, false);
-      
+
       // 顯示登出成功訊息
       successMsg('已成功登出');
 
       // 跳轉到首頁
       router.push('/');
-      
+
       return true;
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Logout error:', error);
       // 即使後端 API 呼叫失敗，仍然清除前端狀態
       updateUserState(null, false);

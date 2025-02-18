@@ -8,48 +8,56 @@ const routes = [
     name: 'Home',
     component: HomeView,
     meta: {
-      title: '首頁'
-    }
+      title: '首頁',
+    },
   },
   {
     path: '/login',
     name: 'Login',
     component: () => import('../views/front/Login/LoginView.vue'),
     meta: {
-      title: '登入'
-    }
+      title: '登入',
+    },
   },
   {
     path: '/register',
     name: 'Register',
     component: () => import('../views/front/Login/RegisterView.vue'),
     meta: {
-      title: '註冊'
-    }
+      title: '註冊',
+    },
   },
   {
     path: '/mall',
     name: 'Mall',
     component: MallView,
     meta: {
-      title: '商城中心'
-    }
+      title: '商城中心',
+    },
+  },
+  {
+    path: '/mall-products',
+    name: 'MallProducts',
+    component: () => import('../views/front/Mall/MallProductsView.vue'),
+    meta: {
+      title: '商城商品 - Travel Fun',
+    },
   },
   {
     path: '/activity',
     name: 'Activity',
     component: () => import('../views/front/Activity/ActivityView.vue'),
     meta: {
-      title: '主題育樂'
-    }
+      title: '主題育樂',
+    },
   },
   {
     path: '/forum',
     name: 'Forum',
     component: () => import('../views/front/Forum/ForumView.vue'),
     meta: {
-      title: '討論區'
-    }
+      title: '討論區',
+    },
   },
   {
     path: '/member/dashboard',
@@ -57,24 +65,24 @@ const routes = [
     component: () => import('../views/front/Member/DashboardView.vue'),
     meta: {
       title: '會員中心',
-      requiresAuth: true
-    }
+      requiresAuth: true,
+    },
   },
   {
     path: '/country/:countryName',
     name: 'Country',
     component: () => import('../views/front/Country/CountryView.vue'),
     meta: {
-      title: 'AI推薦行程'
-    }
+      title: 'AI推薦行程',
+    },
   },
   {
     path: '/about',
     name: 'About',
     component: () => import('../views/front/About/AboutView.vue'),
     meta: {
-      title: '關於我們'
-    }
+      title: '關於我們',
+    },
   },
   {
     path: '/wishlist',
@@ -82,14 +90,14 @@ const routes = [
     component: () => import('../views/front/WishList/WishListView.vue'),
     meta: {
       title: '願望清單',
-      requiresAuth: true
-    }
-  }
+      requiresAuth: true,
+    },
+  },
 ];
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes
+  routes,
 });
 
 router.beforeEach((to, from, next) => {
@@ -97,4 +105,4 @@ router.beforeEach((to, from, next) => {
   next();
 });
 
-export default router; 
+export default router;

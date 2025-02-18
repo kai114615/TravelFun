@@ -22,4 +22,7 @@ urlpatterns = [
     path('api/categories/<int:category_id>/', views.category_display_api, name='category_display_api_detail'),
     path('api/recommended/', views.recommended_product_api, name='recommended_product_api_list'),
     path('api/recommended/<int:recommended_id>/', views.recommended_product_api, name='recommended_product_api_detail'),
+    
+    # 新增：導出商品資料到JSON檔案的API
+    path('api/export-mall-products/', views.export_mall_products_json, name='export_mall_products_json'),
 ]

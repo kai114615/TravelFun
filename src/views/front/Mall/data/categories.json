@@ -1,0 +1,197 @@
+{
+  "categories": [
+    {
+      "id": "air_mattresses",
+      "name": "充氣床墊",
+      "brands": [
+        "YAKIMA",
+        "MBCF 露營狂",
+        "INTEX 原廠公司貨",
+        "FJ",
+        "DREAMCATCHER",
+        "Aerogogo",
+        "Lumikenka 露米",
+        "Naturehike",
+        "LIFECODE"
+      ]
+    },
+    {
+      "id": "camping_tables",
+      "name": "露營桌",
+      "brands": [
+        "IHouse",
+        "Nature Concept",
+        "C&B",
+        "酷博士",
+        "Besthot",
+        "Lexiang樂享",
+        "匠俱",
+        "hoi! 好好生活",
+        "CGW",
+        "NITORI 宜得利家居",
+        "LOGIS",
+        "E.C outdoor",
+        "露營達人",
+        "家居生活館",
+        "多瓦娜",
+        "WAKUHOME 瓦酷家具",
+        "ONE 生活"
+      ]
+    },
+    {
+      "id": "camping_tents",
+      "name": "帳篷",
+      "brands": [
+        "MBCF 露營狂",
+        "Coleman",
+        "KAZMI",
+        "LIFECODE",
+        "ADISI",
+        "RHINO 犀牛",
+        "ATUNAS 歐都納",
+        "SNOW PEAK",
+        "速可搭",
+        "野樂",
+        "野道家",
+        "山林者",
+        "戶外專家",
+        "大營家",
+        "野放",
+        "野道",
+        "野趣",
+        "野遊"
+      ]
+    },
+    {
+      "id": "chargers",
+      "name": "充電器",
+      "brands": [
+        "+886",
+        "ADAM",
+        "Acer",
+        "ASUS",
+        "Apple",
+        "Baseus",
+        "Belkin",
+        "BSMI",
+        "CITY",
+        "DELL",
+        "ENERGEAR",
+        "HANG",
+        "HP",
+        "HUAWEI",
+        "KINYO",
+        "Lenovo",
+        "LG",
+        "Moshi",
+        "OPPO",
+        "PHILIPS",
+        "PowerFalcon",
+        "PROBOX",
+        "REMAX",
+        "Samsung",
+        "SONY",
+        "TOTU",
+        "TYLT",
+        "UAG",
+        "UGREEN",
+        "VIVO",
+        "Xmart",
+        "ZMI紫米",
+        "亞果元素",
+        "安伯特",
+        "小米",
+        "快譯通",
+        "技嘉",
+        "東元",
+        "飛利浦",
+        "勳風",
+        "聯想",
+        "羅技",
+        "魔淇"
+      ]
+    },
+    {
+      "id": "hiking_backpacks",
+      "name": "登山背包",
+      "brands": [
+        "Horizon 天際線",
+        "SHANER",
+        "DIBOTE 迪伯特",
+        "PolarStar 桃源戶外",
+        "The North Face 官方旗艦",
+        "Gregory",
+        "KAKA",
+        "Jack wolfskin 飛狼",
+        "ATUNAS 歐都納",
+        "AOKING"
+      ]
+    },
+    {
+      "id": "hiking_poles",
+      "name": "登山杖",
+      "brands": [
+        "ProPACER",
+        "ATUNAS 歐都納",
+        "FIZAN",
+        "Horizon 天際線",
+        "Xavagear",
+        "SELPA",
+        "Pioneer 開拓者",
+        "Ta-Da 泰達",
+        "OUTSY",
+        "May Shop",
+        "S.Motus",
+        "MASTERS",
+        "Naturehike"
+      ]
+    },
+    {
+      "id": "phones",
+      "name": "手機",
+      "brands": [
+        "HTC 宏達電",
+        "realme",
+        "ASUS 華碩",
+        "OPPO",
+        "POCO",
+        "小米",
+        "Apple",
+        "vivo",
+        "Samsung 三星",
+        "Motorola"
+      ]
+    },
+    {
+      "id": "luggage",
+      "name": "行李箱",
+      "brands": [
+        "Arowana 亞諾納",
+        "American Explorer",
+        "eminent 萬國通路",
+        "FJ",
+        "ALLEZ 奧莉薇閣",
+        "Mr.Box",
+        "Deseno 笛森諾",
+        "路比達",
+        "LUDWIN 路德威"
+      ]
+    },
+    {
+      "id": "gas_stoves",
+      "name": "瓦斯爐",
+      "brands": [
+        "Pro Kamping 領航家",
+        "Iwatani 岩谷",
+        "Dr.Hows",
+        "妙管家",
+        "勳風",
+        "日本BRUNO",
+        "Jo Go Wu",
+        "Snow Peak",
+        "COTD",
+        "Camping Ace"
+      ]
+    }
+  ]
+} 

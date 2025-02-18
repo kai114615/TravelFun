@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_ckeditor_5',
     'rest_framework_simplejwt',
+    'ckeditor',
+    'django_celery_results',
 ]
 
 
@@ -55,8 +57,7 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3333",
-    "http://127.0.0.1:3333",
+    "http://localhost:3333",  # 前端開發伺服器
 ]
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -214,5 +215,22 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
     'TOKEN_TYPE_CLAIM': 'token_type',
+}
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Taipei'
+
+# Cache settings
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+    }
 }
 

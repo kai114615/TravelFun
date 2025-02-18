@@ -1,7 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import { useCartStore, useUserStore } from '@/stores';
 import type { RouteRecordRaw } from 'vue-router';
 import { createDiscreteApi } from 'naive-ui';
+import { useCartStore, useUserStore } from '@/stores';
 
 const { message } = createDiscreteApi(['message']);
 const { VITE_TITLE } = import.meta.env;
@@ -42,7 +42,7 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/front/Member/MemberView.vue'),
         meta: {
           title: '會員中心 - Travel Fun',
-          requiresAuth: true
+          requiresAuth: true,
         },
       },
       {
@@ -59,7 +59,7 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/front/Forum/components/PostDetail.vue'),
         meta: {
           title: '文章詳情 - Travel Fun',
-        }
+        },
       },
       {
         path: 'login',
@@ -112,11 +112,17 @@ const routes: Array<RouteRecordRaw> = [
         },
       },
       {
-        path: 'product/:productId',
-        name: 'Product',
-        component: () => import('../views/front/Product/ProductView.vue'),
+        path: 'mall-products',
+        name: 'MallProducts',
+        component: () => import('@/views/front/Products/MallProductsView.vue'),
+      },
+      {
+        path: 'mall-products/detail/:id',
+        name: 'MallProductDetail',
+        component: () => import('@/views/front/Mall/MallProductDetail.vue'),
+        props: true,
         meta: {
-          title: '旅遊行程 - Travel Fun',
+          title: '商品詳情',
         },
       },
       {
@@ -236,58 +242,58 @@ const routes: Array<RouteRecordRaw> = [
     path: '/member',
     name: 'MemberLayout',
     component: () => import('@/views/front/Member/MemberLayout.vue'),
-    meta: { 
+    meta: {
       requiresAuth: true,
-      title: '會員中心'
+      title: '會員中心',
     },
     children: [
       {
         path: 'dashboard',
         name: 'MemberDashboard',
         component: () => import('@/views/front/Member/DashboardView.vue'),
-        meta: { 
+        meta: {
           requiresAuth: true,
-          title: '會員中心' 
-        }
+          title: '會員中心',
+        },
       },
       {
         path: 'profile',
         name: 'MemberProfile',
         component: () => import('@/views/front/Member/ProfileView.vue'),
-        meta: { 
+        meta: {
           requiresAuth: true,
-          title: '個人資料' 
-        }
+          title: '個人資料',
+        },
       },
       {
         path: 'orders',
         name: 'MemberOrders',
         component: () => import('@/views/front/Member/OrdersView.vue'),
-        meta: { 
+        meta: {
           requiresAuth: true,
-          title: '訂單管理' 
-        }
+          title: '訂單管理',
+        },
       },
       {
         path: 'messages',
         name: 'MemberMessages',
         component: () => import('@/views/front/Member/MessagesView.vue'),
-        meta: { 
+        meta: {
           requiresAuth: true,
-          title: '訊息中心' 
-        }
+          title: '訊息中心',
+        },
       },
       {
         path: 'coupons',
         name: 'MemberCoupons',
         component: () => import('@/views/front/Member/CouponsView.vue'),
-        meta: { 
+        meta: {
           requiresAuth: true,
-          title: '優惠券' 
-        }
-      }
-    ]
-  }
+          title: '優惠券',
+        },
+      },
+    ],
+  },
 ];
 
 const router = createRouter({
@@ -301,19 +307,20 @@ const router = createRouter({
 // 全局前置守衛
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
-  
+
   // 檢查路由是否需要認證
   if (to.meta.requiresAuth && !userStore.loginStatus) {
     // 如果需要認證但用戶未登入，重定向到登入頁面
-    next({ 
+    next({
       name: 'Login',
-      query: { redirect: to.fullPath }
+      query: { redirect: to.fullPath },
     });
-  } else {
+  }
+  else {
     // 更新頁面標題
-    if (to.meta.title) {
+    if (to.meta.title)
       document.title = to.meta.title;
-    }
+
     next();
   }
 });

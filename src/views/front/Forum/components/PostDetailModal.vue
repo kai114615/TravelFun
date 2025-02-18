@@ -1,9 +1,103 @@
+<script setup lang="ts">
+import { defineEmits, defineProps, ref } from 'vue';
+import { NButton, NIcon, NInput, NModal, useMessage } from 'naive-ui';
+import {
+  ChatBubbleOutlined,
+  FavoriteBorderOutlined,
+  FavoriteOutlined,
+  VisibilityOutlined,
+} from '@vicons/material';
+import { useUserStore } from '@/stores';
+import { apiForumAddComment, apiForumToggleLike } from '@/utils/api';
+
+const props = defineProps({
+  show: {
+    type: Boolean,
+    required: true,
+  },
+  post: {
+    type: Object,
+    required: true,
+  },
+});
+
+const emit = defineEmits(['update:show', 'like', 'comment']);
+
+const userStore = useUserStore();
+const message = useMessage();
+
+const showComments = ref(false);
+const newComment = ref('');
+const isSubmitting = ref(false);
+
+// 格式化日期
+function formatDate(date: string) {
+  if (!date)
+    return '';
+  return new Date(date).toLocaleString('zh-TW');
+}
+
+// 處理按讚
+async function handleLike() {
+  if (!userStore.loginStatus)
+    return;
+
+  try {
+    const response = await apiForumToggleLike(props.post.id);
+    if (response.data.status === 'success')
+      emit('like', response.data.data);
+  }
+  catch (error) {
+    console.error('按讚失敗:', error);
+  }
+}
+
+// 處理評論按鈕點擊
+function handleComment() {
+  if (!userStore.loginStatus) {
+    message.warning('請先登入');
+    return;
+  }
+  showComments.value = !showComments.value;
+}
+
+// 提交評論
+async function submitComment() {
+  if (!userStore.loginStatus) {
+    message.warning('請先登入');
+    return;
+  }
+
+  if (!newComment.value.trim()) {
+    message.warning('請輸入評論內容');
+    return;
+  }
+
+  try {
+    isSubmitting.value = true;
+    const response = await apiForumAddComment(props.post.id, newComment.value);
+    if (response.data.status === 'success') {
+      emit('comment', response.data.data);
+      newComment.value = '';
+      message.success('評論發表成功');
+    }
+  }
+  catch (error) {
+    console.error('發表評論失敗:', error);
+    message.error('發表失敗，請稍後再試');
+  }
+  finally {
+    isSubmitting.value = false;
+  }
+}
+</script>
+
 <template>
-  <NModal 
-    :show="show" 
-    @update:show="(value) => emit('update:show', value)" 
-    preset="card" 
+  <NModal
+    :show="show"
+    preset="card"
     style="width: 800px; max-width: 90vw;"
+    @update:show="(value) => emit('update:show', value)"
   >
     <div class="post-detail-modal">
       <!-- 文章標題區域 -->
@@ -13,11 +107,13 @@
           <span class="text-gray-400">•</span>
           <span class="text-sm text-gray-500">發表於 {{ formatDate(post?.created_at) }}</span>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ post?.title }}</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+          {{ post?.title }}
+        </h1>
         <div class="flex flex-wrap gap-2">
-          <span 
-            v-for="tag in post?.tags" 
-            :key="tag.id" 
+          <span
+            v-for="tag in post?.tags"
+            :key="tag.id"
             class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs"
           >
             # {{ tag.name }}
@@ -30,13 +126,15 @@
         <div class="w-48 flex-shrink-0">
           <div class="bg-gray-50 rounded-lg p-4 sticky top-4">
             <div class="flex flex-col items-center text-center">
-              <img 
-                :src="post?.author?.avatar || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'" 
+              <img
+                :src="post?.author?.avatar || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'"
                 :alt="post?.author?.username"
                 class="w-20 h-20 rounded-full object-cover mb-3 ring-2 ring-primary/20"
               >
               <div class="mb-4">
-                <div class="font-medium text-gray-900 mb-1">{{ post?.author?.username }}</div>
+                <div class="font-medium text-gray-900 mb-1">
+                  {{ post?.author?.username }}
+                </div>
                 <div class="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
                   {{ post?.author?.title || '一般會員' }}
                 </div>
@@ -44,7 +142,9 @@
               <!-- 互動統計 -->
               <div class="w-full space-y-3 text-sm text-gray-500">
                 <div class="flex items-center justify-center gap-2 p-2 rounded bg-gray-100/50">
-                  <NIcon size="18"><VisibilityOutlined /></NIcon>
+                  <NIcon size="18">
+                    <VisibilityOutlined />
+                  </NIcon>
                   <span class="font-medium">{{ post?.views || 0 }}</span>
                   <span class="text-xs">瀏覽</span>
                 </div>
@@ -56,7 +156,9 @@
                   <span class="text-xs">讚</span>
                 </div>
                 <div class="flex items-center justify-center gap-2 p-2 rounded bg-gray-100/50">
-                  <NIcon size="18"><ChatBubbleOutlined /></NIcon>
+                  <NIcon size="18">
+                    <ChatBubbleOutlined />
+                  </NIcon>
                   <span class="font-medium">{{ post?.comment_count || 0 }}</span>
                   <span class="text-xs">評論</span>
                 </div>
@@ -69,30 +171,30 @@
         <div class="flex-1">
           <!-- 文章內容 -->
           <div class="bg-white rounded-lg p-6 mb-6 shadow-sm border border-gray-100">
-            <div class="prose max-w-none" v-html="post?.content"></div>
+            <div class="prose max-w-none" v-html="post?.content" />
           </div>
 
           <!-- 互動按鈕 -->
           <div class="flex items-center gap-4 bg-white rounded-lg p-4 shadow-sm border border-gray-100 mb-6">
-            <NButton 
+            <NButton
               :type="post?.is_liked ? 'error' : 'default'"
               ghost
-              @click="handleLike"
               class="flex items-center gap-2 flex-1"
               size="large"
+              @click="handleLike"
             >
               <NIcon>
                 <component :is="post?.is_liked ? FavoriteOutlined : FavoriteBorderOutlined" />
               </NIcon>
               {{ post?.is_liked ? '取消讚' : '按讚' }}
             </NButton>
-            <NButton 
-              type="primary" 
+            <NButton
+              type="primary"
               ghost
-              @click="handleComment"
               class="flex items-center gap-2 flex-1"
               :class="{ 'n-button--active-color': showComments }"
               size="large"
+              @click="handleComment"
             >
               <NIcon><ChatBubbleOutlined /></NIcon>
               {{ showComments ? '收起評論' : '評論' }}
@@ -115,12 +217,12 @@
                 :autofocus="true"
               />
               <div class="flex justify-end mt-2">
-                <NButton 
+                <NButton
                   type="primary"
                   :disabled="!newComment.trim()"
                   :loading="isSubmitting"
-                  @click="submitComment"
                   size="large"
+                  @click="submitComment"
                 >
                   發表評論
                 </NButton>
@@ -130,8 +232,8 @@
             <div class="space-y-6">
               <div v-for="comment in post?.comments" :key="comment.id" class="bg-gray-50/50 rounded-lg p-4">
                 <div class="flex items-start gap-3">
-                  <img 
-                    :src="comment.author?.avatar || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'" 
+                  <img
+                    :src="comment.author?.avatar || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'"
                     :alt="comment.author?.username"
                     class="w-10 h-10 rounded-full ring-2 ring-primary/10"
                   >
@@ -141,7 +243,9 @@
                       <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{{ comment.author?.title || '一般會員' }}</span>
                       <span class="text-xs text-gray-500">{{ formatDate(comment.created_at) }}</span>
                     </div>
-                    <p class="text-gray-700">{{ comment.content }}</p>
+                    <p class="text-gray-700">
+                      {{ comment.content }}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -152,98 +256,6 @@
     </div>
   </NModal>
 </template>
-
-<script setup lang="ts">
-import { ref, defineProps, defineEmits } from 'vue'
-import { NModal, NButton, NInput, NIcon, useMessage } from 'naive-ui'
-import { 
-  FavoriteOutlined,
-  FavoriteBorderOutlined,
-  ChatBubbleOutlined,
-  VisibilityOutlined
-} from '@vicons/material'
-import { useUserStore } from '@/stores'
-import { apiForumToggleLike, apiForumAddComment } from '@/utils/api'
-
-const props = defineProps({
-  show: {
-    type: Boolean,
-    required: true
-  },
-  post: {
-    type: Object,
-    required: true
-  }
-})
-
-const emit = defineEmits(['update:show', 'like', 'comment'])
-
-const userStore = useUserStore()
-const message = useMessage()
-
-const showComments = ref(false)
-const newComment = ref('')
-const isSubmitting = ref(false)
-
-// 格式化日期
-const formatDate = (date: string) => {
-  if (!date) return ''
-  return new Date(date).toLocaleString('zh-TW')
-}
-
-// 處理按讚
-const handleLike = async () => {
-  if (!userStore.loginStatus) {
-    return
-  }
-
-  try {
-    const response = await apiForumToggleLike(props.post.id)
-    if (response.data.status === 'success') {
-      emit('like', response.data.data)
-    }
-  } catch (error) {
-    console.error('按讚失敗:', error)
-  }
-}
-
-// 處理評論按鈕點擊
-const handleComment = () => {
-  if (!userStore.loginStatus) {
-    message.warning('請先登入')
-    return
-  }
-  showComments.value = !showComments.value
-}
-
-// 提交評論
-const submitComment = async () => {
-  if (!userStore.loginStatus) {
-    message.warning('請先登入')
-    return
-  }
-
-  if (!newComment.value.trim()) {
-    message.warning('請輸入評論內容')
-    return
-  }
-
-  try {
-    isSubmitting.value = true
-    const response = await apiForumAddComment(props.post.id, newComment.value)
-    if (response.data.status === 'success') {
-      emit('comment', response.data.data)
-      newComment.value = ''
-      message.success('評論發表成功')
-    }
-  } catch (error) {
-    console.error('發表評論失敗:', error)
-    message.error('發表失敗，請稍後再試')
-  } finally {
-    isSubmitting.value = false
-  }
-}
-</script>
 
 <style scoped>
 .post-detail-modal {
@@ -319,4 +331,4 @@ const submitComment = async () => {
   overflow-x: auto;
   margin: 1.5rem 0;
 }
-</style> 
+</style>

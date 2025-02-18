@@ -3,11 +3,10 @@ import {
   FavoriteBorderOutlined,
   FavoriteOutlined,
   PersonOutlineFilled,
-  PersonOutlineOutlined,
 } from '@vicons/material';
-import { NIcon, useDialog, useMessage, NDialogProvider, NMessageProvider } from 'naive-ui';
+import { NDialogProvider, NIcon, NMessageProvider, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import ShopCart from './ShopCart.vue';
 import { createNavList } from './navList.ts';
@@ -46,7 +45,7 @@ function handleClick(target: string) {
   cartRef.value?.closeActive();
 };
 
-const handleLogout = async () => {
+async function handleLogout() {
   dialog.warning({
     title: '登出確認',
     content: '確定要登出嗎？',
@@ -57,19 +56,19 @@ const handleLogout = async () => {
         await userStore.logout();
         message.success('已成功登出');
         router.push('/');
-      } catch (error) {
+      }
+      catch (error) {
         message.error('登出失敗，請稍後再試');
       }
-    }
+    },
   });
-};
+}
 
 // 監聽登入狀態變化
 watch(loginStatus, async (newStatus) => {
   console.log('Login status changed:', newStatus);
-  if (newStatus) {
+  if (newStatus)
     await userStore.checkLoginStatus();
-  }
 }, { immediate: true });
 
 // 監聽路由變化
@@ -77,7 +76,7 @@ watch(
   () => route.path,
   async () => {
     await userStore.checkLoginStatus();
-  }
+  },
 );
 
 onMounted(async () => {
@@ -105,8 +104,8 @@ onMounted(async () => {
               <ul class="hidden h-full flex-1 items-center justify-center gap-8 md:flex">
                 <template v-for="nav in navListComponent" :key="nav.id">
                   <li class="nav-item">
-                    <component 
-                      :is="nav.component" 
+                    <component
+                      :is="nav.component"
                       class="flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm transition-colors duration-300 hover:text-cc-accent"
                       style="writing-mode: horizontal-tb;"
                     />
@@ -128,10 +127,10 @@ onMounted(async () => {
               <div v-if="loginStatus" class="hidden lg:flex items-center justify-center text-base gap-4">
                 <span class="text-white">{{ displayName }}</span>
                 <button
-                  @click="handleLogout"
                   class="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                  @click="handleLogout"
                 >
-                  <i class="fas fa-sign-out-alt mr-2"></i>
+                  <i class="fas fa-sign-out-alt mr-2" />
                   登出
                 </button>
               </div>
@@ -188,7 +187,7 @@ onMounted(async () => {
   ul {
     gap: 4px;
   }
-  
+
   .nav-item {
     padding: 0 2px;
   }
