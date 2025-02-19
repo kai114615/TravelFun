@@ -17,6 +17,7 @@ import Container from '@/layout/Container.vue';
 import Title from '@/components/Title.vue';
 import { SwiperBanner, SwiperProduct } from '@/components/Swiper';
 import type { Product } from '@/types';
+import Footer from '@/components/Footer.vue';
 
 const { VITE_GOOGLE_MAP_API_KEY } = import.meta.env;
 
@@ -207,6 +208,7 @@ onMounted(async () => {
       />
     </div>
   </template>
+  <Footer />
 </template>
 
 <style scoped>

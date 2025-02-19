@@ -10,6 +10,7 @@ import { SwiperCity, SwiperProduct } from '@/components/Swiper';
 import Container from '@/layout/Container.vue';
 import { useDeviceStore, useProductStore } from '@/stores';
 import { cityMap } from '@/utils/context';
+import Footer from '@/components/Footer.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -89,4 +90,5 @@ const goProducts = () => router.push({ name: 'CityProducts' });
   />
   <Know :is-mobile="isMobile" :name="getCityName" :products="getFilterData(productList, route.params.cityName as string)" />
   <SwiperCity title="探索其他城市" :curr-city="getCityName" />
+  <Footer />
 </template>

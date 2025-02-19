@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineEmits, defineProps, ref } from 'vue';
+import { defineEmits, defineProps, ref, watch } from 'vue';
 import { NButton, NIcon, NInput, NModal, useMessage } from 'naive-ui';
 import {
   ChatBubbleOutlined,
@@ -29,6 +29,17 @@ const message = useMessage();
 const showComments = ref(false);
 const newComment = ref('');
 const isSubmitting = ref(false);
+const isLiked = ref(false);
+const likeCount = ref(0);
+
+// 監聽 post 變化
+watch(() => props.post, (newPost) => {
+  if (newPost) {
+    console.log('Post data updated:', newPost);
+    isLiked.value = newPost.is_liked || false;
+    likeCount.value = newPost.like_count || 0;
+  }
+}, { immediate: true, deep: true });
 
 // 格式化日期
 function formatDate(date: string) {
@@ -39,16 +50,44 @@ function formatDate(date: string) {
 
 // 處理按讚
 async function handleLike() {
-  if (!userStore.loginStatus)
+  if (!userStore.loginStatus) {
+    message.warning('請先登入');
     return;
+  }
 
   try {
+    // 先更新本地狀態
+    const currentIsLiked = isLiked.value;
+    const currentLikeCount = likeCount.value;
+    
+    // 樂觀更新
+    isLiked.value = !currentIsLiked;
+    likeCount.value = currentLikeCount + (currentIsLiked ? -1 : 1);
+
+    // 發送請求到後端
     const response = await apiForumToggleLike(props.post.id);
-    if (response.data.status === 'success')
-      emit('like', response.data.data);
+    console.log('Like API response:', response);
+
+    if (response.data.status === 'success') {
+      // 使用後端返回的實際數據更新
+      const { is_liked, like_count } = response.data.data;
+      isLiked.value = is_liked;
+      likeCount.value = like_count;
+      
+      // 發送事件到父組件
+      emit('like', { is_liked, like_count });
+      message.success(response.data.message);
+    }
+    else {
+      // 如果請求失敗，恢復原始狀態
+      isLiked.value = currentIsLiked;
+      likeCount.value = currentLikeCount;
+      throw new Error(response.data.message);
+    }
   }
-  catch (error) {
+  catch (error: any) {
     console.error('按讚失敗:', error);
+    message.error('操作失敗，請稍後重試');
   }
 }
 
@@ -150,9 +189,9 @@ async function submitComment() {
                 </div>
                 <div class="flex items-center justify-center gap-2 p-2 rounded bg-gray-100/50">
                   <NIcon size="18">
-                    <component :is="post?.is_liked ? FavoriteOutlined : FavoriteBorderOutlined" />
+                    <component :is="isLiked ? FavoriteOutlined : FavoriteBorderOutlined" />
                   </NIcon>
-                  <span class="font-medium">{{ post?.like_count || 0 }}</span>
+                  <span class="font-medium">{{ likeCount }}</span>
                   <span class="text-xs">讚</span>
                 </div>
                 <div class="flex items-center justify-center gap-2 p-2 rounded bg-gray-100/50">
@@ -177,16 +216,16 @@ async function submitComment() {
           <!-- 互動按鈕 -->
           <div class="flex items-center gap-4 bg-white rounded-lg p-4 shadow-sm border border-gray-100 mb-6">
             <NButton
-              :type="post?.is_liked ? 'error' : 'default'"
+              :type="isLiked ? 'error' : 'default'"
               ghost
               class="flex items-center gap-2 flex-1"
               size="large"
               @click="handleLike"
             >
               <NIcon>
-                <component :is="post?.is_liked ? FavoriteOutlined : FavoriteBorderOutlined" />
+                <component :is="isLiked ? FavoriteOutlined : FavoriteBorderOutlined" />
               </NIcon>
-              {{ post?.is_liked ? '取消讚' : '按讚' }}
+              {{ isLiked ? '取消讚' : '按讚' }}
             </NButton>
             <NButton
               type="primary"

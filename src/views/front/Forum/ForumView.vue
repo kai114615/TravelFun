@@ -34,6 +34,7 @@ import {
 import PostDetailModal from './components/PostDetailModal.vue';
 import { useUserStore } from '@/stores';
 import { apiForumToggleLike } from '@/utils/api';
+import Footer from '@/components/Footer.vue';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -961,6 +962,7 @@ async function handleLike(post: any, index: number) {
       </div>
     </div>
   </main>
+  <Footer />
 
   <!-- 發文彈窗 -->
   <NModal v-model:show="showPostModal" style="width: 800px">
@@ -1095,26 +1097,30 @@ async function handleLike(post: any, index: number) {
     v-model:show="showPostDetailModal"
     :post="selectedPost"
     @like="(data) => {
-      if (selectedPost) {
-        selectedPost.is_liked = data.is_liked
-        selectedPost.like_count = data.like_count
-      }
+      if (!selectedPost || !posts.value) return;
+      
+      // 更新當前選中的文章
+      selectedPost.is_liked = data.is_liked;
+      selectedPost.like_count = data.like_count;
+      
       // 更新列表中的文章數據
-      const postIndex = posts.value.findIndex(p => p.id === selectedPost?.id)
+      const postIndex = posts.value.findIndex(p => p.id === selectedPost.id);
       if (postIndex !== -1) {
-        posts.value[postIndex].is_liked = data.is_liked
-        posts.value[postIndex].like_count = data.like_count
+        posts.value[postIndex].is_liked = data.is_liked;
+        posts.value[postIndex].like_count = data.like_count;
       }
     }"
     @comment="(data) => {
-      if (selectedPost) {
-        selectedPost.comment_count = (selectedPost.comment_count || 0) + 1
-        selectedPost.comments = [...(selectedPost.comments || []), data]
-      }
+      if (!selectedPost || !posts.value) return;
+      
+      // 更新當前選中的文章
+      selectedPost.comment_count = (selectedPost.comment_count || 0) + 1;
+      selectedPost.comments = [...(selectedPost.comments || []), data];
+      
       // 更新列表中的文章數據
-      const postIndex = posts.value.findIndex(p => p.id === selectedPost?.id)
+      const postIndex = posts.value.findIndex(p => p.id === selectedPost.id);
       if (postIndex !== -1) {
-        posts.value[postIndex].comment_count = (posts.value[postIndex].comment_count || 0) + 1
+        posts.value[postIndex].comment_count = (posts.value[postIndex].comment_count || 0) + 1;
       }
     }"
   />

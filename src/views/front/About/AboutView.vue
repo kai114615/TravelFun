@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import Banner from '@/components/Banner.vue';
+import Footer from '@/components/Footer.vue';
 
 const title = ref('關於我們');
 </script>
@@ -37,4 +38,5 @@ const title = ref('關於我們');
       </div>
     </div>
   </main>
+  <Footer />
 </template> 
