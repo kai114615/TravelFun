@@ -1,0 +1,163 @@
+{% extends "admin-dashboard/base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- 文章詳情卡片 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">文章詳情</h3>
+                    <div>
+                        <a href="{% url 'forum_article_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> 返回列表
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h2 class="h4">{{ post.title }}</h2>
+                        <div class="text-muted mb-3">
+                            <small>
+                                <i class="fas fa-user"></i> {{ post.author.username }} |
+                                <i class="fas fa-folder"></i> {{ post.category.name }} |
+                                <i class="fas fa-calendar"></i> {{ post.created_at|date:"Y-m-d H:i" }}
+                            </small>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <div class="border rounded p-3 text-center">
+                                    <div class="h4 mb-0">{{ post.views }}</div>
+                                    <small class="text-muted">瀏覽次數</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3 text-center">
+                                    <div class="h4 mb-0">{{ post.likes_total }}</div>
+                                    <small class="text-muted">按讚數</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3 text-center">
+                                    <div class="h4 mb-0">{{ post.comments_total }}</div>
+                                    <small class="text-muted">評論數</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3 text-center">
+                                    <div class="h4 mb-0">{{ post.saves_total }}</div>
+                                    <small class="text-muted">收藏數</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <h5>標籤：</h5>
+                            {% for tag in post.tags.all %}
+                            <span class="badge bg-secondary">{{ tag.name }}</span>
+                            {% empty %}
+                            <span class="text-muted">無標籤</span>
+                            {% endfor %}
+                        </div>
+                        <div class="border rounded p-3">
+                            {{ post.content|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 評論列表卡片 -->
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">評論列表</h4>
+                </div>
+                <div class="card-body">
+                    {% for comment in comments %}
+                    <div class="border-bottom mb-3 pb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ comment.author.username }}</strong>
+                                <small class="text-muted">{{ comment.created_at|date:"Y-m-d H:i" }}</small>
+                            </div>
+                            <button class="btn btn-sm btn-danger delete-comment" data-comment-id="{{ comment.id }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <p class="mb-0 mt-2">{{ comment.content }}</p>
+                    </div>
+                    {% empty %}
+                    <p class="text-center text-muted">暫無評論</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 刪除評論確認對話框 -->
+<div class="modal fade" id="deleteCommentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">確認刪除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>確定要刪除這條評論嗎？此操作無法撤銷。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteComment">確定刪除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 刪除評論功能
+    let commentIdToDelete = null;
+    
+    $('.delete-comment').click(function() {
+        commentIdToDelete = $(this).data('comment-id');
+        $('#deleteCommentModal').modal('show');
+    });
+
+    $('#confirmDeleteComment').click(function() {
+        if (commentIdToDelete) {
+            $.ajax({
+                url: `/api/admin/comments/${commentIdToDelete}/delete_comment/`,
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                success: function() {
+                    location.reload();
+                },
+                error: function(xhr) {
+                    alert('刪除失敗：' + xhr.responseJSON?.detail || '未知錯誤');
+                }
+            });
+        }
+        $('#deleteCommentModal').modal('hide');
+    });
+
+    // 獲取 CSRF Token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %} 

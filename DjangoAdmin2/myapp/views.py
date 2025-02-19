@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from .forms import CustomUserCreationForm, MemberForm, ProfileUpdateForm, MessageForm, CustomPasswordChangeForm, ProductReviewForm, ArticleReviewForm, RestaurantReviewForm
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
-from .models import Member, Article, Message, Product, Restaurant
+from .models import Member, Article, Message, Product, Restaurant, Post, Category
 import logging
 import requests
 from django.db.models import Count
@@ -21,6 +21,8 @@ from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 from rest_framework_simplejwt.tokens import RefreshToken
+import os
+from .serializers import PostSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -107,22 +109,27 @@ def signin(request):
                 'message': '登入成功',
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+                'data': {
+                    'token': str(refresh.access_token),
+                    'refresh': str(refresh),
+                    'success': True,
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+                    }
                 }
             }
 
             print('登入成功，返回數據:', response_data)
             return Response(response_data, status=status.HTTP_200_OK)
-        else:
-            print('登入失敗：用戶名或密碼錯誤')
-            return Response({
-                'success': False,
-                'message': '用戶名或密碼錯誤'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        print('登入失敗：用戶名或密碼錯誤')
+        return Response({
+            'success': False,
+            'message': '用戶名或密碼錯誤'
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
     except Exception as e:
         print(f"登入錯誤: {str(e)}")
@@ -134,7 +141,7 @@ def signin(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # 允許未認證用戶訪問
+@permission_classes([AllowAny])
 def register_api(request):
     """
     註冊 API 視圖
@@ -145,8 +152,21 @@ def register_api(request):
             'data': request.data,
             'content_type': request.content_type,
             'method': request.method,
-            'headers': dict(request.headers)
+            'headers': dict(request.headers),
+            'files': list(request.FILES.keys()) if request.FILES else []
         })
+
+        # 檢查文件
+        if 'avatar' in request.FILES:
+            avatar = request.FILES['avatar']
+            print('收到頭像文件:', {
+                'name': avatar.name,
+                'content_type': avatar.content_type,
+                'size': avatar.size,
+                'charset': getattr(avatar, 'charset', None)
+            })
+        else:
+            print('請求中沒有頭像文件')
 
         # 獲取並驗證必要字段
         required_fields = ['username', 'email', 'password1', 'password2']
@@ -172,7 +192,8 @@ def register_api(request):
             'email': email,
             'full_name': full_name,
             'has_password1': bool(password1),
-            'has_password2': bool(password2)
+            'has_password2': bool(password2),
+            'has_avatar': bool('avatar' in request.FILES)
         })
 
         # 驗證密碼是否匹配
@@ -208,43 +229,24 @@ def register_api(request):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # 創建新用戶
-        try:
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password1
-            )
-            print(f'用戶對象創建成功: {user.username} (ID: {user.id})')
-        except Exception as e:
-            print(f'創建用戶時出錯: {str(e)}')
-            return Response({
-                'success': False,
-                'message': '創建用戶時出錯'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password1
+        )
 
         # 如果提供了全名，分割並設置
         if full_name:
-            try:
-                name_parts = full_name.split(' ', 1)
-                user.first_name = name_parts[0]
-                if len(name_parts) > 1:
-                    user.last_name = name_parts[1]
-                user.save()
-                print(f'已更新用戶全名: {full_name}')
-            except Exception as e:
-                print(f'更新全名時出錯: {str(e)}')
-                # 不返回錯誤，因為這不是關鍵操作
+            name_parts = full_name.split(' ', 1)
+            user.first_name = name_parts[0]
+            if len(name_parts) > 1:
+                user.last_name = name_parts[1]
+            user.save()
+
+        print(f'用戶創建成功: {user.username}')
 
         # 生成 JWT token
-        try:
-            refresh = RefreshToken.for_user(user)
-            print('JWT token 生成成功')
-        except Exception as e:
-            print(f'生成 token 時出錯: {str(e)}')
-            return Response({
-                'success': False,
-                'message': '生成認證令牌時出錯'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        refresh = RefreshToken.for_user(user)
 
         response_data = {
             'success': True,
@@ -261,14 +263,11 @@ def register_api(request):
 
         print('註冊成功，返回數據:', response_data)
         return Response(response_data, status=status.HTTP_201_CREATED)
-
     except Exception as e:
-        print(f"註冊過程中發生錯誤: {str(e)}")
-        import traceback
-        print('錯誤詳情:', traceback.format_exc())
+        print('註冊過程中發生錯誤:', str(e))
         return Response({
             'success': False,
-            'message': f'註冊過程中發生錯誤: {str(e)}'
+            'message': f'註冊失敗: {str(e)}'
         }, status=status.HTTP_400_BAD_REQUEST)
 
 @login_required
@@ -925,7 +924,7 @@ def profile_api(request):
                 'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
                 'date_joined': user.date_joined,
                 'last_login': user.last_login,
-                'avatar': user.get_avatar_url() if hasattr(user, 'get_avatar_url') else None
+                'avatar_url': user.get_avatar_url()
             }
 
             return Response({
@@ -980,14 +979,86 @@ def profile_api(request):
                     'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
                     'date_joined': user.date_joined,
                     'last_login': user.last_login,
-                    'avatar': user.get_avatar_url() if hasattr(user, 'get_avatar_url') else None
+                    'avatar_url': user.get_avatar_url()
                 }
             })
 
     except Exception as e:
-        print(f"用戶資料操作錯誤: {str(e)}")
-        import traceback
-        print('錯誤詳情:', traceback.format_exc())
+        print(f"處理用戶資料時出錯: {str(e)}")
+        return Response({
+            'success': False,
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_post(request):
+    try:
+        # 獲取分類
+        category_id = request.data.get('category_id')
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({'success': False, 'message': '無效的分類'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 創建文章
+        post = Post.objects.create(
+            title=request.data.get('title'),
+            content=request.data.get('content'),
+            category=category,
+            author=request.user
+        )
+        
+        # 處理標籤
+        tags = request.data.get('tags', [])
+        if tags:
+            post.tags.set(tags)
+        
+        serializer = PostSerializer(post)
+        return Response({
+            'success': True,
+            'message': '文章發表成功',
+            'post': serializer.data
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def profile_update_api(request):
+    """
+    更新用戶資料 API 視圖
+    """
+    try:
+        user = request.user
+        
+        # 處理頭像上傳
+        if 'avatar' in request.FILES:
+            user.avatar = request.FILES['avatar']
+        
+        # 處理其他資料更新
+        if 'full_name' in request.data:
+            user.full_name = request.data['full_name']
+        if 'address' in request.data:
+            user.address = request.data['address']
+        
+        # 保存更改
+        user.save()
+        
+        return Response({
+            'success': True,
+            'message': '資料更新成功',
+            'avatar': user.get_avatar_url(),
+            'full_name': user.full_name,
+            'address': user.address
+        })
+        
+    except Exception as e:
+        print(f"更新用戶資料時出錯: {str(e)}")
         return Response({
             'success': False,
             'message': str(e)

@@ -11,18 +11,18 @@ const { VITE_URL, VITE_PATH } = import.meta.env;
 
 // 根據環境變數設定 baseURL
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-const API_PATH = import.meta.env.VITE_PATH || 'api/v1';  // 添加默認值
+const API_PATH = import.meta.env.VITE_PATH || 'api/v1'; // 添加默認值
 
 // 檢查服務器狀態
-const checkServerStatus = async () => {
+async function checkServerStatus() {
   try {
     const response = await fetch(`${BASE_URL}/api/health-check/`, {
       method: 'GET',
       mode: 'cors',
       credentials: 'include',
       headers: {
-        'Accept': 'application/json',
-      }
+        Accept: 'application/json',
+      },
     });
 
     if (!response.ok) {
@@ -34,20 +34,21 @@ const checkServerStatus = async () => {
 
     const data = await response.json();
     return data.status === 'ok';
-  } catch (error: any) {
+  }
+  catch (error: any) {
     console.error('Health check failed:', error);
     errorMsg(
       '服務器檢查失敗',
-      `無法連接到後端服務器 (${BASE_URL})，請檢查：\n` +
-      '1. Django 服務器是否已啟動 (python manage.py runserver)\n' +
-      '2. 服務器地址是否正確\n' +
-      '3. CORS 設定是否正確\n' +
-      '4. Django 是否已安裝必要的套件 (corsheaders, rest_framework)\n' +
-      `5. 錯誤信息: ${error.message}`
+      `無法連接到後端服務器 (${BASE_URL})，請檢查：\n`
+      + '1. Django 服務器是否已啟動 (python manage.py runserver)\n'
+      + '2. 服務器地址是否正確\n'
+      + '3. CORS 設定是否正確\n'
+      + '4. Django 是否已安裝必要的套件 (corsheaders, rest_framework)\n'
+      + `5. 錯誤信息: ${error.message}`,
     );
     return false;
   }
-};
+}
 
 // 創建 axios 實例
 const request = axios.create({
@@ -57,7 +58,7 @@ const request = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
-  }
+  },
 });
 
 export function successMsg(title: string, text?: string) {
@@ -83,38 +84,33 @@ request.interceptors.request.use(
       // 只在非健康檢查請求時檢查服務器狀態
       if (!config.url?.includes('health-check')) {
         const isServerOnline = await checkServerStatus();
-        if (!isServerOnline) {
+        if (!isServerOnline)
           throw new Error('後端服務器未啟動或無法訪問');
-        }
       }
 
-      // 從 cookie 中獲取 token
-      const token = document.cookie.replace(
-        /(?:(?:^|.*;\s*)token\s*=\s*([^;]*).*$)|^.*$/,
-        '$1',
-      );
-      
-      if (token) {
+      // 從 localStorage 獲取 token
+      const token = localStorage.getItem('access_token');
+      console.log('請求攔截器中的 token:', token);
+
+      if (token)
         config.headers.Authorization = `Bearer ${token}`;
-      }
 
       // 從 cookie 中獲取 CSRF token
       const csrfToken = document.cookie.replace(
         /(?:(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$)|^.*$/,
         '$1',
       );
-      
-      if (csrfToken) {
+
+      if (csrfToken)
         config.headers['X-CSRFToken'] = csrfToken;
-      }
 
       // 添加時間戳防止緩存
-      if (config.method === 'get') {
+      if (config.method === 'get')
         config.params = { ...config.params, _t: Date.now() };
-      }
 
       return config;
-    } catch (error: any) {
+    }
+    catch (error: any) {
       errorMsg('請求配置錯誤', error.message);
       return Promise.reject(error);
     }
@@ -122,61 +118,30 @@ request.interceptors.request.use(
   (error) => {
     errorMsg('請求配置錯誤', error.message);
     return Promise.reject(error);
-  }
+  },
 );
 
 // 響應攔截器
 request.interceptors.response.use(
   (res: AxiosResponse) => {
     // JWT token 處理
-    if (res.data?.access) {
-      document.cookie = `token=${res.data.access}; path=/; SameSite=Lax`;
-    }
-    if (res.data?.refresh) {
-      document.cookie = `refresh_token=${res.data.refresh}; path=/; SameSite=Lax`;
-    }
+    if (res.data?.access)
+      localStorage.setItem('access_token', res.data.access);
+
+    if (res.data?.refresh)
+      localStorage.setItem('refresh_token', res.data.refresh);
+
     return res;
   },
   async (error) => {
-    // 檢查是否為登出相關請求
-    const isLogoutRequest = error.config?.url?.includes('logout') || 
-                          error.config?.url?.includes('check-auth');
-    
-    if (error.response && !isLogoutRequest) {
-      switch (error.response.status) {
-        case 401:
-          errorMsg('登入失敗', error.response.data?.detail || '帳號或密碼錯誤');
-          break;
-        case 403:
-          errorMsg('權限不足', error.response.data?.detail || '請確認您的帳號權限');
-          break;
-        case 404:
-          errorMsg('請求失敗', 'API 端點不存在');
-          break;
-        case 500:
-          errorMsg('伺服器錯誤', '請稍後再試');
-          break;
-        default:
-          if (error.response.data?.detail) {
-            errorMsg(error.response.data.detail);
-          } else {
-            errorMsg('發生錯誤', '請稍後再試');
-          }
-      }
-    } else if (error.request && !isLogoutRequest) {
-      if (error.message.includes('Network Error')) {
-        errorMsg(
-          '網路連接失敗',
-          '請確認：\n1. 後端服務器是否啟動 (http://127.0.0.1:8000)\n2. CORS 設定是否正確\n3. 網路連接是否正常'
-        );
-      } else {
-        errorMsg('網路錯誤', '無法連接到伺服器，請確認伺服器是否運行中');
-      }
-    } else if (!isLogoutRequest) {
-      errorMsg('請求錯誤', error.message);
+    if (error.response?.status === 401) {
+      // 清除無效的 token
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      errorMsg('登入已過期', '請重新登入');
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 const api = {
@@ -198,94 +163,148 @@ const api = {
     order: `/api/${API_PATH}/admin/order`,
     coupon: `/api/${API_PATH}/admin/coupon`,
   },
+  forum: {
+    posts: '/api/forum/',
+    like: (postId: number) => `/api/forum/${postId}/like/`,
+    comment: (postId: number) => `/api/forum/${postId}/add_comment/`,
+    categories: '/api/forum/categories/',
+    moderators: '/api/forum/moderators/',
+  },
 };
 
 // API USER
-const apiUserRegister = (data: FormData) => request.post(api.user.register, data);
-const apiUserSignin = async (data: any) => {
+async function apiUserRegister(data: FormData) {
   try {
     // 先檢查服務器狀態
     const isServerOnline = await checkServerStatus();
     if (!isServerOnline) {
       errorMsg(
         '連接失敗',
-        '後端服務器未啟動或無法訪問，請檢查：\n' +
-        '1. Django 服務器是否已啟動 (python manage.py runserver)\n' +
-        '2. 端口 8000 是否被占用\n' +
-        '3. 防火牆設置是否正確\n' +
-        '4. Django settings.py 中的 CORS 設定是否正確\n' +
-        '5. Django 是否已安裝 django-cors-headers'
+        '後端服務器未啟動或無法訪問，請檢查：\n'
+        + '1. Django 服務器是否已啟動 (python manage.py runserver)\n'
+        + '2. 端口 8000 是否被占用\n'
+        + '3. 防火牆設置是否正確\n'
+        + '4. Django settings.py 中的 CORS 設定是否正確\n'
+        + '5. Django 是否已安裝 django-cors-headers',
       );
       throw new Error('後端服務器未啟動或無法訪問');
     }
 
-    console.log('Attempting to sign in with:', { ...data, password: '[REDACTED]' });
-    
-    const response = await request.post(api.user.signin, data, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+    // 檢查 FormData 內容
+    console.log('準備發送的註冊數據:');
+    for (const [key, value] of data.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}:`, {
+          name: value.name,
+          type: value.type,
+          size: value.size,
+        });
       }
+      else {
+        console.log(`${key}:`, value);
+      }
+    }
+
+    const response = await request.post(api.user.register, data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
 
-    console.log('Sign in response:', response.data);
+    console.log('註冊響應:', response.data);
 
-    if (response.data?.access) {
-      // 設置 cookie 的 SameSite 屬性
-      document.cookie = `token=${response.data.access}; path=/; SameSite=Lax`;
-      if (response.data.refresh) {
-        document.cookie = `refresh_token=${response.data.refresh}; path=/; SameSite=Lax`;
-      }
-      // 登入成功後顯示成功消息
-      successMsg('登入成功', '歡迎回來！');
-      // 重定向到會員中心儀表板
-      window.location.href = '/#/member/dashboard';
-    }
+    if (response.data?.success)
+      successMsg('註冊成功', '歡迎加入！');
+
     return response;
-  } catch (error: any) {
-    console.error('Sign in error:', error);
+  }
+  catch (error: any) {
+    console.error('Registration error:', error);
     if (error.response) {
       // 服務器回應了錯誤
       errorMsg(
-        '登入失敗',
-        error.response.data?.detail || '帳號或密碼錯誤'
+        '註冊失敗',
+        error.response.data?.message || '註冊失敗，請稍後重試',
       );
-    } else if (error.request) {
+    }
+    else if (error.request) {
       // 請求發出但沒有收到回應
       errorMsg(
         '連接失敗',
-        '無法連接到後端服務器，請檢查：\n' +
-        '1. 後端服務器是否啟動 (http://127.0.0.1:8000)\n' +
-        '2. CORS 設定是否正確\n' +
-        '3. 網路連接是否正常\n' +
-        '4. 瀏覽器控制台是否有其他錯誤'
+        '無法連接到後端服務器，請檢查：\n'
+        + '1. 後端服務器是否啟動 (http://127.0.0.1:8000)\n'
+        + '2. CORS 設定是否正確\n'
+        + '3. 網路連接是否正常\n'
+        + '4. 瀏覽器控制台是否有其他錯誤',
       );
-    } else {
+    }
+    else {
       // 請求配置出錯
       errorMsg('請求錯誤', error.message);
     }
     throw error;
   }
-};
-const apiUserLogout = () => request.post(api.user.logout);
-const apiUserCheckSignin = async () => {
+}
+async function apiUserSignin(data: any) {
   try {
-    const token = document.cookie.replace(/(?:(?:^|.*;\s*)token\s*=\s*([^;]*).*$)|^.*$/, '$1');
-    if (!token) {
-      return { data: { success: false, isAuthenticated: false } };
+    console.log('開始登入...');
+
+    const response = await request.post(api.user.signin, data, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    });
+
+    console.log('登入響應:', response.data);
+
+    if (response.data?.access) {
+      // 保存 token 到 localStorage
+      localStorage.setItem('access_token', response.data.access);
+      if (response.data.refresh)
+        localStorage.setItem('refresh_token', response.data.refresh);
+
+      // 登入成功後顯示成功消息
+      successMsg('登入成功', '歡迎回來！');
     }
-    const response = await request.get(api.user.checkSigin);
     return response;
-  } catch (error: any) {
-    console.error('Check signin error:', error);
-    // 如果是 401 或 403 錯誤，表示未認證或 token 無效
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      return { data: { success: false, isAuthenticated: false } };
-    }
-    // 其他錯誤則拋出
+  }
+  catch (error: any) {
+    console.error('登入錯誤:', error);
+    // 清除可能存在的無效 token
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+
+    if (error.response)
+      errorMsg('登入失敗', error.response.data?.detail || '帳號或密碼錯誤');
+    else if (error.request)
+      errorMsg('連接失敗', '無法連接到後端服務器');
+    else
+      errorMsg('請求錯誤', error.message);
+
     throw error;
   }
-};
+}
+const apiUserLogout = () => request.post(api.user.logout);
+async function apiUserCheckSignin() {
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token)
+      return { data: { success: false, isAuthenticated: false } };
+
+    const response = await request.get(api.user.checkSigin);
+    return response;
+  }
+  catch (error: any) {
+    console.error('Check signin error:', error);
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      return { data: { success: false, isAuthenticated: false } };
+    }
+    throw error;
+  }
+}
 const apiUserGetAllProducts = () => request.get(`${api.user.product}s/all`);
 function apiUserGetProducts(category: string = '') {
   if (category)
@@ -324,6 +343,42 @@ const apiAdminGetCoupons = () => request.get(`${api.admin.coupon}s`);
 const apiAdminPostCoupon = (data: any) => request.post(`${api.admin.coupon}`, data);
 const apiAdminPutCoupon = (id: string, data: any) => request.put(`${api.admin.coupon}/${id}`, data);
 const apiAdminDelCoupon = (id: string) => request.delete(`${api.admin.coupon}/${id}`);
+
+// Forum API functions
+export const apiForumGetPosts = () => request.get(api.forum.posts);
+export const apiForumGetPost = (id: number) => request.get(`${api.forum.posts}${id}/`);
+export async function apiForumToggleLike(postId: number) {
+  try {
+    const response = await request.post(`${api.forum.like(postId)}`);
+    return response;
+  }
+  catch (error: any) {
+    console.error('按讚失敗:', error);
+    throw error;
+  }
+}
+
+// 論壇相關 API
+export const FORUM_API = {
+  // ... existing forum APIs ...
+  
+  // 獲取文章評論
+  getComments: (postId: number) => request.get(`/api/forum/posts/${postId}/comments/`),
+  
+  // 添加評論
+  addComment: (postId: number, content: string) => request.post(`/api/forum/posts/${postId}/add_comment/`, { content }),
+  
+  // 刪除評論
+  deleteComment: (commentId: number) => request.post(`/api/forum/comments/${commentId}/delete_comment/`),
+};
+
+// 導出具體的 API 函數
+export const apiForumGetComments = FORUM_API.getComments;
+export const apiForumAddComment = FORUM_API.addComment;
+export const apiForumDeleteComment = FORUM_API.deleteComment;
+
+export const apiForumGetCategories = () => request.get(api.forum.categories);
+export const apiForumGetModerators = () => request.get(api.forum.moderators);
 
 export {
   api,

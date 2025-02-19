@@ -21,6 +21,8 @@ urlpatterns = [
     # 會員 API 端點
     path('api/users/', views.member_api, name='member_api_list'),
     path('api/users/<int:member_id>/', views.member_api, name='member_api_detail'),
+    path('api/member/profile/', views.profile_api, name='profile_api'),
+    path('api/member/profile/update/', views.profile_update_api, name='profile_update_api'),
     
     # 商城系統
     path('admin-dashboard/shop/layout/', views.shop_layout, name='shop_layout'),
@@ -53,4 +55,5 @@ urlpatterns = [
     path('api/user/logout/', views.logout_api, name='api-logout'),
     path('api/user/check-auth/', views.check_auth, name='api-check-auth'),
     path('api/user/profile/', views.profile_api, name='api-profile'),
+    path('api/posts/create/', views.create_post, name='create_post'),
 ]

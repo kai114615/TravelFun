@@ -1,21 +1,26 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { NButton, NInput, NModal, NCard, NIcon } from 'naive-ui';
-import { 
+import { computed, ref } from 'vue';
+import { NButton, NCard, NIcon, NInput, NModal, useMessage } from 'naive-ui';
+import {
+  AccessTimeOutlined,
+  ArrowBackOutlined,
+  ChatBubbleOutlined,
+  FavoriteBorderOutlined,
   FavoriteOutlined,
   ShareOutlined,
-  VisibilityOutlined,
-  ChatBubbleOutlined,
   ThumbUpOutlined,
-  ReplyOutlined,
-  AccessTimeOutlined,
-  ArrowBackOutlined
+  VisibilityOutlined,
 } from '@vicons/material';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores';
+import { apiForumAddComment, apiForumDeleteComment, apiForumToggleLike } from '@/utils/api';
 
 const router = useRouter();
 const userStore = useUserStore();
+const message = useMessage();
+
+// 添加評論區域的 ref
+const commentSection = ref(null);
 
 // 判斷是否登入
 const isLoggedIn = computed(() => userStore.loginStatus);
@@ -54,7 +59,7 @@ const post = ref({
   author: {
     name: '背包客阿明',
     title: '旅遊達人',
-    avatar: 'https://picsum.photos/201'
+    avatar: 'https://picsum.photos/201',
   },
   comments: [
     {
@@ -62,64 +67,132 @@ const post = ref({
       author: {
         name: '小茹看世界',
         title: '精選作者',
-        avatar: 'https://picsum.photos/202'
+        avatar: 'https://picsum.photos/202',
       },
       content: '推薦的餐廳都很棒！特別是鼎泰豐，一定要先訂位才不會等太久。',
       postDate: '2024-01-10 11:30',
-      likes: 25
+      likes: 25,
     },
     {
       id: 2,
       author: {
         name: '老王遊台灣',
         title: '在地嚮導',
-        avatar: 'https://picsum.photos/203'
+        avatar: 'https://picsum.photos/203',
       },
       content: '補充一下交通資訊：如果要去台北101，建議搭乘捷運信義線到台北101/世貿站下車，出站後走路約3分鐘就到了。',
       postDate: '2024-01-10 12:15',
-      likes: 18
-    }
-  ]
+      likes: 18,
+    },
+  ],
 });
 
-// 新留言內容
+// 新增評論相關功能
 const newComment = ref('');
+const isSubmitting = ref(false);
 const showLoginModal = ref(false);
 
-// 處理留言提交
-const handleComment = () => {
+// 處理發表評論
+async function handleComment() {
   if (!isLoggedIn.value) {
     showLoginModal.value = true;
     return;
   }
 
-  if (newComment.value.trim()) {
-    // TODO: 實際提交留言到後端
-    post.value.comments.push({
-      id: post.value.comments.length + 1,
-      author: {
-        name: '當前用戶',
-        title: '會員',
-        avatar: 'https://picsum.photos/205'
-      },
-      content: newComment.value,
-      postDate: new Date().toLocaleString(),
-      likes: 0
-    });
-    newComment.value = '';
+  if (!newComment.value.trim()) {
+    message.warning('請輸入評論內容');
+    return;
   }
-};
+
+  try {
+    isSubmitting.value = true;
+    const response = await apiForumAddComment(post.value.id, newComment.value);
+
+    if (response.data.status === 'success') {
+      // 將新評論添加到列表
+      post.value.comments.unshift({
+        id: response.data.data.id,
+        content: newComment.value,
+        author: {
+          name: userStore.displayName,
+          title: '會員',
+          avatar: userStore.userInfo?.avatar || 'https://picsum.photos/205',
+        },
+        postDate: new Date().toLocaleString(),
+        likes: 0,
+      });
+
+      // 清空輸入框
+      newComment.value = '';
+      message.success('評論發表成功');
+    }
+  }
+  catch (error) {
+    console.error('發表評論失敗:', error);
+  }
+  finally {
+    isSubmitting.value = false;
+  }
+}
+
+// 處理刪除評論
+async function handleDeleteComment(commentId: number) {
+  try {
+    const response = await apiForumDeleteComment(commentId);
+    if (response.data.status === 'success') {
+      // 從列表中移除該評論
+      post.value.comments = post.value.comments.filter(comment => comment.id !== commentId);
+    }
+  }
+  catch (error) {
+    console.error('刪除評論失敗:', error);
+  }
+}
 
 // 跳轉到登入頁面
-const goToLogin = () => {
+function goToLogin() {
   router.push('/login');
   showLoginModal.value = false;
-};
+}
 
 // 返回上一頁
-const goBack = () => {
+function goBack() {
   router.back();
-};
+}
+
+// 處理按讚
+async function handleLike() {
+  if (!isLoggedIn.value) {
+    message.warning('請先登入後再按讚');
+    return;
+  }
+
+  try {
+    const response = await apiForumToggleLike(post.value.id);
+
+    if (response.data.status === 'success') {
+      // 使用後端返回的數據更新狀態
+      post.value.is_liked = response.data.data.is_liked;
+      post.value.likes = response.data.data.like_count;
+      message.success(response.data.message);
+    }
+  }
+  catch (error) {
+    console.error('按讚失敗:', error);
+    // 不需要顯示錯誤消息，因為 API 函數已經處理了
+  }
+}
+
+// 添加跳轉到評論區域的方法
+function scrollToComments() {
+  const commentSection = document.getElementById('comment-section');
+  if (commentSection) {
+    commentSection.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }
+}
 </script>
 
 <template>
@@ -148,7 +221,9 @@ const goBack = () => {
             <span class="font-medium text-gray-800">{{ post.author.name }}</span>
             <span class="px-2 py-0.5 bg-primary/5 text-primary rounded-full text-xs">{{ post.author.title }}</span>
           </div>
-          <div class="text-sm text-gray-500 mt-1">發表於 {{ post.postDate }}</div>
+          <div class="text-sm text-gray-500 mt-1">
+            發表於 {{ post.postDate }}
+          </div>
         </div>
       </div>
 
@@ -165,27 +240,41 @@ const goBack = () => {
           {{ post.views }} 瀏覽
         </span>
         <span class="flex items-center gap-1">
-          <NIcon size="16"><FavoriteOutlined /></NIcon>
+          <NIcon size="16">
+            <component :is="post.is_liked ? FavoriteOutlined : FavoriteBorderOutlined" />
+          </NIcon>
           {{ post.likes }} 喜歡
         </span>
-        <span class="flex items-center gap-1">
-          <NIcon size="16"><ChatBubbleOutlined /></NIcon>
-          {{ post.comments.length }} 留言
-        </span>
+        <button
+          class="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+          @click="scrollToComments"
+        >
+          <NIcon size="16">
+            <ChatBubbleOutlined />
+          </NIcon>
+          {{ post.comments?.length || 0 }} 留言
+        </button>
       </div>
 
       <!-- 文章內容 -->
       <div class="prose prose-lg max-w-none mb-8">
-        <div class="markdown-body" v-html="post.content"></div>
+        <div class="markdown-body" v-html="post.content" />
       </div>
 
       <!-- 互動按鈕 -->
       <div class="flex items-center gap-4 border-t border-gray-100 pt-6">
-        <NButton type="primary" ghost class="rounded-full">
+        <NButton
+          :type="post.is_liked ? 'error' : 'default'"
+          ghost
+          class="rounded-full"
+          @click="handleLike"
+        >
           <template #icon>
-            <NIcon><FavoriteOutlined /></NIcon>
+            <NIcon>
+              <component :is="post.is_liked ? FavoriteOutlined : FavoriteBorderOutlined" />
+            </NIcon>
           </template>
-          喜歡
+          {{ post.is_liked ? '已喜歡' : '喜歡' }}
         </NButton>
         <NButton class="rounded-full">
           <template #icon>
@@ -197,8 +286,10 @@ const goBack = () => {
     </div>
 
     <!-- 留言區 -->
-    <div class="bg-white rounded-xl shadow-sm p-6">
-      <h2 class="text-xl font-bold text-gray-800 mb-6">留言區 ({{ post.comments.length }})</h2>
+    <div id="comment-section" ref="commentSection" class="bg-white rounded-xl shadow-sm p-6">
+      <h2 class="text-xl font-bold text-gray-800 mb-6">
+        留言區 ({{ post.comments.length }})
+      </h2>
 
       <!-- 發表留言 -->
       <div class="mb-8">
@@ -208,9 +299,16 @@ const goBack = () => {
           placeholder="分享您的想法..."
           :rows="3"
           class="mb-4"
+          :disabled="isSubmitting"
         />
-        <NButton type="primary" @click="handleComment" class="rounded-full">
-          發表留言
+        <NButton
+          type="primary"
+          class="rounded-full"
+          :loading="isSubmitting"
+          :disabled="isSubmitting || !newComment.trim()"
+          @click="handleComment"
+        >
+          {{ isLoggedIn ? '發表留言' : '請先登入' }}
         </NButton>
       </div>
 
@@ -224,19 +322,27 @@ const goBack = () => {
                 <span class="font-medium text-gray-800">{{ comment.author.name }}</span>
                 <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">{{ comment.author.title }}</span>
               </div>
-              <div class="text-gray-600 mb-2">{{ comment.content }}</div>
+              <div class="text-gray-600 mb-2">
+                {{ comment.content }}
+              </div>
               <div class="flex items-center gap-4 text-sm text-gray-500">
                 <span class="flex items-center gap-1">
                   <NIcon size="16"><AccessTimeOutlined /></NIcon>
                   {{ comment.postDate }}
                 </span>
                 <button class="flex items-center gap-1 hover:text-primary transition-colors">
-                  <NIcon size="16"><ThumbUpOutlined /></NIcon>
+                  <NIcon size="16">
+                    <ThumbUpOutlined />
+                  </NIcon>
                   {{ comment.likes }}
                 </button>
-                <button class="hover:text-primary transition-colors flex items-center gap-1">
-                  <NIcon size="16"><ReplyOutlined /></NIcon>
-                  回覆
+                <button
+                  v-if="userStore.userInfo?.id === comment.author.id"
+                  class="text-red-500 hover:text-red-600 transition-colors flex items-center gap-1"
+                  @click="handleDeleteComment(comment.id)"
+                >
+                  <i class="fas fa-trash-alt" />
+                  刪除
                 </button>
               </div>
             </div>
@@ -256,7 +362,9 @@ const goBack = () => {
         aria-modal="true"
       >
         <div class="text-center">
-          <p class="mb-6">請先登入後再發表留言</p>
+          <p class="mb-6">
+            請先登入後再發表留言
+          </p>
           <div class="flex justify-center gap-4">
             <NButton type="primary" @click="goToLogin">
               前往登入
@@ -305,4 +413,4 @@ const goBack = () => {
   margin: 0.25em 0;
   color: #4a5568;
 }
-</style> 
+</style>

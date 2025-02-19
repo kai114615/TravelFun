@@ -1,0 +1,358 @@
+[2024-01-11] 修改頭像上傳功能調試
+
+1. 前端修改：
+- 在 Register.vue 中添加詳細的文件上傳日誌
+- 添加 FormData 內容檢查
+- 改進文件類型和大小驗證的錯誤處理
+
+2. 後端修改：
+- 在註冊視圖中添加詳細的文件處理日誌
+- 添加文件上傳過程的錯誤追蹤
+- 驗證頭像是否成功保存到磁盤
+- 確保媒體文件目錄存在並具有正確權限
+
+3. 調試要點：
+- 檢查文件是否正確從前端發送
+- 驗證後端是否正確接收文件
+- 確認文件保存路徑和權限
+- 記錄完整的錯誤堆疊跟蹤
+
+4. 使用的工具：
+- 瀏覽器開發者工具 (網絡面板)
+- Django 日誌系統
+- Python traceback 模組
+
+[2024-01-11] 更新頭像上傳邏輯
+
+1. 後端更新：
+- 修改 register_api 視圖中的頭像處理邏輯
+- 實現按年月組織頭像文件存儲結構
+- 生成唯一文件名，包含用戶名和時間戳
+- 確保上傳目錄自動創建
+- 使用 chunks() 方法處理大文件上傳
+- 返回正確的媒體文件 URL
+
+2. 文件存儲結構：
+- 基礎路徑: media/avatars/
+- 子目錄結構: YYYY/MM/
+- 文件命名格式: username_YYYYMMDD_HHMMSS.extension
+
+3. 安全性考慮：
+- 檢查文件類型（僅允許圖片）
+- 限制文件大小（最大 2MB）
+- 使用安全的文件命名方式
+
+[2024-01-11] 調試頭像上傳問題
+
+1. 問題診斷：
+- 添加詳細的請求數據日誌
+- 檢查 request.FILES 的內容
+- 驗證文件保存過程
+- 確認數據庫中的頭像路徑更新
+
+2. 改進措施：
+- 優化文件檢查邏輯
+- 添加更多調試信息
+- 確保路徑正確性
+- 驗證文件保存結果
+
+3. 路徑處理：
+- 分離相對路徑和完整路徑
+- 統一使用 os.path.join
+- 確保路徑分隔符一致性
+- 添加路徑存在性檢查
+
+[2024-01-11] 修改註冊後的路由處理
+
+1. 問題：
+- Vue Router 警告：No active route record was found when calling `onBeforeRouteUpdate()`
+- 可能是由於在不正確的組件中調用路由更新方法
+
+2. 解決方案：
+- 將 router.push() 替換為 window.location.href
+- 添加 1 秒延遲確保狀態更新完成
+- 使用完整的 URL 路徑（包含 origin）
+
+3. 改進：
+- 更可靠的頁面跳轉機制
+- 避免路由警告
+- 確保用戶狀態完全更新後再跳轉
+
+4. 注意事項：
+- 使用 setTimeout 確保狀態更新完成
+- 使用 window.location.origin 確保正確的基礎URL
+- 保持 hash 路由模式 (#)
+
+[2024-01-11] 修改註冊 API 調用邏輯
+
+1. API 調用改進：
+- 添加 FormData 內容詳細檢查
+- 確保正確設置 Content-Type
+- 改進錯誤處理和日誌記錄
+
+2. 調試功能：
+- 輸出完整的 FormData 內容
+- 區分文件和普通數據的日誌
+- 添加請求和響應的詳細日誌
+
+3. 錯誤處理：
+- 區分不同類型的錯誤（服務器錯誤、網絡錯誤等）
+- 提供更詳細的錯誤信息
+- 改進錯誤提示信息的本地化
+
+4. 安全性：
+- 確保敏感信息不會被記錄
+- 使用安全的請求頭
+- 正確處理文件上傳
+
+[2024-01-11] 改進文件上傳處理邏輯
+
+1. 文件處理改進：
+- 使用 Promise 包裝文件處理邏輯
+- 創建新的 File 對象確保文件屬性完整
+- 改進文件類型和大小的驗證
+- 添加更詳細的日誌記錄
+
+2. FormData 處理：
+- 簡化 FormData 的文件添加方式
+- 確保文件對象被正確添加
+- 添加文件處理狀態的日誌
+- 驗證 FormData 內容的完整性
+
+3. 錯誤處理：
+- 使用 Promise reject 處理驗證錯誤
+- 添加更清晰的錯誤提示
+- 改進錯誤日誌記錄
+- 確保錯誤狀態正確傳遞
+
+4. 調試功能：
+- 添加文件處理各階段的日誌
+- 記錄文件屬性的完整信息
+- 驗證文件對象的創建
+- 確認 FormData 的內容
+
+[2024-01-11] 修改靜態文件配置
+
+1. Django 設置更新：
+- 修改 STATIC_ROOT 和 MEDIA_ROOT 的路徑處理
+- 添加 STATICFILES_DIRS 配置
+- 設置文件上傳權限和大小限制
+- 確保媒體目錄自動創建
+
+2. URL 配置：
+- 確保靜態文件 URL 正確配置
+- 添加媒體文件 URL 處理
+- 使用 static() 輔助函數處理文件服務
+
+3. 路徑處理：
+- 統一使用正斜線 (/) 作為路徑分隔符
+- 修正 Windows 系統的反斜線問題
+- 確保 URL 路徑格式正確
+
+4. 文件權限：
+- 設置上傳文件權限為 0o644
+- 設置目錄權限為 0o755
+- 限制上傳文件大小為 2MB
+
+[2024-01-26] 會員中心路由權限控制確認
+
+1. 路由守衛邏輯：
+- 未登入用戶訪問會員中心時自動重定向到登入頁面
+- 使用 query 參數保存原目標路徑
+- 登入成功後自動跳轉回原頁面
+- 路由路徑：http://localhost:3333/#/login
+
+2. 登入頁面功能：
+- 支持重定向參數
+- 登入成功後檢查 redirect 參數
+- 根據 redirect 參數決定跳轉目標
+
+3. 會員中心路由配置：
+- 所有會員相關路由都添加 requiresAuth: true
+- 包括主會員中心和所有子路由
+- 統一的路由權限檢查機制
+
+4. 用戶體驗優化：
+- 未登入訪問時顯示友好提示
+- 登入後無縫跳轉到目標頁面
+- 保持一致的路由標題格式
+
+[2024-01-26] 修改導覽列會員中心路由
+
+1. 路由配置更新：
+- 將會員中心路由從 'MemberDashboard' 改為 'Member'
+- 確保導覽列點擊後能正確跳轉到會員中心
+- 保持與路由配置文件的一致性
+
+2. 相關文件：
+- src/components/Header/src/navList.ts
+- 修改 memberRouterTo 的路由名稱
+- 確保 handleItemHeaderClick 使用正確的路由
+
+3. 功能驗證：
+- 未登入用戶點擊會員中心，重定向到登入頁面
+- 登入用戶點擊會員中心，直接進入會員中心頁面
+- 保持導覽列的統一風格和行為
+
+[2024-01-26] 修正會員中心路由名稱
+
+1. 問題：
+- 導覽列點擊會員中心時出現路由錯誤
+- 錯誤訊息：No match for {"name":"Member","params":{}}
+
+2. 修正：
+- 將 navList.ts 中的會員中心路由名稱從 'Member' 改為 'MemberDashboard'
+- 確保與 router/index.ts 中的路由定義一致
+- 保持路由守衛的權限檢查邏輯不變
+
+3. 相關文件：
+- src/components/Header/src/navList.ts
+- src/router/index.ts
+
+4. 功能驗證：
+- 未登入用戶點擊會員中心，應重定向到登入頁面
+- 登入用戶點擊會員中心，應正確導向會員中心頁面
+- 路由名稱與實際組件對應正確
+
+[2024-01-26] 修正登入後路由跳轉邏輯
+
+1. 問題：
+- Vue Router 警告：No active route record was found when calling onBeforeRouteUpdate()
+- 登入後路由跳轉可能不穩定
+
+2. 修正：
+- 將 router.push() 替換為 window.location.href
+- 使用 setTimeout 延遲 500ms 確保狀態更新完成
+- 使用完整的 URL 路徑（包含 origin）
+- 保持 hash 路由模式 (#)
+
+3. 相關文件：
+- src/views/front/Login/LoginView.vue
+
+4. 功能驗證：
+- 登入成功後顯示成功提示
+- 檢查重定向參數決定跳轉目標
+- 確保路徑完整且格式正確
+- 避免路由警告出現
+
+[2024-01-26] 修正會員中心連結樣式
+
+1. 問題：
+- 會員中心連結在選中時沒有正確顯示激活狀態
+- 連結樣式與其他導覽項目不一致
+
+2. 修正：
+- 在 navList.ts 中為會員中心的 RouterLink 添加 active-class
+- 添加 exact-active-class 確保精確匹配時的樣式
+- 使用 text-cc-accent 作為激活狀態的顏色
+
+3. 相關文件：
+- src/components/Header/src/navList.ts
+
+4. 功能驗證：
+- 點擊會員中心時連結應該變色
+- 在會員中心頁面時保持高亮狀態
+- 樣式應與其他導覽項目保持一致
+
+[2024-01-26] 修改導覽列會員中心顯示邏輯
+
+1. 功能更新：
+- 會員中心選項根據登入狀態動態顯示
+- 未登入時不顯示會員中心選項
+- 登入後自動顯示會員中心選項
+
+2. 技術實現：
+- 使用 useUserStore 獲取用戶狀態
+- 使用 storeToRefs 確保響應式
+- 使用 loginStatus 作為條件渲染依據
+
+3. 相關文件：
+- src/components/Header/src/navList.ts
+
+4. 使用者體驗：
+- 未登入用戶看不到會員中心選項，避免混淆
+- 登入後自動顯示會員中心選項
+- 保持導覽列的整潔性和邏輯性
+
+[2024-01-26] 修正導覽列 Pinia 初始化問題
+
+1. 問題描述：
+- Pinia 錯誤："getActivePinia()" was called but there was no active Pinia
+- 原因：在 Pinia store 初始化前就嘗試使用它
+
+2. 修正方案：
+- 將 navList 改為 createNavList 函數
+- 在組件掛載時才調用 useUserStore
+- 使用展開運算符動態插入會員中心選項
+- 移除 storeToRefs 的使用，直接使用 store 的值
+
+3. 相關文件：
+- src/components/Header/src/navList.ts
+
+4. 功能驗證：
+- 確保導覽列正確初始化
+- 會員中心選項根據登入狀態正確顯示
+- 避免 Pinia 相關的錯誤
+
+[2024-01-26] 修正導覽列組件的 navList 使用方式
+
+1. 問題描述：
+- 錯誤：The requested module does not provide an export named 'navList'
+- 原因：將 navList 改為 createNavList 函數後，其他組件還在使用舊的導出
+
+2. 修正方案：
+- 更新 Header 組件中的 navList 導入為 createNavList
+- 使用 computed 包裝 createNavList 的調用
+- 更新 Hamburger 組件中的 navList 使用方式
+- 確保所有組件都使用最新的函數式寫法
+
+3. 相關文件：
+- src/components/Header/src/index.vue
+- src/components/Header/src/Hamburger/src/index.vue
+
+4. 功能驗證：
+- 確保導覽列正確顯示所有選項
+- 確保手機版漢堡選單正常運作
+- 會員中心選項根據登入狀態正確顯示
+
+[2024-03-19 10:30] 專案設定修改記錄
+
+1. UI 庫設定
+- 移除了 element-plus 的依賴
+- 使用 naive-ui 作為主要 UI 庫
+- 將 ElMessage 組件替換為 naive-ui 的 useMessage
+
+2. 路由設定
+- 使用 /api/public/categories/ 作為分類 API 端點
+- 使用 /api/public/posts/ 作為文章 API 端點
+
+3. 使用的套件版本
+- naive-ui: ^2.41.0
+- vue: ^3.3.13
+- axios: ^1.7.9
+- vue-router: ^4.2.5
+
+4. 注意事項
+- API 請求需要包含 X-CSRFToken header
+- 所有請求都需要設置 withCredentials: true
+- 使用 naive-ui 的 message 組件進行消息提示
+
+5. 待處理問題
+- 需要確保所有 API 端點都正確配置了 CORS
+- 需要確保後端正確處理了 CSRF token
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק� TestPostApiView�G�K�[�{�ҩM�v���n�D�A�ϥη��e�n�J�Τ�@���峹�@��" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק�e�ݽШD�t�m�G�K�[ withCredentials �M CSRF token�A�T�O�ШD������T��a�{�ҫH��" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק� Django �]�m�G�վ� CORS �M Cookie �]�m�A���\ localhost:8000 ���ШD�A��e Cookie �w������" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק�e�ݽШD�t�m�G�K�[ JWT token �{�ҡA�u�ƿ��~�B�z�M�[�����A�޲z" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק���Ѱt�m�G1. ²�Ƹ��Ѧu���޿� 2. �ץ����ѰO���ʥ����D 3. �Τ@�ϥ� meta.requiresAuth ����{��" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �s�W PublicForumViewSet�G���Ѥ��}���峹 API�A����ΦWŪ���M�{�ҵo��" 
+"[2025/01/27 �g�@ 16:13:39.94] �ק�]�w�G1. ��s CORS �]�m���\ credentials 2. �ק� Cookie �]�m���}�o���� 3. ��s�e�ݽШD�t�m�K�[ CSRF token" 
+"[2025/01/27 �g�@ 16:16:53.81] �ק�o��\��G1. �ץ��ܼƥ��w�q���D 2. �Τ@�ϥ� postForm 3. �[�j���~�B�z�M��x�O��" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק�o��\��G1. �ϥ� public API ���I 2. �K�[ JWT token �{�� 3. �u�Ʀ��\�P�_�޿� 4. �۰������o�����" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק�o��\��G1. ��s����v���]�w���\�w�n�J�Τ�o�� 2. �ק�e�� API ���|�� /api/forum/posts/ 3. �u�ƿ��~�B�z" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק� API �t�m�G1. ��s���Ѱt�m�A�ϥ� PublicForumViewSet 2. �ץ��e�� API ���|�� /api/forum/posts/create/ 3. �T�O�{���Y�����T�]�m" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק�{�Ұt�m�G1. ��ݲK�[ SessionAuthentication �M BasicAuthentication 2. �u�� CSRF token ����覡 3. �ץ� API ���|�� /api/forum/ 4. �������~�B�z" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק�{�Ұt�m�G1. �u�� CORS �M CSRF �]�w 2. ���\ JavaScript Ū�� CSRF token 3. ��i�e�ݽШD�Y���]�m 4. �Τ@�ϥ� IsAuthenticatedOrReadOnly �v��" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק�峹�C���\��G1. ��ݲK�[�����M�Ƨ� 2. �u�ƿ��~�B�z�M��x 3. �e�ݧ�i�ƾڳB�z�޿� 4. �K�[�ԲӪ��ШD�M�T����x" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] ��_ PublicForumViewSet �]�w�G1. �����h�l���{���� 2. ��_ IsAuthenticatedOrReadOnly �v�� 3. ²�Ƥ峹�C���d�� 4. ���������n���\��" 
+"[$(date '+%Y-%m-%d %H:%M:%S')] �ק�׾¨t�ΡG1. ��s URL �t�m�K�[ PublicForumViewSet 2. �ץ��e�ݽШD�]�w���� JWT 3. �Τ@�ϥ� session �{��" 

@@ -5,10 +5,12 @@ import {
   NLoadingBarProvider,
   NMessageProvider,
 } from 'naive-ui';
-import { computed } from 'vue';
-import { RouterView, useRoute } from 'vue-router';
+import { computed, onMounted } from 'vue';
+import { RouterView, useRoute, useRouter } from 'vue-router';
+import Header from '@/components/Header/src/index.vue';
 
 const route = useRoute();
+const router = useRouter();
 
 const getThemeOverrides = computed(() => {
   const isAdmin = !!route.meta.requiresAuth;
@@ -41,6 +43,15 @@ const getThemeOverrides = computed(() => {
     Card: isAdmin ? adminCardOverrides : {},
   };
 });
+
+onMounted(() => {
+  // 檢查是否需要重定向
+  const redirectUrl = localStorage.getItem('redirectAfterLogin');
+  if (redirectUrl) {
+    localStorage.removeItem('redirectAfterLogin');
+    router.replace(redirectUrl);
+  }
+});
 </script>
 
 <template>
@@ -48,6 +59,7 @@ const getThemeOverrides = computed(() => {
     <NLoadingBarProvider>
       <NMessageProvider>
         <NDialogProvider>
+          <Header />
           <RouterView />
         </NDialogProvider>
       </NMessageProvider>

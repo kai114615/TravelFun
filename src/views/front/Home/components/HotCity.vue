@@ -28,7 +28,7 @@ const otherCity = computed(() => {
       <div v-if="hotCitys" class="grid grid-rows-2 gap-3 md:grid-flow-col md:gap-6">
         <RouterLink
           v-if="mainCity?.name" v-slot="{ navigate }" custom
-          :to="{ name: 'City', params: { cityName: `${mainCity.enName.toLowerCase()}` } }"
+          :to="{ name: 'Home' }"
         >
           <div class="relative col-span-2 row-span-2 overflow-hidden rounded-m" @click="navigate">
             <img
@@ -45,7 +45,7 @@ const otherCity = computed(() => {
         </RouterLink>
         <RouterLink
           v-for="city in otherCity" :key="city.name" v-slot="{ navigate }" custom
-          :to="{ name: 'City', params: { cityName: `${city.enName.toLowerCase()}` } }"
+          :to="{ name: 'Home' }"
         >
           <div class="relative overflow-hidden rounded-m" @click="navigate">
             <img

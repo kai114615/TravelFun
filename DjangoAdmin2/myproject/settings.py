@@ -34,8 +34,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'corsheaders',
-    'django_ckeditor_5',
+    'django_ckeditor_5',  # 使用新的 CKEditor 5
     'rest_framework_simplejwt',
+    'django_celery_results',
 ]
 
 
@@ -55,8 +56,7 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3333",
-    "http://127.0.0.1:3333",
+    "http://localhost:3333",  # 前端開發伺服器
 ]
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -177,18 +177,35 @@ LOGGING = {
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
-# 在文件底部添加 CKEditor 配置
-CKEDITOR_CONFIGS = {
-    'default': {
-        'toolbar': 'full',
-        'height': 300,
-        'width': '100%',
-    },
-}# CKEditor 5 配置
+# 更新 CKEditor 5 配置
 CKEDITOR_5_CONFIGS = {
     'default': {
-        'toolbar': ['heading', '|', 'bold', 'italic', 'link',
-                   'bulletedList', 'numberedList', 'blockQuote', 'imageUpload', ],
+        'toolbar': [
+            'heading', '|',
+            'bold', 'italic', 'underline', 'strikethrough', '|',
+            'bulletedList', 'numberedList', '|',
+            'blockQuote', 'imageUpload', '|',
+            'link', 'unlink', '|',
+            'undo', 'redo', '|',
+            'alignment', 'indent', 'outdent', '|',
+            'horizontalLine', 'insertTable', '|',
+            'fontBackgroundColor', 'fontColor', 'fontSize', 'fontFamily', '|',
+            'removeFormat', 'sourceEditing'
+        ],
+        'height': '400px',
+        'width': '100%',
+        'language': 'zh',
+        'image': {
+            'toolbar': [
+                'imageTextAlternative', '|',
+                'imageStyle:alignLeft', 'imageStyle:alignCenter', 'imageStyle:alignRight', '|',
+                'resizeImage'
+            ],
+            'styles': [
+                'alignLeft', 'alignCenter', 'alignRight'
+            ],
+            'resizeUnit': 'px'
+        },
     }
 }
 
@@ -214,5 +231,22 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
     'TOKEN_TYPE_CLAIM': 'token_type',
+}
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Taipei'
+
+# Cache settings
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+    }
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import Banner from '@/components/Banner.vue';
+import Footer from '@/components/Footer.vue';
 
 const title = ref('主題育樂');
 </script>
@@ -20,4 +21,5 @@ const title = ref('主題育樂');
       <p class="text-gray-600">我們正在籌備更多精彩的主題活動，敬請期待！</p>
     </div>
   </main>
+  <Footer />
 </template> 

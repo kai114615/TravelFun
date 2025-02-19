@@ -1,7 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import { useCartStore, useUserStore } from '@/stores';
 import type { RouteRecordRaw } from 'vue-router';
 import { createDiscreteApi } from 'naive-ui';
+import { useCartStore, useUserStore } from '@/stores';
 
 const { message } = createDiscreteApi(['message']);
 const { VITE_TITLE } = import.meta.env;
@@ -42,6 +42,7 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/front/Member/MemberView.vue'),
         meta: {
           title: '會員中心 - Travel Fun',
+          requiresAuth: true,
         },
       },
       {
@@ -58,7 +59,7 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/front/Forum/components/PostDetail.vue'),
         meta: {
           title: '文章詳情 - Travel Fun',
-        }
+        },
       },
       {
         path: 'login',
@@ -111,11 +112,17 @@ const routes: Array<RouteRecordRaw> = [
         },
       },
       {
-        path: 'product/:productId',
-        name: 'Product',
-        component: () => import('../views/front/Product/ProductView.vue'),
+        path: 'mall-products',
+        name: 'MallProducts',
+        component: () => import('@/views/front/Products/MallProductsView.vue'),
+      },
+      {
+        path: 'mall-products/detail/:id',
+        name: 'MallProductDetail',
+        component: () => import('@/views/front/Mall/MallProductDetail.vue'),
+        props: true,
         meta: {
-          title: '旅遊行程 - Travel Fun',
+          title: '商品詳情',
         },
       },
       {
@@ -235,40 +242,58 @@ const routes: Array<RouteRecordRaw> = [
     path: '/member',
     name: 'MemberLayout',
     component: () => import('@/views/front/Member/MemberLayout.vue'),
-    meta: { requiresAuth: true },
+    meta: {
+      requiresAuth: true,
+      title: '會員中心',
+    },
     children: [
       {
         path: 'dashboard',
         name: 'MemberDashboard',
         component: () => import('@/views/front/Member/DashboardView.vue'),
-        meta: { title: '會員中心' }
+        meta: {
+          requiresAuth: true,
+          title: '會員中心',
+        },
       },
       {
         path: 'profile',
         name: 'MemberProfile',
         component: () => import('@/views/front/Member/ProfileView.vue'),
-        meta: { title: '個人資料' }
+        meta: {
+          requiresAuth: true,
+          title: '個人資料',
+        },
       },
       {
         path: 'orders',
         name: 'MemberOrders',
         component: () => import('@/views/front/Member/OrdersView.vue'),
-        meta: { title: '訂單管理' }
+        meta: {
+          requiresAuth: true,
+          title: '訂單管理',
+        },
       },
       {
         path: 'messages',
         name: 'MemberMessages',
         component: () => import('@/views/front/Member/MessagesView.vue'),
-        meta: { title: '訊息中心' }
+        meta: {
+          requiresAuth: true,
+          title: '訊息中心',
+        },
       },
       {
         path: 'coupons',
         name: 'MemberCoupons',
         component: () => import('@/views/front/Member/CouponsView.vue'),
-        meta: { title: '優惠券' }
-      }
-    ]
-  }
+        meta: {
+          requiresAuth: true,
+          title: '優惠券',
+        },
+      },
+    ],
+  },
 ];
 
 const router = createRouter({
@@ -279,31 +304,25 @@ const router = createRouter({
   },
 });
 
-// 路由守衛
-router.beforeEach(async (to, from, next) => {
+// 全局前置守衛
+router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
-  const isAuthenticated = await userStore.checkLoginStatus();
 
-  // 如果用戶已登入且嘗試訪問登入頁面，重定向到首頁
-  if (isAuthenticated && to.name === 'Login') {
-    next({ name: 'Home' });
-    return;
+  // 檢查路由是否需要認證
+  if (to.meta.requiresAuth && !userStore.loginStatus) {
+    // 如果需要認證但用戶未登入，重定向到登入頁面
+    next({
+      name: 'Login',
+      query: { redirect: to.fullPath },
+    });
   }
+  else {
+    // 更新頁面標題
+    if (to.meta.title)
+      document.title = to.meta.title;
 
-  // 檢查是否需要認證
-  if (to.meta.requiresAuth || to.path.startsWith('/member')) {
-    if (!isAuthenticated) {
-      // 如果未登入，顯示提示並重定向到登入頁面
-      message.warning('請先登入會員');
-      next({ 
-        name: 'Login',
-        query: { redirect: to.fullPath } // 保存原目標路徑
-      });
-      return;
-    }
+    next();
   }
-
-  next();
 });
 
 export default router;

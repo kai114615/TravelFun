@@ -13,7 +13,7 @@ import { cityData, cityMap, cityPos } from '@/utils/context';
         </p>
         <div class="my-2 flex items-center gap-4 flex-wrap">
           <template v-for="cityName in citys" :key="cityName">
-            <RouterLink v-slot="{ navigate }" custom :to="{ name: 'City', params: { cityName } }">
+            <RouterLink v-slot="{ navigate }" custom :to="{ name: 'Home' }">
               <NButton text @click="navigate">
                 {{ cityMap.get(cityName) }}市
               </NButton>

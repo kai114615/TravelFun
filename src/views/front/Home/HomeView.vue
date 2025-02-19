@@ -10,6 +10,7 @@ import { useProductStore } from '@/stores';
 import { SwiperNews, SwiperProduct } from '@/components/Swiper';
 import Banner from '@/components/Banner.vue';
 import AiChat from '@/components/AiChat/AiChat.vue';
+import Footer from '@/components/Footer.vue';
 
 const router = useRouter();
 
@@ -48,4 +49,5 @@ const goCountry = () => router.push({ name: 'Country', params: { countryName: 't
     <Member />
     <AiChat />
   </main>
+  <Footer />
 </template>

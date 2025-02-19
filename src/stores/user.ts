@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import { apiUserSignin, apiUserLogout, apiUserCheckSignin } from '../utils/api';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { apiUserCheckSignin, apiUserLogout, apiUserSignin } from '../utils/api';
 import { successMsg } from '@/utils/api';
 
 export interface UserInfo {
-  id: number;
-  username: string;
-  email: string;
-  full_name: string;
-  avatar?: string;
-  last_login?: string;
-  updated_at?: string;
+  id: number
+  username: string
+  email: string
+  full_name: string
+  avatar?: string
+  last_login?: string
+  updated_at?: string
 }
 
 export const useUserStore = defineStore('user', () => {
@@ -20,8 +20,67 @@ export const useUserStore = defineStore('user', () => {
   const loginStatus = ref(false);
   const isLoading = ref(false);
 
+  // 計算屬性：用戶顯示名稱
+  const displayName = computed(() => {
+    return userInfo.value?.full_name || userInfo.value?.username || '';
+  });
+
+  // 更新用戶狀態
+  const updateUserState = (user: UserInfo | null, status: boolean = true) => {
+    console.log('Updating user state:', { user, status });
+    userInfo.value = user;
+    loginStatus.value = status;
+
+    if (user && status) {
+      localStorage.setItem('userInfo', JSON.stringify(user));
+      localStorage.setItem('loginStatus', 'true');
+      sessionStorage.setItem('userInfo', JSON.stringify(user));
+      sessionStorage.setItem('loginStatus', 'true');
+    }
+    else {
+      localStorage.removeItem('userInfo');
+      localStorage.removeItem('loginStatus');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      sessionStorage.removeItem('userInfo');
+      sessionStorage.removeItem('loginStatus');
+      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      document.cookie = 'sessionid=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    }
+  };
+
+  // 初始化用戶狀態
+  const initializeUserState = async () => {
+    console.log('Initializing user state');
+    const sessionUserInfo = sessionStorage.getItem('userInfo');
+    const sessionLoginStatus = sessionStorage.getItem('loginStatus');
+    const localUserInfo = localStorage.getItem('userInfo');
+    const localLoginStatus = localStorage.getItem('loginStatus');
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+      updateUserState(null, false);
+      return;
+    }
+
+    try {
+      // 檢查後端登入狀態
+      const response = await apiUserCheckSignin();
+      if (response.data?.isAuthenticated && response.data?.user)
+        updateUserState(response.data.user, true);
+      else
+        throw new Error('Not authenticated');
+    }
+    catch (error) {
+      console.error('Failed to verify authentication:', error);
+      updateUserState(null, false);
+    }
+  };
+
   // 登入功能
   const signin = async (data: { username: string; password: string; rememberMe?: boolean }) => {
+    console.log('Signing in...');
     isLoading.value = true;
 
     try {
@@ -30,33 +89,41 @@ export const useUserStore = defineStore('user', () => {
         password: data.password,
       });
 
-      const { data: { success, token, user } } = res;
+      const { data: responseData } = res;
+      console.log('Sign in response:', responseData);
 
-      if (success) {
+      if (responseData.success) {
         // 設置 cookie 過期時間
         const expires = data.rememberMe
           ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString()
           : '';
 
-        document.cookie = `token=${token};path=/;expires=${expires}`;
-        if (res.data.refresh) {
-          document.cookie = `refresh_token=${res.data.refresh};path=/;expires=${expires}`;
-        }
+        // 保存 token
+        document.cookie = `token=${responseData.data.token};path=/;expires=${expires}`;
+        if (responseData.data.refresh)
+          document.cookie = `refresh_token=${responseData.data.refresh};path=/;expires=${expires}`;
 
-        loginStatus.value = true;
-        userInfo.value = user;
+        // 更新用戶狀態
+        updateUserState(responseData.data.user, true);
 
-        // 如果選擇記住我，保存用戶資料
-        if (data.rememberMe) {
-          localStorage.setItem('userInfo', JSON.stringify(user));
-        }
+        // 強制保存到 sessionStorage，確保頁面重新載入時能恢復狀態
+        sessionStorage.setItem('userInfo', JSON.stringify(responseData.data.user));
+        sessionStorage.setItem('loginStatus', 'true');
 
-        // 登入成功後不在這裡處理導向，由調用方處理
+        // 等待一下確保狀態已更新
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        console.log('User state updated after sign in');
+        return true;
       }
-    } catch (error) {
+      return false;
+    }
+    catch (error) {
       console.error('Login failed:', error);
+      updateUserState(null, false);
       throw error;
-    } finally {
+    }
+    finally {
       isLoading.value = false;
     }
   };
@@ -64,78 +131,68 @@ export const useUserStore = defineStore('user', () => {
   // 檢查登入狀態
   const checkLoginStatus = async () => {
     try {
-      // 先檢查 cookie 中是否有 token
-      const token = document.cookie.replace(/(?:(?:^|.*;\s*)token\s*=\s*([^;]*).*$)|^.*$/, '$1');
-      
+      const token = localStorage.getItem('access_token');
       if (!token) {
-        loginStatus.value = false;
-        userInfo.value = null;
-        localStorage.removeItem('userInfo');
+        updateUserState(null, false);
         return false;
       }
 
-      const res = await apiUserCheckSignin();
-      const { data: { success, isAuthenticated, user } } = res;
+      const response = await apiUserCheckSignin();
+      const { success, isAuthenticated, user } = response.data;
 
-      if (success && isAuthenticated) {
-        loginStatus.value = true;
-        userInfo.value = user;
+      if (isAuthenticated && user) {
+        updateUserState(user, true);
         return true;
-      } else {
-        loginStatus.value = false;
-        userInfo.value = null;
-        localStorage.removeItem('userInfo');
-        // 清除無效的 token
-        document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-        document.cookie = 'refresh_token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+      }
+      else {
+        updateUserState(null, false);
         return false;
       }
-    } catch (error) {
-      console.error('Check login status failed:', error);
-      loginStatus.value = false;
-      userInfo.value = null;
-      localStorage.removeItem('userInfo');
+    }
+    catch (error) {
+      console.error('檢查登入狀態時發生錯誤:', error);
+      updateUserState(null, false);
       return false;
     }
   };
 
   // 登出功能
   const logout = async () => {
+    console.log('Logging out...');
     try {
-      // 無論 API 呼叫是否成功，都清除本地資料
-      userInfo.value = null;
-      loginStatus.value = false;
-      localStorage.removeItem('userInfo');
-      
-      // 清除所有相關的 cookies
-      document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-      document.cookie = 'refresh_token=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-      document.cookie = 'sessionid=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+      // 先呼叫後端登出 API
+      await apiUserLogout();
 
-      // 嘗試呼叫後端登出 API，但不等待回應
-      apiUserLogout().catch(() => {
-        console.log('Backend logout API call failed, but local logout successful');
-      });
+      // 清除所有狀態和存儲
+      updateUserState(null, false);
 
       // 顯示登出成功訊息
       successMsg('已成功登出');
 
-      // 跳轉到登入頁面
-      router.push('/login');
-      
+      // 跳轉到首頁
+      router.push('/');
+
       return true;
-    } catch (error) {
-      console.log('Local logout process completed');
-      return true;  // 即使有錯誤也返回成功
+    }
+    catch (error) {
+      console.error('Logout error:', error);
+      // 即使後端 API 呼叫失敗，仍然清除前端狀態
+      updateUserState(null, false);
+      return true;
     }
   };
+
+  // 初始化
+  initializeUserState();
 
   return {
     userInfo,
     loginStatus,
     isLoading,
+    displayName,
     signin,
     logout,
     checkLoginStatus,
+    updateUserState,
   };
 });
