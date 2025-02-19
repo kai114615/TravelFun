@@ -86,15 +86,42 @@ class PostViewSet(viewsets.ModelViewSet):
             return Response({'detail': '已取消收藏'})
         return Response({'detail': '已收藏'})
 
+    @action(detail=True, methods=['get'])
+    def get_comments(self, request, pk=None):
+        """獲取文章評論"""
+        post = self.get_object()
+        comments = Comment.objects.filter(post=post, is_deleted=False).order_by('-created_at')
+        serializer = CommentSerializer(comments, many=True)
+        return Response({
+            'status': 'success',
+            'message': '獲取評論成功',
+            'data': serializer.data
+        })
+
     @action(detail=True, methods=['post'])
     def add_comment(self, request, pk=None):
         """添加評論"""
         post = self.get_object()
-        serializer = CommentSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(author=request.user, post=post)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        content = request.data.get('content')
+        
+        if not content:
+            return Response({
+                'status': 'error',
+                'message': '評論內容不能為空'
+            }, status=400)
+
+        comment = Comment.objects.create(
+            post=post,
+            author=request.user,
+            content=content
+        )
+
+        serializer = CommentSerializer(comment)
+        return Response({
+            'status': 'success',
+            'message': '評論發表成功',
+            'data': serializer.data
+        })
 
     def retrieve(self, request, *args, **kwargs):
         """獲取文章詳情時增加瀏覽次數"""
@@ -112,6 +139,26 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def delete_comment(self, request, pk=None):
+        """刪除評論"""
+        comment = self.get_object()
+        
+        # 檢查權限
+        if not (request.user == comment.author or request.user.level == 'admin'):
+            return Response({
+                'status': 'error',
+                'message': '您沒有權限刪除此評論'
+            }, status=403)
+
+        comment.is_deleted = True
+        comment.save()
+        
+        return Response({
+            'status': 'success',
+            'message': '評論已刪除'
+        })
 
 class SavedPostViewSet(viewsets.ModelViewSet):
     """收藏文章視圖集"""
@@ -175,14 +222,6 @@ class AdminCommentViewSet(viewsets.ModelViewSet):
         if post_id is not None:
             queryset = queryset.filter(post_id=post_id)
         return queryset
-
-    @action(detail=True, methods=['post'])
-    def delete_comment(self, request, pk=None):
-        """軟刪除評論"""
-        comment = self.get_object()
-        comment.is_deleted = True
-        comment.save()
-        return Response({'detail': '評論已刪除'})
 
     @action(detail=False, methods=['get'])
     def post_comments(self, request):

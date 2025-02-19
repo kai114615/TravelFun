@@ -187,6 +187,7 @@ async function loadPosts() {
         created_at: post.created_at || new Date().toISOString(),
         views: post.views || 0,
         likes_count: post.like_count || 0,
+        comment_count: post.comment_count || 0,
         comments_count: post.comment_count || 0,
         tags: Array.isArray(post.tags)
           ? post.tags.map(tag => ({
@@ -1110,17 +1111,16 @@ async function handleLike(post: any, index: number) {
         posts.value[postIndex].like_count = data.like_count;
       }
     }"
-    @comment="(data) => {
+    @comment-count-update="(count) => {
       if (!selectedPost || !posts.value) return;
       
       // 更新當前選中的文章
-      selectedPost.comment_count = (selectedPost.comment_count || 0) + 1;
-      selectedPost.comments = [...(selectedPost.comments || []), data];
+      selectedPost.comment_count = count;
       
       // 更新列表中的文章數據
       const postIndex = posts.value.findIndex(p => p.id === selectedPost.id);
       if (postIndex !== -1) {
-        posts.value[postIndex].comment_count = (posts.value[postIndex].comment_count || 0) + 1;
+        posts.value[postIndex].comment_count = count;
       }
     }"
   />

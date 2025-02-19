@@ -358,41 +358,24 @@ export async function apiForumToggleLike(postId: number) {
   }
 }
 
-export async function apiForumAddComment(postId: number, content: string) {
-  try {
-    const response = await request.post(api.forum.comment(postId), { content });
-    if (response.data.status === 'success')
-      successMsg('評論發表成功');
+// 論壇相關 API
+export const FORUM_API = {
+  // ... existing forum APIs ...
+  
+  // 獲取文章評論
+  getComments: (postId: number) => request.get(`/api/forum/posts/${postId}/comments/`),
+  
+  // 添加評論
+  addComment: (postId: number, content: string) => request.post(`/api/forum/posts/${postId}/add_comment/`, { content }),
+  
+  // 刪除評論
+  deleteComment: (commentId: number) => request.post(`/api/forum/comments/${commentId}/delete_comment/`),
+};
 
-    return response;
-  }
-  catch (error: any) {
-    console.error('發表評論失敗:', error);
-    if (error.response?.status === 401)
-      errorMsg('請先登入', '需要登入才能發表評論');
-    else
-      errorMsg('發表失敗', error.response?.data?.message || '請稍後再試');
-
-    throw error;
-  }
-}
-
-export const apiForumGetComments = (postId: number) => request.get(`${api.forum.posts}${postId}/comments/`);
-
-export async function apiForumDeleteComment(commentId: number) {
-  try {
-    const response = await request.delete(`${api.forum.posts}comments/${commentId}/`);
-    if (response.data.status === 'success')
-      successMsg('評論已刪除');
-
-    return response;
-  }
-  catch (error: any) {
-    console.error('刪除評論失敗:', error);
-    errorMsg('刪除失敗', error.response?.data?.message || '請稍後再試');
-    throw error;
-  }
-}
+// 導出具體的 API 函數
+export const apiForumGetComments = FORUM_API.getComments;
+export const apiForumAddComment = FORUM_API.addComment;
+export const apiForumDeleteComment = FORUM_API.deleteComment;
 
 export const apiForumGetCategories = () => request.get(api.forum.categories);
 export const apiForumGetModerators = () => request.get(api.forum.moderators);

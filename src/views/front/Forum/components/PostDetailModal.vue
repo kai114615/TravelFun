@@ -9,6 +9,7 @@ import {
 } from '@vicons/material';
 import { useUserStore } from '@/stores';
 import { apiForumAddComment, apiForumToggleLike } from '@/utils/api';
+import CommentSection from './CommentSection.vue';
 
 const props = defineProps({
   show: {
@@ -21,16 +22,14 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['update:show', 'like', 'comment']);
+const emit = defineEmits(['update:show', 'like', 'comment', 'comment-count-update']);
 
 const userStore = useUserStore();
 const message = useMessage();
 
-const showComments = ref(false);
-const newComment = ref('');
-const isSubmitting = ref(false);
 const isLiked = ref(false);
 const likeCount = ref(0);
+const commentCount = ref(0);
 
 // 監聽 post 變化
 watch(() => props.post, (newPost) => {
@@ -38,8 +37,16 @@ watch(() => props.post, (newPost) => {
     console.log('Post data updated:', newPost);
     isLiked.value = newPost.is_liked || false;
     likeCount.value = newPost.like_count || 0;
+    commentCount.value = newPost.comment_count || 0;
   }
 }, { immediate: true, deep: true });
+
+// 處理評論數量更新
+const handleCommentUpdate = (count: number) => {
+  console.log('評論數量更新:', count);
+  commentCount.value = count;
+  emit('comment-count-update', count);
+};
 
 // 格式化日期
 function formatDate(date: string) {
@@ -88,45 +95,6 @@ async function handleLike() {
   catch (error: any) {
     console.error('按讚失敗:', error);
     message.error('操作失敗，請稍後重試');
-  }
-}
-
-// 處理評論按鈕點擊
-function handleComment() {
-  if (!userStore.loginStatus) {
-    message.warning('請先登入');
-    return;
-  }
-  showComments.value = !showComments.value;
-}
-
-// 提交評論
-async function submitComment() {
-  if (!userStore.loginStatus) {
-    message.warning('請先登入');
-    return;
-  }
-
-  if (!newComment.value.trim()) {
-    message.warning('請輸入評論內容');
-    return;
-  }
-
-  try {
-    isSubmitting.value = true;
-    const response = await apiForumAddComment(props.post.id, newComment.value);
-    if (response.data.status === 'success') {
-      emit('comment', response.data.data);
-      newComment.value = '';
-      message.success('評論發表成功');
-    }
-  }
-  catch (error) {
-    console.error('發表評論失敗:', error);
-    message.error('發表失敗，請稍後再試');
-  }
-  finally {
-    isSubmitting.value = false;
   }
 }
 </script>
@@ -198,7 +166,7 @@ async function submitComment() {
                   <NIcon size="18">
                     <ChatBubbleOutlined />
                   </NIcon>
-                  <span class="font-medium">{{ post?.comment_count || 0 }}</span>
+                  <span class="font-medium">{{ commentCount }}</span>
                   <span class="text-xs">評論</span>
                 </div>
               </div>
@@ -206,7 +174,7 @@ async function submitComment() {
           </div>
         </div>
 
-        <!-- 右側文章內容 -->
+        <!-- 右側文章內容和評論區 -->
         <div class="flex-1">
           <!-- 文章內容 -->
           <div class="bg-white rounded-lg p-6 mb-6 shadow-sm border border-gray-100">
@@ -227,68 +195,19 @@ async function submitComment() {
               </NIcon>
               {{ isLiked ? '取消讚' : '按讚' }}
             </NButton>
-            <NButton
-              type="primary"
-              ghost
-              class="flex items-center gap-2 flex-1"
-              :class="{ 'n-button--active-color': showComments }"
-              size="large"
-              @click="handleComment"
-            >
-              <NIcon><ChatBubbleOutlined /></NIcon>
-              {{ showComments ? '收起評論' : '評論' }}
-            </NButton>
           </div>
 
           <!-- 評論區域 -->
-          <div v-if="showComments" class="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+          <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
             <h3 class="font-bold mb-4 flex items-center gap-2">
               <NIcon><ChatBubbleOutlined /></NIcon>
-              評論區
+              評論區 ({{ commentCount }})
             </h3>
-            <!-- 評論輸入框 -->
-            <div class="mb-6">
-              <NInput
-                v-model:value="newComment"
-                type="textarea"
-                placeholder="寫下你的評論..."
-                :rows="3"
-                :autofocus="true"
-              />
-              <div class="flex justify-end mt-2">
-                <NButton
-                  type="primary"
-                  :disabled="!newComment.trim()"
-                  :loading="isSubmitting"
-                  size="large"
-                  @click="submitComment"
-                >
-                  發表評論
-                </NButton>
-              </div>
-            </div>
-            <!-- 評論列表 -->
-            <div class="space-y-6">
-              <div v-for="comment in post?.comments" :key="comment.id" class="bg-gray-50/50 rounded-lg p-4">
-                <div class="flex items-start gap-3">
-                  <img
-                    :src="comment.author?.avatar || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'"
-                    :alt="comment.author?.username"
-                    class="w-10 h-10 rounded-full ring-2 ring-primary/10"
-                  >
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-2">
-                      <span class="font-medium text-gray-900">{{ comment.author?.username }}</span>
-                      <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{{ comment.author?.title || '一般會員' }}</span>
-                      <span class="text-xs text-gray-500">{{ formatDate(comment.created_at) }}</span>
-                    </div>
-                    <p class="text-gray-700">
-                      {{ comment.content }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <!-- 評論列表組件 -->
+            <CommentSection 
+              :post-id="post.id" 
+              @comment-count-update="handleCommentUpdate"
+            />
           </div>
         </div>
       </div>

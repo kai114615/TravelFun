@@ -39,7 +39,7 @@ class PostSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
     like_count = serializers.SerializerMethodField()
-    comment_count = serializers.IntegerField(read_only=True)
+    comment_count = serializers.SerializerMethodField()
     comments = CommentSerializer(many=True, read_only=True)
     tags = TagSerializer(many=True, read_only=True)
     tags_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
@@ -66,6 +66,9 @@ class PostSerializer(serializers.ModelSerializer):
 
     def get_like_count(self, obj):
         return obj.likes.count()
+
+    def get_comment_count(self, obj):
+        return obj.comments.filter(is_deleted=False).count()
 
     def create(self, validated_data):
         tags_ids = validated_data.pop('tags_ids', [])
