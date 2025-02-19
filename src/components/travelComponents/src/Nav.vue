@@ -31,6 +31,13 @@
         >
           景點地圖
         </router-link>
+        <router-link 
+          :to="{ name: 'TravelSchedule' }" 
+          class="nav-btn"
+          :class="{ active: $route.name === 'TravelMap' }"
+        >
+          我的景點
+        </router-link>
       </div>
     </div>
   </div>

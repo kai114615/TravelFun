@@ -364,6 +364,24 @@ const closePreview = () => {
   selectedTravelId.value = null;
 };
 
+const handleAddToMySpots = (spot) => {
+  // 從 localStorage 獲取現有的我的景點
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  
+  // 檢查是否已經存在
+  const exists = mySpots.some(s => s.travel_id === spot.travel_id);
+  
+  if (!exists) {
+    // 添加新景點
+    mySpots.push(spot);
+    // 保存回 localStorage
+    localStorage.setItem('mySpots', JSON.stringify(mySpots));
+    alert('已成功加入我的景點！');
+  } else {
+    alert('此景點已在我的景點列表中！');
+  }
+};
+
 </script>
 
 
@@ -433,6 +451,7 @@ const closePreview = () => {
     :spot="selectedSpotForPreview"
     :travel_id="selectedTravelId"
     @close="closePreview"
+    @add-to-my-spots="handleAddToMySpots"
   />
 </template>
 

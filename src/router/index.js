@@ -82,7 +82,7 @@ const routes = [
     meta: {
       title: '旅遊地圖 - Travel Fun',
     },
-  },
+  }, 
   {
     path: '/travel/city/:city',
     name: 'TravelCity',
@@ -92,34 +92,9 @@ const routes = [
     },
   },
   {
-    path: '/travel/spots',
-    name: 'Spots',
-    component: () => import('../views/front/Travel/SpotsView.vue'),
-    meta: {
-      title: '台灣景點 - Travel Fun',
-    },
-  },
-  {
-    path: '/travel/TravelMap',
-    name: 'TravelMap',
-    component: () => import('../views/front/Travel/TravelmapView.vue'),
-    meta: {
-      title: '旅遊地圖 - Travel Fun',
-    },
-  },
-  {
-    path: '/travel/city/:city',
-    name: 'TravelCity',
-    component: () => import('../views/front/Travel/CityView.vue'),
-    meta: {
-      title: '全台熱門景點 - Travel Fun',
-    },
-  },
-  
-  {
-    path: '/travel/city/:city',
-    name: 'TravelCity',
-    component: () => import('../views/front/Travel/CityView.vue'),
+    path: '/travel/TravelSchedule',
+    name: 'TravelSchedule',
+    component: () => import('../views/front/Travel/TravelScheduleView.vue'),
     meta: {
       title: '全台熱門景點 - Travel Fun',
     },

@@ -7,13 +7,19 @@ const props = defineProps({
   travel_id: Number,
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'addToMySpots']);
 const classNames = ref({});
 const spots = ref([]);
 const filteredSpots = ref([]);
 
 const closeModal = () => {
   emit('close');
+};
+
+const addToMySpots = () => {
+  if (props.spot) {
+    emit('addToMySpots', props.spot);
+  }
 };
 
 // 加載分類資料
@@ -84,6 +90,13 @@ const getClassName = (classId) => {
         </div>
         
         <div class="spot-details">
+          <div class="action-buttons">
+            <button class="add-to-spots-button" @click="addToMySpots">
+              <i class="fas fa-plus"></i>
+              加入我的景點
+            </button>
+          </div>
+          
           <h2 class="spot-title">{{ spot.travel_name }}</h2>
           
           <div class="spot-description">
@@ -343,5 +356,34 @@ const getClassName = (classId) => {
   font-weight: 500;
   color: #0F4BB4;
   margin-bottom: 12px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.add-to-spots-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: #218838;
+    transform: translateY(-1px);
+  }
+  
+  i {
+    font-size: 14px;
+  }
 }
 </style> 
