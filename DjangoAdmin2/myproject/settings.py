@@ -34,9 +34,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'corsheaders',
-    'django_ckeditor_5',
+    'django_ckeditor_5',  # 使用新的 CKEditor 5
     'rest_framework_simplejwt',
-    'ckeditor',
     'django_celery_results',
 ]
 
@@ -178,18 +177,35 @@ LOGGING = {
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
-# 在文件底部添加 CKEditor 配置
-CKEDITOR_CONFIGS = {
-    'default': {
-        'toolbar': 'full',
-        'height': 300,
-        'width': '100%',
-    },
-}# CKEditor 5 配置
+# 更新 CKEditor 5 配置
 CKEDITOR_5_CONFIGS = {
     'default': {
-        'toolbar': ['heading', '|', 'bold', 'italic', 'link',
-                   'bulletedList', 'numberedList', 'blockQuote', 'imageUpload', ],
+        'toolbar': [
+            'heading', '|',
+            'bold', 'italic', 'underline', 'strikethrough', '|',
+            'bulletedList', 'numberedList', '|',
+            'blockQuote', 'imageUpload', '|',
+            'link', 'unlink', '|',
+            'undo', 'redo', '|',
+            'alignment', 'indent', 'outdent', '|',
+            'horizontalLine', 'insertTable', '|',
+            'fontBackgroundColor', 'fontColor', 'fontSize', 'fontFamily', '|',
+            'removeFormat', 'sourceEditing'
+        ],
+        'height': '400px',
+        'width': '100%',
+        'language': 'zh',
+        'image': {
+            'toolbar': [
+                'imageTextAlternative', '|',
+                'imageStyle:alignLeft', 'imageStyle:alignCenter', 'imageStyle:alignRight', '|',
+                'resizeImage'
+            ],
+            'styles': [
+                'alignLeft', 'alignCenter', 'alignRight'
+            ],
+            'resizeUnit': 'px'
+        },
     }
 }
 

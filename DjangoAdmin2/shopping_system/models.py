@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.templatetags.static import static
-from ckeditor.fields import RichTextField
+from django_ckeditor_5.fields import CKEditor5Field
 from myapp.models import Member
 import json
 import os
@@ -12,7 +12,7 @@ class Product(models.Model):
     name = models.CharField(max_length=200, verbose_name='名稱')
     category = models.CharField(max_length=100, verbose_name='類別')
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='價格')
-    description = RichTextField(blank=True, verbose_name='描述')
+    description = CKEditor5Field(blank=True, verbose_name='描述', config_name='default')
     image_url = models.URLField(max_length=500, blank=True, null=True, verbose_name='商品圖片網址')
     stock = models.PositiveIntegerField(default=0, verbose_name='庫存')
     is_active = models.BooleanField(default=True, verbose_name='是否上架')

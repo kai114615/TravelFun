@@ -40,3 +40,9 @@ F01/__pycache__/
 *.pyc
 __pycache__/
 *.pyc
+venv/
+env/
+.f01/
+.f01/*
+F01/
+F01/*
