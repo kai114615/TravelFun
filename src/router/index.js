@@ -53,6 +53,54 @@ const routes = [
     children: [],
   },
   {
+    path: '/travel',
+    name: 'Travel',
+    component: () => import('../views/front/Travel/TravelView.vue'),
+    meta: {
+      title: '台灣景點 - Travel Fun',
+    },
+  },
+  {
+    path: '/travel/travelmodel',
+    name: 'TravelModel',
+    component: () => import('../views/front/Travel/TravelModelView.vue'),
+    meta: {
+      title: '台灣自由行 - Travel Fun',
+    },
+  },
+  {
+    path: '/travel/spots',
+    name: 'Spots',
+    component: () => import('../views/front/Travel/SpotsView.vue'),
+    meta: {
+      title: '台灣景點 - Travel Fun',
+    },
+  },
+  {
+    path: '/travel/TravelMap',
+    name: 'TravelMap',
+    component: () => import('../views/front/Travel/TravelmapView.vue'),
+    meta: {
+      title: '旅遊地圖 - Travel Fun',
+    },
+  }, 
+  {
+    path: '/travel/city/:city',
+    name: 'TravelCity',
+    component: () => import('../views/front/Travel/CityView.vue'),
+    meta: {
+      title: '全台熱門景點 - Travel Fun',
+    },
+  },
+  {
+    path: '/travel/TravelSchedule',
+    name: 'TravelSchedule',
+    component: () => import('../views/front/Travel/TravelScheduleView.vue'),
+    meta: {
+      title: '全台熱門景點 - Travel Fun',
+    },
+  },
+  {
     path: '/forum',
     name: 'Forum',
     component: () => import('../views/front/Forum/ForumView.vue'),

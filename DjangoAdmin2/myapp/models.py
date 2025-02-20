@@ -43,7 +43,26 @@ class Member(AbstractUser):
     )
     favorite_restaurants = models.ManyToManyField('Restaurant', related_name='favorited_by', blank=True, verbose_name='喜愛的餐廳')
     favorite_products = models.ManyToManyField('Product', related_name='favorited_by', blank=True, verbose_name='喜愛的商品')
-    address = models.CharField(max_length=255, blank=True, null=True, verbose_name='地址')
+    
+    # 地址相關欄位
+    postal_code = models.CharField(max_length=10, blank=True, null=True, verbose_name='郵遞區號')
+    city = models.CharField(max_length=50, blank=True, null=True, verbose_name='城市')
+    district = models.CharField(max_length=50, blank=True, null=True, verbose_name='區域')
+    address = models.CharField(max_length=255, blank=True, null=True, verbose_name='詳細地址')
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name='聯絡電話')
+    
+    def get_full_address(self):
+        """獲取完整地址"""
+        address_parts = []
+        if self.postal_code:
+            address_parts.append(self.postal_code)
+        if self.city:
+            address_parts.append(self.city)
+        if self.district:
+            address_parts.append(self.district)
+        if self.address:
+            address_parts.append(self.address)
+        return ' '.join(address_parts) if address_parts else None
 
     def get_avatar_url(self):
         if self.avatar:

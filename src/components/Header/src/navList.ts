@@ -2,13 +2,13 @@ import { h } from 'vue';
 import { RouterLink } from 'vue-router';
 import type { CollapseProps } from 'naive-ui';
 import { NCollapseItem, NIcon } from 'naive-ui';
-import { 
-  StorefrontOutlined,
-  LocalActivityOutlined,
+import {
   ExploreOutlined,
   ForumOutlined,
+  InfoOutlined,
+  LocalActivityOutlined,
   PersonOutlineOutlined,
-  InfoOutlined
+  StorefrontOutlined,
 } from '@vicons/material';
 import { Area, Menu } from './Area';
 import router from '@/router/';
@@ -18,7 +18,7 @@ const routerlinkClass = 'flex items-center gap-2 whitespace-nowrap';
 const routerlinkStyle = { writingMode: 'horizontal-tb' };
 const mallRouterTo = { name: 'Mall' };
 const activityRouterTo = { name: 'Activity' };
-const tourRouterTo = { name: 'Country', params: { countryName: 'taiwan' } };
+const tourRouterTo = { name: 'Travel' };
 const forumRouterTo = { name: 'Forum' };
 const memberRouterTo = { name: 'MemberDashboard' };
 const aboutRouterTo = { name: 'About' };
@@ -40,9 +40,9 @@ export const handleItemHeaderClick: CollapseProps['onItemHeaderClick'] = ({
     router.push(aboutRouterTo);
 };
 
-export const createNavList = () => {
+export function createNavList() {
   const userStore = useUserStore();
-  
+
   return [
     {
       id: 'area',
@@ -155,31 +155,33 @@ export const createNavList = () => {
         },
       ),
     },
-    ...(userStore.loginStatus ? [{
-      id: 'member',
-      title: '會員中心',
-      component: h(RouterLink,
-        {
-          to: memberRouterTo,
-          class: routerlinkClass,
-          style: routerlinkStyle,
-          'active-class': 'text-cc-accent',
-          'exact-active-class': 'text-cc-accent'
-        },
-        () => [
-          h(NIcon, null, { default: () => h(PersonOutlineOutlined) }),
-          '會員中心',
-        ],
-      ),
-      mobileComponent: h(NCollapseItem,
-        {
-          name: 'member',
-        },
-        {
-          header: () => h('div', { class: 'flex-1' }, '會員中心'),
-        },
-      ),
-    }] : []),
+    ...(userStore.loginStatus
+      ? [{
+          id: 'member',
+          title: '會員中心',
+          component: h(RouterLink,
+            {
+              'to': memberRouterTo,
+              'class': routerlinkClass,
+              'style': routerlinkStyle,
+              'active-class': 'text-cc-accent',
+              'exact-active-class': 'text-cc-accent',
+            },
+            () => [
+              h(NIcon, null, { default: () => h(PersonOutlineOutlined) }),
+              '會員中心',
+            ],
+          ),
+          mobileComponent: h(NCollapseItem,
+            {
+              name: 'member',
+            },
+            {
+              header: () => h('div', { class: 'flex-1' }, '會員中心'),
+            },
+          ),
+        }]
+      : []),
     {
       id: 'about',
       title: '關於我們',
@@ -204,6 +206,6 @@ export const createNavList = () => {
       ),
     },
   ];
-};
+}
 
 export default {};

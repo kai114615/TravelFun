@@ -8,7 +8,7 @@ import json
 from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from rest_framework import viewsets, filters, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import SessionAuthentication
 from .serializers import TravelSerializers,TravelClassSerializers,TaiwanSerializers,TravelFilterSerializer,CountrySerializers
 from rest_framework.pagination import PageNumberPagination
@@ -419,26 +419,22 @@ from django_filters.rest_framework import DjangoFilterBackend
 class CountryViewSet(viewsets.ModelViewSet):
     queryset = Counties.objects.all()
     serializer_class = CountrySerializers
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # 允許公開訪問
 
 class TravelViewSet(viewsets.ModelViewSet):
     queryset = Travel.objects.all()
     serializer_class = TravelSerializers
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # 允許公開訪問
 
 class TravelClassViewSet(viewsets.ModelViewSet):
     queryset = TravelClass.objects.all()
     serializer_class = TravelClassSerializers
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # 允許公開訪問
 
 class TaiwanViewSet(viewsets.ModelViewSet):
     queryset = Taiwan.objects.all()
     serializer_class = TaiwanSerializers
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # 允許公開訪問
 
 class SpotimagesspotPagination(PageNumberPagination):
     page_size=9 # 一頁幾筆資料
@@ -454,17 +450,11 @@ class SpotimagesspotPagination(PageNumberPagination):
 class TravelFilterViewSet(viewsets.ModelViewSet):
     queryset = Travel.objects.all()
     serializer_class = TravelFilterSerializer
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter ]
+    permission_classes = [AllowAny]  # 允許公開訪問
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
     search_fields = ['travel_name']
-
-
-
-    # # 過濾 where categoryid=1
     filterset_fields = ['class1']
-    # # 分頁功能
-    pagination_class= SpotimagesspotPagination
+    pagination_class = SpotimagesspotPagination
     
 
 import os
@@ -485,6 +475,7 @@ if not os.path.exists(index_path):
 index = faiss.read_index(index_path)
 
 class QueryViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny] 
     def create(self, request):
         try:
             # 從請求中獲取查詢
