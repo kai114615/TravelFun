@@ -59,12 +59,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3333",  # 前端開發伺服器
 ]
 CORS_ALLOW_METHODS = [
-    'DELETE',
     'GET',
-    'OPTIONS',
-    'PATCH',
     'POST',
     'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
 ]
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -249,4 +249,3 @@ CACHES = {
         'LOCATION': 'redis://127.0.0.1:6379/1',
     }
 }
-

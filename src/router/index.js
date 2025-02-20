@@ -50,6 +50,7 @@ const routes = [
     meta: {
       title: '主題育樂',
     },
+    children: [],
   },
   {
     path: '/forum',

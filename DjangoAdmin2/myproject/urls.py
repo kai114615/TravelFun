@@ -12,9 +12,12 @@ from rest_framework_simplejwt.views import (
 )
 
 # 健康檢查視圖函數
+
+
 @csrf_exempt
 def health_check(request):
     return JsonResponse({'status': 'ok'})
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -22,7 +25,7 @@ urlpatterns = [
     path('restaurant/', include('restaurant_system.urls')),
     path('shop/', include('shopping_system.urls')),
     path('travel/', include('travel_app.urls')),
-    path('theme/', include('theme_entertainment.urls')),
+    path('theme_entertainment/', include('theme_entertainment.urls')),
     path('', include('forum_system.urls')),
     path('admin-dashboard/travel_app/', include('travel_app.urls')),
     path('api/health-check/', health_check, name='health_check'),
@@ -35,5 +38,7 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL,
+                          document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)
