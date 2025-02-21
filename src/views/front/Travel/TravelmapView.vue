@@ -364,22 +364,46 @@ const closePreview = () => {
   selectedTravelId.value = null;
 };
 
-const handleAddToMySpots = (spot) => {
-  // 從 localStorage 獲取現有的我的景點
+// 檢查景點是否已加入我的景點
+const isSpotAdded = (spotId) => {
   const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  return mySpots.some(spot => spot.travel_id === spotId);
+};
+
+// 加入/移除景點
+const addToMySpots = (spot) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  const isAdded = isSpotAdded(spot.travel_id);
   
-  // 檢查是否已經存在
-  const exists = mySpots.some(s => s.travel_id === spot.travel_id);
-  
-  if (!exists) {
-    // 添加新景點
+  if (!isAdded) {
+    // 加入景點
     mySpots.push(spot);
-    // 保存回 localStorage
     localStorage.setItem('mySpots', JSON.stringify(mySpots));
-    alert('已成功加入我的景點！');
   } else {
-    alert('此景點已在我的景點列表中！');
+    // 移除景點
+    const updatedSpots = mySpots.filter(s => s.travel_id !== spot.travel_id);
+    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
   }
+  
+  // 強制更新當前景點的狀態
+  if (selectedSpot.value && selectedSpot.value.travel_id === spot.travel_id) {
+    selectedSpot.value = { ...spot };
+  }
+  
+  // 強制更新過濾後的景點列表
+  if (filteredLocations.value.length > 0) {
+    const index = filteredLocations.value.findIndex(s => s.travel_id === spot.travel_id);
+    if (index !== -1) {
+      filteredLocations.value[index] = { ...spot };
+      filteredLocations.value = [...filteredLocations.value];
+    }
+  }
+};
+
+// 處理 SpotPreviewModal 更新事件
+const handleSpotsUpdate = () => {
+  // 強制更新組件
+  filteredLocations.value = [...filteredLocations.value];
 };
 
 </script>
@@ -439,9 +463,18 @@ const handleAddToMySpots = (spot) => {
         <div class="spot-details">
           <h3>{{ selectedSpot.travel_name }}</h3>
           <p class="address">{{ selectedSpot.travel_address || `${selectedSpot.region}${selectedSpot.town || ''}` }}</p>
-          <button class="preview-button" @click="openPreview(selectedSpot)">
-            <i class="fas fa-eye"></i> 查看詳情
-          </button>
+          <div class="spot-actions">
+            <button class="preview-button" @click="openPreview(selectedSpot)">
+              <i class="fas fa-eye"></i> 預覽
+            </button>
+            <button 
+              :class="['add-button', { 'added': isSpotAdded(selectedSpot.travel_id) }]"
+              @click="addToMySpots(selectedSpot)"
+            >
+              <i :class="['fas', isSpotAdded(selectedSpot.travel_id) ? 'fa-trash' : 'fa-plus']"></i>
+              {{ isSpotAdded(selectedSpot.travel_id) ? '移除景點' : '加入景點' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -451,7 +484,7 @@ const handleAddToMySpots = (spot) => {
     :spot="selectedSpotForPreview"
     :travel_id="selectedTravelId"
     @close="closePreview"
-    @add-to-my-spots="handleAddToMySpots"
+    @update-spots="handleSpotsUpdate"
   />
 </template>
 
@@ -662,6 +695,99 @@ const handleAddToMySpots = (spot) => {
   }
 }
 
+.spot-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.preview-button {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  min-width: 80px;
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: rgba(15, 75, 180, 0.9);
+  color: white;
+  z-index: 2;
+  
+  i {
+    font-size: 13px;
+  }
+  
+  span {
+    font-weight: 500;
+  }
+  
+  &:hover {
+    background: rgba(13, 61, 145, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.add-button {
+  position: absolute;
+  top: 12px;
+  left: 100px;
+  min-width: 80px;
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: rgba(40, 167, 69, 0.9);
+  color: white;
+  z-index: 2;
+  
+  &:hover:not(:disabled) {
+    background: rgba(34, 139, 58, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &.added {
+    background: rgba(220, 53, 69, 0.9);
+    
+    &:hover {
+      background: rgba(189, 45, 59, 0.95);
+    }
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  i {
+    font-size: 13px;
+  }
+  
+  span {
+    font-weight: 500;
+  }
+}
+
 @media (max-width: 768px) {
   .title-controls {
     width: 95%;
@@ -712,31 +838,25 @@ const handleAddToMySpots = (spot) => {
     width: 100%;
     height: auto;
   }
+
+  .preview-button,
+  .add-button {
+    min-width: 72px;
+    height: 32px;
+    font-size: 12px;
+    padding: 0 12px;
+    
+    i {
+      font-size: 12px;
+    }
+  }
+  
+  .add-button {
+    left: 90px;
+  }
 }
 
 :deep(.red-marker) {
   filter: hue-rotate(140deg) saturate(120%);
-}
-
-.preview-button {
-  margin-top: 12px;
-  padding: 8px 16px;
-  background: #0F4BB4;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  
-  &:hover {
-    background: #0d3d91;
-  }
-  
-  i {
-    font-size: 14px;
-  }
 }
 </style>

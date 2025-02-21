@@ -1,25 +1,46 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 
 const props = defineProps({
   isOpen: Boolean,
   spot: Object,
-  travel_id: Number,
+  travelId: Number,
 });
 
-const emit = defineEmits(['close', 'addToMySpots']);
+const emit = defineEmits(['close', 'updateSpots']);
 const classNames = ref({});
 const spots = ref([]);
 const filteredSpots = ref([]);
+const isSpotAddedState = ref(false); // 新增響應式變數
+
+// 當 spot 改變時更新狀態
+watch(() => props.spot, (newSpot) => {
+  if (newSpot) {
+    const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+    isSpotAddedState.value = mySpots.some(s => s.travel_id === newSpot.travel_id);
+  }
+}, { immediate: true });
+
+// 加入/移除景點
+const handleAddToSpots = (spot) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  if (!isSpotAddedState.value) {
+    // 加入景點
+    mySpots.push(spot);
+    localStorage.setItem('mySpots', JSON.stringify(mySpots));
+    isSpotAddedState.value = true;
+  } else {
+    // 移除景點
+    const updatedSpots = mySpots.filter(s => s.travel_id !== spot.travel_id);
+    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+    isSpotAddedState.value = false;
+  }
+  // 觸發自定義事件通知父組件更新
+  emit('updateSpots');
+};
 
 const closeModal = () => {
   emit('close');
-};
-
-const addToMySpots = () => {
-  if (props.spot) {
-    emit('addToMySpots', props.spot);
-  }
 };
 
 // 加載分類資料
@@ -31,12 +52,12 @@ const loadCategories = async () => {
     spots.value = datas;
     
     // 根據 travel_id 過濾相關景點
-    if (props.travel_id) {
-      const currentSpot = spots.value.find(spot => spot.travel_id === props.travel_id);
+    if (props.travelId) {
+      const currentSpot = spots.value.find(spot => spot.travel_id === props.travelId);
       if (currentSpot) {
         // 過濾同一區域的景點
         filteredSpots.value = spots.value.filter(spot => 
-          spot.travel_id !== props.travel_id && 
+          spot.travel_id !== props.travelId && 
           spot.region === currentSpot.region &&
           spot.town === currentSpot.town
         ).slice(0, 3); // 只顯示最多3個相關景點
@@ -50,7 +71,7 @@ const loadCategories = async () => {
 };
 
 // 監聽 travel_id 的變化
-watch(() => props.travel_id, () => {
+watch(() => props.travelId, () => {
   loadCategories();
 });
 
@@ -90,11 +111,15 @@ const getClassName = (classId) => {
         </div>
         
         <div class="spot-details">
-          <div class="action-buttons">
-            <button class="add-to-spots-button" @click="addToMySpots">
-              <i class="fas fa-plus"></i>
-              加入我的景點
+          <div class="modal-actions">
+            <button 
+              :class="['add-button', { 'added': isSpotAddedState }]"
+              @click="handleAddToSpots(spot)"
+            >
+              <i :class="['fas', isSpotAddedState ? 'fa-trash' : 'fa-plus']"></i>
+              {{ isSpotAddedState ? '移除景點' : '加入景點' }}
             </button>
+            <button class="close-button" @click="$emit('close')">關閉</button>
           </div>
           
           <h2 class="spot-title">{{ spot.travel_name }}</h2>
@@ -358,32 +383,75 @@ const getClassName = (classId) => {
   margin-bottom: 12px;
 }
 
-.action-buttons {
+.modal-actions {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-start;
+  
+  button {
+    flex: 0 1 auto;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+    padding: 0 12px;
+    
+    i {
+      font-size: 13px;
+    }
+  }
 }
 
-.add-to-spots-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+.add-button {
   background: #28a745;
   color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s ease;
+  min-width: 90px;
   
-  &:hover {
+  &:hover:not(:disabled) {
     background: #218838;
     transform: translateY(-1px);
   }
   
-  i {
-    font-size: 14px;
+  &.added {
+    background: #dc3545;
+    
+    &:hover {
+      background: #c82333;
+    }
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.close-button {
+  background: #6c757d;
+  color: white;
+  min-width: 80px;
+  
+  &:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 768px) {
+  .modal-actions {
+    flex-direction: row;
+    
+    button {
+      width: auto;
+      min-width: 80px;
+    }
   }
 }
 </style> 

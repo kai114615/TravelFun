@@ -30,7 +30,8 @@
     "uuid": "^9.0.1",
     "vfonts": "^0.0.3",
     "vue": "^3.3.13",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.2.5",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^0.41.4",

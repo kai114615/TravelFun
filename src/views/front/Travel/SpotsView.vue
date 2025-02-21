@@ -4,7 +4,7 @@ import PageSizeComponent from '@/components/travelComponents/src/PageSizeCompone
 import PagingComponent from '@/components/travelComponents/src/PagingComponent.vue';
 import SearchComponent from '@/components/travelComponents/src/SearchComponent.vue';
 import SortingComponent from '@/components/travelComponents/src/SortingComponent.vue';
-import { ref, watchEffect } from 'vue';
+import { ref, watchEffect, onMounted } from 'vue';
 import Nav from '@/components/travelComponents/src/Nav.vue';
 import axios from 'axios';
 
@@ -20,7 +20,7 @@ const imageUrl = '/旅遊圖片.png';
 
 //資料的搜尋、分頁、排序
 const ITEM = ref({
-  "class1": 1,
+  "class1": 0,
   "search": "",
   "ordering": "spotid",
   "page": 1,
@@ -98,6 +98,36 @@ const closePreview = () => {
   selectedTravelId.value = null;
 };
 
+// 檢查景點是否已加入我的景點
+const isSpotAdded = (spotId) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  return mySpots.some(spot => spot.travel_id === spotId);
+};
+
+// 加入/移除景點
+const addToMySpots = (spot) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  if (!isSpotAdded(spot.travel_id)) {
+    // 加入景點
+    mySpots.push(spot);
+    localStorage.setItem('mySpots', JSON.stringify(mySpots));
+    // 強制更新組件
+    SPOTS.value = { ...SPOTS.value };
+  } else {
+    // 移除景點
+    const updatedSpots = mySpots.filter(s => s.travel_id !== spot.travel_id);
+    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+    // 強制更新組件
+    SPOTS.value = { ...SPOTS.value };
+  }
+};
+
+// 處理 SpotPreviewModal 更新事件
+const handleSpotsUpdate = () => {
+  // 強制更新組件
+  SPOTS.value = { ...SPOTS.value };
+};
+
 </script>
 
 <template>
@@ -144,30 +174,39 @@ const closePreview = () => {
 
         <!-- 景點卡片列表 -->
         <div class="spots-grid">
-          <div v-for="{ travel_id, travel_name, travel_txt, image1, travel_address, region, town } in SPOTS.results" 
-               :key="travel_id" 
+          <div v-for="spot in SPOTS.results" 
+               :key="spot.travel_id" 
                class="spot-card">
             <div class="card-inner">
-              <button class="preview-button" @click="openPreview({ travel_name, travel_txt, image1, travel_address, region, town })">
-                <i class="fas fa-eye"></i>
-                <span>預覽</span>
-              </button>
+              <div class="card-actions">
+                <button class="preview-button" @click="openPreview(spot)">
+                  <i class="fas fa-eye"></i>
+                  <span>預覽</span>
+                </button>
+                <button 
+                  :class="['add-button', { 'added': isSpotAdded(spot.travel_id) }]"
+                  @click="addToMySpots(spot)"
+                >
+                  <i :class="['fas', isSpotAdded(spot.travel_id) ? 'fa-trash' : 'fa-plus']"></i>
+                  <span>{{ isSpotAdded(spot.travel_id) ? '移除景點' : '加入景點' }}</span>
+                </button>
+              </div>
               <div class="card-image">
-                <img v-if="image1" :src="image1" :alt="travel_name">
-                <img v-else :src="imageUrl" :alt="travel_name">
+                <img v-if="spot.image1" :src="spot.image1" :alt="spot.travel_name">
+                <img v-else :src="imageUrl" :alt="spot.travel_name">
               </div>
               <div class="card-content">
-                <h3 class="spot-title">{{ travel_name }}</h3>
-                <p class="spot-description">{{ travel_txt }}</p>
+                <h3 class="spot-title">{{ spot.travel_name }}</h3>
+                <p class="spot-description">{{ spot.travel_txt }}</p>
               </div>
               <div class="card-footer">
-                <template v-if="travel_address">
+                <template v-if="spot.travel_address">
                   <strong>地址:</strong>
-                  <span class="address">{{ travel_address }}</span>
+                  <span class="address">{{ spot.travel_address }}</span>
                 </template>
                 <template v-else>
                   <strong>縣市:</strong>
-                  <span>{{ region }} {{ town }}</span>
+                  <span>{{ spot.region }} {{ spot.town }}</span>
                 </template>
               </div>
             </div>
@@ -191,6 +230,7 @@ const closePreview = () => {
     :spot="selectedSpot"
     :travel_id="selectedTravelId"
     @close="closePreview"
+    @update-spots="handleSpotsUpdate"
   />
 </template>
 
@@ -440,24 +480,33 @@ const closePreview = () => {
     }
   }
 
-  .preview-button {
-    top: 10px;
-    right: 10px;
+  .preview-button,
+  .add-button {
     min-width: 72px;
     height: 32px;
     font-size: 12px;
+    padding: 0 12px;
+    
+    i {
+      font-size: 12px;
+    }
   }
 }
 
-.preview-button {
+.card-actions {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+.preview-button,
+.add-button {
   min-width: 80px;
   height: 36px;
   padding: 0 16px;
-  background: rgba(15, 75, 180, 0.9);
-  color: white;
   border: none;
   border-radius: 50px;
   cursor: pointer;
@@ -468,14 +517,7 @@ const closePreview = () => {
   font-size: 13px;
   backdrop-filter: blur(4px);
   transition: all 0.3s ease;
-  z-index: 2;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  
-  &:hover {
-    background: rgba(13, 61, 145, 0.95);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  }
   
   i {
     font-size: 13px;
@@ -483,6 +525,42 @@ const closePreview = () => {
   
   span {
     font-weight: 500;
+  }
+}
+
+.preview-button {
+  background: rgba(15, 75, 180, 0.9);
+  color: white;
+  
+  &:hover {
+    background: rgba(13, 61, 145, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.add-button {
+  background: rgba(40, 167, 69, 0.9);
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: rgba(34, 139, 58, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &.added {
+    background: rgba(220, 53, 69, 0.9);
+    cursor: not-allowed;
+    
+    &:hover {
+      transform: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
   }
 }
 

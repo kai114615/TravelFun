@@ -34,7 +34,7 @@
         <router-link 
           :to="{ name: 'TravelSchedule' }" 
           class="nav-btn"
-          :class="{ active: $route.name === 'TravelMap' }"
+          :class="{ active: $route.name === 'TravelSchedule' }"
         >
           我的景點
         </router-link>

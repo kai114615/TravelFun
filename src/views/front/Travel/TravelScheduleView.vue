@@ -8,7 +8,7 @@ const mySpots = ref([]);
 const showPreview = ref(false);
 const selectedSpot = ref(null);
 const selectedTravelId = ref(null);
-const imageUrl = '/旅遊圖片.png';
+const currentGroup = ref(0); // 當前顯示的組別
 
 // 行事曆相關
 const currentYear = ref(new Date().getFullYear());
@@ -50,19 +50,31 @@ const handleDragEnd = () => {
 };
 
 // 處理拖動進入日期格子
-const handleDragOver = (event) => {
+const handleDragOver = (event, isCurrentMonth) => {
   event.preventDefault();
-  event.currentTarget.classList.add('drag-over');
+  if (isCurrentMonth) {
+    event.currentTarget.classList.add('drag-over');
+  }
 };
 
 // 處理拖動離開日期格子
-const handleDragLeave = (event) => {
-  event.currentTarget.classList.remove('drag-over');
+const handleDragLeave = (event, isCurrentMonth) => {
+  if (isCurrentMonth) {
+    event.currentTarget.classList.remove('drag-over');
+  }
 };
 
 // 處理放下景點
-const handleDrop = (year, month, day, event) => {
+const handleDrop = (year, month, day, event, isCurrentMonth) => {
+  event.preventDefault();
   event.currentTarget.classList.remove('drag-over');
+  
+  // 如果不是當月日期，則不允許放置
+  if (!isCurrentMonth) {
+    alert('只能在當月的日期中安排行程！');
+    return;
+  }
+  
   if (!draggedSpot.value) return;
   
   const dateKey = `${year}-${month + 1}-${day}`;
@@ -106,14 +118,33 @@ const removeFromSchedule = (dateKey, spotId) => {
   }
 };
 
-// 在 script setup 部分添加特殊節日的資料
+// 在 script setup 部分更新特殊節日的資料
 const holidays = {
   '1-1': '元旦',
+  '1-2': '補假',
+  '1-20': '小年夜',
+  '1-21': '除夕',
+  '1-22': '春節',
+  '1-23': '春節',
+  '1-24': '春節',
+  '1-25': '春節',
+  '1-26': '春節',
   '2-28': '和平紀念日',
+  '3-8': '婦女節',
   '4-4': '兒童節',
+  '4-5': '清明節',
   '5-1': '勞動節',
+  '6-3': '端午節',
+  '6-23': '國際奧林匹克日',
+  '8-8': '父親節',
+  '9-28': '教師節',
+  '9-29': '中秋節',
   '10-10': '國慶日',
-  '12-25': '聖誕節'
+  '10-25': '光復節',
+  '10-31': '萬聖節',
+  '11-12': '國父誕辰紀念日',
+  '12-25': '聖誕節',
+  '12-31': '跨年夜'
 };
 
 // 修改 calendarDays computed 函數
@@ -197,9 +228,17 @@ const loadMySpots = () => {
 };
 
 const removeSpot = (spotId) => {
-  const spots = mySpots.value.filter(spot => spot.travel_id !== spotId);
-  mySpots.value = spots;
-  localStorage.setItem('mySpots', JSON.stringify(spots));
+  const spotToRemove = mySpots.value.find(spot => spot.travel_id === spotId);
+  if (spotToRemove && window.confirm(`確定要移除 ${spotToRemove.travel_name} 嗎？`)) {
+    const spots = mySpots.value.filter(spot => spot.travel_id !== spotId);
+    mySpots.value = spots;
+    localStorage.setItem('mySpots', JSON.stringify(spots));
+    
+    // 更新當前組別
+    if (currentGroup.value >= totalGroups.value) {
+      currentGroup.value = Math.max(0, totalGroups.value - 1);
+    }
+  }
 };
 
 const openPreview = (spot) => {
@@ -212,6 +251,68 @@ const closePreview = () => {
   showPreview.value = false;
   selectedSpot.value = null;
   selectedTravelId.value = null;
+};
+
+// 檢查景點是否已加入我的景點
+const isSpotAdded = (spotId) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  return mySpots.some(spot => spot.travel_id === spotId);
+};
+
+// 加入/移除景點
+const addToMySpots = (spot) => {
+  const storedSpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  const isAdded = isSpotAdded(spot.travel_id);
+  
+  if (!isAdded) {
+    // 加入景點
+    storedSpots.push(spot);
+    localStorage.setItem('mySpots', JSON.stringify(storedSpots));
+    mySpots.value = storedSpots;
+  } else {
+    // 移除景點
+    const updatedSpots = storedSpots.filter(s => s.travel_id !== spot.travel_id);
+    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+    mySpots.value = updatedSpots;
+    
+    // 更新當前組別
+    if (currentGroup.value >= Math.ceil(updatedSpots.length / 5)) {
+      currentGroup.value = Math.max(0, Math.ceil(updatedSpots.length / 5) - 1);
+    }
+  }
+};
+
+// 計算分組後的景點
+const groupedSpots = computed(() => {
+  const groups = [];
+  for (let i = 0; i < mySpots.value.length; i += 5) {
+    groups.push(mySpots.value.slice(i, i + 5));
+  }
+  return groups;
+});
+
+// 計算總組數
+const totalGroups = computed(() => {
+  return Math.ceil(mySpots.value.length / 5);
+});
+
+// 當前顯示的景點
+const currentSpots = computed(() => {
+  return groupedSpots.value[currentGroup.value] || [];
+});
+
+// 切換到下一組
+const nextGroup = () => {
+  if (currentGroup.value < totalGroups.value - 1) {
+    currentGroup.value++;
+  }
+};
+
+// 切換到上一組
+const prevGroup = () => {
+  if (currentGroup.value > 0) {
+    currentGroup.value--;
+  }
 };
 </script>
 
@@ -241,9 +342,26 @@ const closePreview = () => {
               瀏覽景點
             </router-link>
           </div>
+          <div v-if="mySpots.length > 0" class="group-navigation">
+            <button 
+              class="nav-button" 
+              @click="prevGroup" 
+              :disabled="currentGroup === 0"
+            >
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="group-info">第 {{ currentGroup + 1 }}/{{ totalGroups }} 組</span>
+            <button 
+              class="nav-button" 
+              @click="nextGroup" 
+              :disabled="currentGroup === totalGroups - 1"
+            >
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
         <div class="spots-list" v-if="mySpots.length > 0">
-          <div v-for="spot in mySpots" 
+          <div v-for="spot in currentSpots" 
                :key="spot.travel_id" 
                class="spot-item"
                draggable="true"
@@ -252,14 +370,17 @@ const closePreview = () => {
             <div class="spot-info">
               <div class="spot-name">{{ spot.travel_name }}</div>
               <div class="spot-address">{{ spot.travel_address || `${spot.region}${spot.town}` }}</div>
-              <div class="spot-actions">
-                <button class="action-button preview" @click="openPreview(spot)">
+              <div class="card-actions">
+                <button class="preview-button" @click="openPreview(spot)">
                   <i class="fas fa-eye"></i>
                   <span>預覽</span>
                 </button>
-                <button class="action-button remove" @click="removeSpot(spot.travel_id)">
-                  <i class="fas fa-trash"></i>
-                  <span>移除</span>
+                <button 
+                  :class="['add-button', { 'added': isSpotAdded(spot.travel_id) }]"
+                  @click="addToMySpots(spot)"
+                >
+                  <i :class="['fas', isSpotAdded(spot.travel_id) ? 'fa-trash' : 'fa-plus']"></i>
+                  <span>{{ isSpotAdded(spot.travel_id) ? '移除景點' : '加入景點' }}</span>
                 </button>
               </div>
             </div>
@@ -309,19 +430,20 @@ const closePreview = () => {
                 { 'has-events': day.events.length > 0 },
                 { 'has-holiday': day.holiday }
               ]"
-              @dragover="handleDragOver"
-              @dragleave="handleDragLeave"
-              @drop="handleDrop(currentYear, selectedMonth, day.day, $event)"
+              @dragover="(e) => handleDragOver(e, day.isCurrentMonth)"
+              @dragleave="(e) => handleDragLeave(e, day.isCurrentMonth)"
+              @drop="(e) => handleDrop(currentYear, selectedMonth, day.day, e, day.isCurrentMonth)"
             >
-              <span class="day-number">{{ day.day }}</span>
-              <span v-if="day.holiday" class="holiday-tag">{{ day.holiday }}</span>
+              <span class="day-number" :class="{ 'other-month-text': !day.isCurrentMonth }">{{ day.day }}</span>
+              <span v-if="day.holiday" class="holiday-tag" :class="{ 'other-month-text': !day.isCurrentMonth }">{{ day.holiday }}</span>
               <div class="day-events">
                 <div v-for="event in day.events" 
                      :key="event.travel_id" 
                      class="event-item"
-                     @click="openPreview(event)">
+                     @click="day.isCurrentMonth && openPreview(event)">
                   <span class="event-title">{{ event.travel_name }}</span>
-                  <button class="remove-event" 
+                  <button v-if="day.isCurrentMonth"
+                          class="remove-event" 
                           @click.stop="removeFromSchedule(`${currentYear}-${selectedMonth + 1}-${day.day}`, event.travel_id)">
                     ×
                   </button>
@@ -429,7 +551,7 @@ const closePreview = () => {
     }
   }
   
-  .spot-actions {
+  .card-actions {
     display: flex;
     gap: 8px;
     margin-top: 8px;
@@ -607,6 +729,24 @@ const closePreview = () => {
   background: white;
   transition: all 0.2s ease;
   
+  &.other-month {
+    background: #f5f5f5;
+    cursor: not-allowed;
+    
+    .day-events {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .event-item {
+      cursor: not-allowed;
+    }
+  }
+  
+  &.other-month-text {
+    color: #999;
+  }
+  
   &.drag-over {
     background: #e3f2fd;
     box-shadow: inset 0 0 0 2px #0F4BB4;
@@ -614,14 +754,23 @@ const closePreview = () => {
   
   &.has-events {
     background: #f8f9fa;
+    
+    &.other-month {
+      background: #f0f0f0;
+    }
   }
   
-  &:hover {
+  &:hover:not(.other-month) {
     background: #f0f4f8;
   }
   
   &.has-holiday {
     background: #fff8e1;
+    
+    &.other-month {
+      background: #fff8e1;
+      opacity: 0.7;
+    }
   }
   
   .day-number {
@@ -632,6 +781,29 @@ const closePreview = () => {
     display: flex;
     align-items: center;
     gap: 4px;
+    
+    &.other-month-text {
+      color: #999;
+    }
+  }
+  
+  .holiday-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    background: #ffebee;
+    color: #f44336;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-left: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 30px);
+    
+    &.other-month-text {
+      opacity: 0.7;
+      background: #ffebee99;
+    }
   }
   
   .day-events {
@@ -689,16 +861,6 @@ const closePreview = () => {
   }
 }
 
-.holiday-tag {
-  display: inline-block;
-  padding: 2px 6px;
-  background: #ffebee;
-  color: #f44336;
-  border-radius: 4px;
-  font-size: 12px;
-  margin-left: 4px;
-}
-
 @media (max-width: 768px) {
   .schedule-layout {
     flex-direction: column;
@@ -718,4 +880,135 @@ const closePreview = () => {
     padding: 4px;
   }
 }
-</style> 
+
+.preview-button,
+.add-button {
+  min-width: 80px;
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  
+  i {
+    font-size: 13px;
+  }
+  
+  span {
+    font-weight: 500;
+  }
+}
+
+.preview-button {
+  background: rgba(15, 75, 180, 0.9);
+  color: white;
+  
+  &:hover {
+    background: rgba(13, 61, 145, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.add-button {
+  background: rgba(40, 167, 69, 0.9);
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: rgba(34, 139, 58, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &.added {
+    background: rgba(220, 53, 69, 0.9);
+    
+    &:hover {
+      background: rgba(189, 45, 59, 0.95);
+    }
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+.group-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  
+  .nav-button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: white;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    
+    &:hover:not(:disabled) {
+      background: #007bff;
+      color: white;
+      transform: translateY(-1px);
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: #eee;
+    }
+    
+    i {
+      font-size: 14px;
+    }
+  }
+  
+  .group-info {
+    font-size: 14px;
+    color: #666;
+    min-width: 80px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .group-navigation {
+    padding: 6px;
+    gap: 8px;
+    
+    .nav-button {
+      width: 28px;
+      height: 28px;
+      
+      i {
+        font-size: 12px;
+      }
+    }
+    
+    .group-info {
+      font-size: 13px;
+      min-width: 70px;
+    }
+  }
+}
+</style>

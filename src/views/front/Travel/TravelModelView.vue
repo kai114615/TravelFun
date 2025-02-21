@@ -85,11 +85,39 @@ const spotfilter =()=>{
   console.log(travel_model.value)
 }
 
+// 檢查景點是否已加入我的景點
+const isSpotAdded = (spotId) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  return mySpots.some(spot => spot.travel_id === spotId);
+};
+
+// 加入/移除景點
+const addToMySpots = (spot) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  const isAdded = isSpotAdded(spot.travel_id);
+  
+  if (!isAdded) {
+    // 加入景點
+    mySpots.push(spot);
+    localStorage.setItem('mySpots', JSON.stringify(mySpots));
+  } else {
+    // 移除景點
+    const updatedSpots = mySpots.filter(s => s.travel_id !== spot.travel_id);
+    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+  }
+  
+  // 強制更新當前景點的狀態
+  const index = travel_model.value.findIndex(s => s.travel_id === spot.travel_id);
+  if (index !== -1) {
+    travel_model.value[index] = { ...spot };
+  }
+};
+
 </script>
 
 
 <template>
-  MAIN
+
 
   <Banner bg-url="/images/banner.jpg">
     <template #title>
@@ -125,6 +153,13 @@ const spotfilter =()=>{
             <button class="preview-button" @click="openPreview(travel)">
               <i class="fas fa-eye"></i>
               <span>預覽</span>
+            </button>
+            <button 
+              :class="['add-button', { 'added': isSpotAdded(travel.travel_id) }]"
+              @click="addToMySpots(travel)"
+            >
+              <i :class="['fas', isSpotAdded(travel.travel_id) ? 'fa-trash' : 'fa-plus']"></i>
+              <span>{{ isSpotAdded(travel.travel_id) ? '移除景點' : '加入景點' }}</span>
             </button>
             <div class="card-image">
               <img v-if="travel.image1" :src="travel.image1" :alt="travel.travel_name">
@@ -224,6 +259,7 @@ const spotfilter =()=>{
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease;
+    position: relative;
 
     &:hover {
       transform: translateY(-5px);
@@ -232,6 +268,7 @@ const spotfilter =()=>{
     .card-image {
       height: 160px;
       overflow: hidden;
+      position: relative;
 
       img {
         width: 100%;
@@ -314,35 +351,102 @@ const spotfilter =()=>{
 
 .preview-button {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  min-width: 72px;
-  height: 32px;
-  padding: 0 12px;
-  background: rgba(15, 75, 180, 0.9);
-  color: white;
+  top: 12px;
+  left: 12px;
+  min-width: 80px;
+  height: 36px;
+  padding: 0 16px;
   border: none;
   border-radius: 50px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 13px;
   backdrop-filter: blur(4px);
   transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: rgba(15, 75, 180, 0.9);
+  color: white;
   z-index: 2;
   
-  &:hover {
-    background: rgba(13, 61, 145, 0.95);
-  }
-  
   i {
-    font-size: 12px;
+    font-size: 13px;
   }
   
   span {
     font-weight: 500;
+  }
+  
+  &:hover {
+    background: rgba(13, 61, 145, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.add-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-width: 80px;
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: rgba(40, 167, 69, 0.9);
+  color: white;
+  z-index: 2;
+  
+  &:hover:not(:disabled) {
+    background: rgba(34, 139, 58, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &.added {
+    background: rgba(220, 53, 69, 0.9);
+    
+    &:hover {
+      background: rgba(189, 45, 59, 0.95);
+    }
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  i {
+    font-size: 13px;
+  }
+  
+  span {
+    font-weight: 500;
+  }
+}
+
+@media (max-width: 768px) {
+  .preview-button,
+  .add-button {
+    min-width: 72px;
+    height: 32px;
+    font-size: 12px;
+    padding: 0 12px;
+    
+    i {
+      font-size: 12px;
+    }
   }
 }
 </style>

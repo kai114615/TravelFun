@@ -371,6 +371,30 @@ const closePreview = () => {
   selectedTravelId.value = null;
 };
 
+// 檢查景點是否已加入我的景點
+const isSpotAdded = (spotId) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  return mySpots.some(spot => spot.travel_id === spotId);
+};
+
+// 加入/移除景點
+const addToMySpots = (spot) => {
+  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  if (!isSpotAdded(spot.travel_id)) {
+    // 加入景點
+    mySpots.push(spot);
+    localStorage.setItem('mySpots', JSON.stringify(mySpots));
+    // 強制更新組件
+    spots.value = [...spots.value];
+  } else {
+    // 移除景點
+    const updatedSpots = mySpots.filter(s => s.travel_id !== spot.travel_id);
+    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+    // 強制更新組件
+    spots.value = [...spots.value];
+  }
+};
+
 // 過濾數據
 
 </script>
@@ -473,10 +497,19 @@ const closePreview = () => {
                :key="spot.travel_id" 
                class="spot-card">
             <div class="card-inner">
-              <button class="preview-button" @click="openPreview(spot)">
-                <i class="fas fa-eye"></i>
-                <span>預覽</span>
-              </button>
+              <div class="card-actions">
+                <button class="preview-button" @click="openPreview(spot)">
+                  <i class="fas fa-eye"></i>
+                  <span>預覽</span>
+                </button>
+                <button 
+                  :class="['add-button', { 'added': isSpotAdded(spot.travel_id) }]"
+                  @click="addToMySpots(spot)"
+                >
+                  <i :class="['fas', isSpotAdded(spot.travel_id) ? 'fa-trash' : 'fa-plus']"></i>
+                  <span>{{ isSpotAdded(spot.travel_id) ? '移除景點' : '加入景點' }}</span>
+                </button>
+              </div>
               <div class="card-image">
                 <img 
                   :src="spot.image1 || imageUrl" 
@@ -828,37 +861,88 @@ const closePreview = () => {
   }
 }
 
-.preview-button {
+.card-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  min-width: 72px;
-  height: 32px;
-  padding: 0 12px;
-  background: rgba(15, 75, 180, 0.9);
-  color: white;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+.preview-button,
+.add-button {
+  min-width: 80px;
+  height: 36px;
+  padding: 0 16px;
   border: none;
   border-radius: 50px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 13px;
   backdrop-filter: blur(4px);
   transition: all 0.3s ease;
-  z-index: 2;
-  
-  &:hover {
-    background: rgba(13, 61, 145, 0.95);
-  }
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   
   i {
-    font-size: 12px;
+    font-size: 13px;
   }
   
   span {
     font-weight: 500;
+  }
+}
+
+.preview-button {
+  background: rgba(15, 75, 180, 0.9);
+  color: white;
+  
+  &:hover {
+    background: rgba(13, 61, 145, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.add-button {
+  background: rgba(40, 167, 69, 0.9);
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: rgba(34, 139, 58, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &.added {
+    background: rgba(220, 53, 69, 0.9);
+    cursor: not-allowed;
+    
+    &:hover {
+      transform: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@media (max-width: 768px) {
+  .preview-button,
+  .add-button {
+    min-width: 72px;
+    height: 32px;
+    font-size: 12px;
+    padding: 0 12px;
+    
+    i {
+      font-size: 12px;
+    }
   }
 }
 </style>
