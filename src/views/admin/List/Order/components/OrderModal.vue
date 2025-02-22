@@ -82,7 +82,7 @@ function onSubmit() {
   formRef.value?.validate((errors) => {
     if (!errors)
       emit('updateOrder', orderValue);
-  });
+  })
 }
 
 watch(

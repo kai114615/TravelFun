@@ -12,15 +12,15 @@ const useDeviceStore = defineStore('device', () => {
       isMobile.value = true;
     else
       isMobile.value = false;
-  });
+  })
 
   onMounted(() => {
     window.addEventListener('resize', () => {
       windowWidth.value = window.innerWidth;
-    });
+    })
   });
 
   return { windowWidth, isMobile };
-});
+})
 
 export default useDeviceStore;

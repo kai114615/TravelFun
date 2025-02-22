@@ -5,7 +5,7 @@ import { apiUSerGetProduct, apiUserGetAllProducts } from '../utils/api';
 import { Sort } from '@/types';
 import type { Product } from '@/types';
 
-type SortFunction<T = Product> = (a: T, b: T) => number;
+type SortFunction<T = Product> = (a: T, b: T) => number
 
 const useProductStore = defineStore('product', () => {
   const productList = ref<Product[]>([]);
@@ -86,6 +86,6 @@ const useProductStore = defineStore('product', () => {
     getSortData,
     getFilterData,
   };
-});
+})
 
 export default useProductStore;

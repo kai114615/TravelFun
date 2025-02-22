@@ -1,12 +1,7 @@
-<template>
-  <!-- No changes to template section -->
-</template>
-
 <script setup>
-import { ref, nextTick } from 'vue';
-import { useRouter } from 'vue';
-import { useUserStore } from '@/stores/user';
+import { ref, useRouter } from 'vue';
 import { useMessage } from 'naive-ui';
+import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -20,7 +15,7 @@ const formValue = ref({
 });
 const loading = ref(false);
 
-const handleSubmit = () => {
+function handleSubmit () {
   formRef.value?.validate(async (errors: any) => {
     if (!errors) {
       loading.value = true;
@@ -35,20 +30,23 @@ const handleSubmit = () => {
           // 立即更新用戶狀態
           await userStore.checkLoginStatus();
           message.success('登入成功');
-          
+
           // 使用 window.open 方式跳轉並重新載入
-          const targetUrl = window.location.origin + '/#/member/dashboard';
+          const targetUrl = `${window.location.origin}/#/member/dashboard`;
           window.open(targetUrl, '_self');
         }
       } catch (error: any) {
         message.error(error.message || '登入失敗');
-        if (typeof generateCaptcha === 'function') {
+        if (typeof generateCaptcha === 'function')
           generateCaptcha();
-        }
       } finally {
         loading.value = false;
       }
     }
   });
-};
-</script> 
+}
+</script>
+
+<template>
+  <!-- No changes to template section -->
+</template>

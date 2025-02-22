@@ -26,7 +26,7 @@ const getBindValues = computed<AffixProps>(() => {
     top: isMobile ? undefined : 100,
     bottom: isMobile ? 0 : undefined,
   };
-});
+})
 </script>
 
 <template>

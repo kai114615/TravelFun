@@ -65,14 +65,14 @@ const getBindValues = computed(() => {
       },
     },
   };
-});
+})
 
 const getCitys = computed(() => {
   if (!currCity)
     return [...cityMap.keys()];
 
   return [...cityMap.keys()].filter(city => cityMap.get(city) !== currCity);
-});
+})
 </script>
 
 <template>

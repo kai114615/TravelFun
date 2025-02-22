@@ -20,7 +20,7 @@ module.exports = {
     'vue/attributes-order': 'warn',
 
     // 保持原本的分號規則
-    'semi': ['error', 'always'],
-    '@typescript-eslint/semi': 'off',    
+    'semi': ['error', 'never'],
+    '@typescript-eslint/semi': 'off',
   },
 };

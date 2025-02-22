@@ -97,7 +97,7 @@ request.interceptors.request.use(
 
       // 從 cookie 中獲取 CSRF token
       const csrfToken = document.cookie.replace(
-        /(?:(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$)|^.*$/,
+        /(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$|^.*$/,
         '$1',
       );
 

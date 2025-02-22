@@ -3,6 +3,8 @@ import { ref, onMounted } from 'vue';
 import { NCard, NForm, NFormItem, NInput, NButton, NCheckbox, NDivider, useMessage } from 'naive-ui';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { ElMessage } from 'element-plus';
+import api from '@/api/config';
 
 const router = useRouter();
 const route = useRoute();
@@ -99,24 +101,34 @@ const handleSubmit = () => {
     if (!errors) {
       loading.value = true;
       try {
-        await userStore.signin({
+        const response = await api.post('/api/token/', {
           username: formValue.value.username,
-          password: formValue.value.password,
-          rememberMe: formValue.value.rememberMe
+          password: formValue.value.password
         });
-        message.success('登入成功');
+
+        // 保存 token
+        localStorage.setItem('access_token', response.data.access);
+        localStorage.setItem('refresh_token', response.data.refresh);
+        
+        // 可選：保存用戶信息
+        localStorage.setItem('user', JSON.stringify({
+          username: formValue.value.username,
+          isAuthenticated: true
+        }));
+
+        // 顯示成功消息
+        ElMessage.success('登入成功！');
         
         // 檢查是否有重定向路徑
-        const redirect = route.query.redirect as string;
+        const redirectPath = (route.query.redirect as string) || '/';
+        
+        // 延遲跳轉，讓用戶看到成功消息
         setTimeout(() => {
-          if (redirect) {
-            window.location.href = window.location.origin + '/#' + redirect;
-          } else {
-            window.location.href = window.location.origin + '/#/member/dashboard';
-          }
-        }, 500);
+          router.push(redirectPath);
+        }, 1000);
       } catch (error: any) {
-        message.error(error.response?.data?.detail || error.message || '登入失敗');
+        console.error('登入失敗:', error);
+        ElMessage.error('登入失敗，請檢查用戶名和密碼');
         generateCaptcha(); // 重新生成驗證碼
       } finally {
         loading.value = false;

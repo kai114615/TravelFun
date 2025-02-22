@@ -3,8 +3,6 @@
 # **旅遊趣 ✈️**
 > 探索世界的精彩，從這裡開始，旅遊趣帶您踏上一場奇幻之旅，發現無盡的冒險和美麗風景。
 
-
-
 <br>
 
 ## **創店理念**
@@ -29,7 +27,7 @@
 > * 使用 `Git` 版本控制
 
 ### **使用技術**
-* [Vue](https://vuejs.org/) `3.3.4` 
+* [Vue](https://vuejs.org/) `3.3.4`
 * [Vite](https://vitejs.dev/)
 * [Vue Router](https://router.vuejs.org/zh/)`4`
 * [Pinia](https://pinia.vuejs.org/)
@@ -44,7 +42,3 @@
 * [Ckeditor](https://ckeditor.com/ckeditor-5/)`5`
 * [Voomap](https://voomap.vercel.app/)
 * [LocalStorage](https://developer.mozilla.org/zh-TW/docs/Web/API/Window/localStorage)
-
-
-
-

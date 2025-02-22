@@ -191,10 +191,10 @@ async function loadPosts() {
         comments_count: post.comment_count || 0,
         tags: Array.isArray(post.tags)
           ? post.tags.map(tag => ({
-            id: tag.id,
-            name: tag.name,
-            description: tag.description || '',
-          }))
+              id: tag.id,
+              name: tag.name,
+              description: tag.description || '',
+            }))
           : [],
         is_liked: post.is_liked || false,
       }));
@@ -445,7 +445,7 @@ onMounted(async () => {
   await loadPosts();
   await loadTags();
   await loadModerators();
-});
+})
 
 // 輪播圖片列表
 const carouselImages = [

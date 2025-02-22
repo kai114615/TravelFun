@@ -54,6 +54,8 @@ async function handleLogout() {
     onPositiveClick: async () => {
       try {
         await userStore.logout();
+        // 清空購物車
+        cartStore.clearCart();
         message.success('已成功登出');
         router.push('/');
       }
@@ -83,7 +85,7 @@ onMounted(async () => {
   console.log('Header component mounted');
   // 組件掛載時檢查登入狀態
   await userStore.checkLoginStatus();
-});
+})
 </script>
 
 <template>

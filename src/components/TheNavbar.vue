@@ -1,4 +1,29 @@
 <!-- 導覽列 -->
+<script setup lang="ts">
+import { computed } from 'vue';
+import { RouterLink } from 'vue-router';
+import { NAvatar, NButton } from 'naive-ui';
+import { useUserStore } from '@/stores/user';
+
+const userStore = useUserStore();
+
+// 判斷是否登入
+const isLoggedIn = computed(() => userStore.isLoggedIn);
+
+// 用戶資料
+const userProfile = computed(() => userStore.userProfile);
+
+// 處理登出
+async function handleLogout () {
+  try {
+    await userStore.logout();
+    window.location.href = '/login';
+  } catch (error) {
+    console.error('登出失敗:', error);
+  }
+}
+</script>
+
 <template>
   <nav class="bg-white shadow-sm">
     <div class="max-w-7xl mx-auto px-4">
@@ -8,11 +33,17 @@
           <RouterLink to="/" class="flex items-center">
             <img src="@/assets/logo.png" alt="Travel Fun Logo" class="h-8">
           </RouterLink>
-          
+
           <div class="flex items-center gap-4">
-            <RouterLink to="/attractions" class="text-gray-700 hover:text-primary transition-colors">景點</RouterLink>
-            <RouterLink to="/forum" class="text-gray-700 hover:text-primary transition-colors">討論區</RouterLink>
-            <RouterLink to="/about" class="text-gray-700 hover:text-primary transition-colors">關於我們</RouterLink>
+            <RouterLink to="/attractions" class="text-gray-700 hover:text-primary transition-colors">
+              景點
+            </RouterLink>
+            <RouterLink to="/forum" class="text-gray-700 hover:text-primary transition-colors">
+              討論區
+            </RouterLink>
+            <RouterLink to="/about" class="text-gray-700 hover:text-primary transition-colors">
+              關於我們
+            </RouterLink>
           </div>
         </div>
 
@@ -28,14 +59,16 @@
               />
               <span class="font-medium">{{ userProfile.name }}</span>
             </RouterLink>
-            <NButton @click="handleLogout" secondary size="small">
+            <NButton secondary size="small" @click="handleLogout">
               登出
             </NButton>
           </template>
           <template v-else>
             <!-- 未登入狀態 -->
             <RouterLink to="/login">
-              <NButton secondary size="small">登入/註冊</NButton>
+              <NButton secondary size="small">
+                登入/註冊
+              </NButton>
             </RouterLink>
           </template>
         </div>
@@ -43,31 +76,6 @@
     </div>
   </nav>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue';
-import { RouterLink } from 'vue-router';
-import { NButton, NAvatar } from 'naive-ui';
-import { useUserStore } from '@/stores/user';
-
-const userStore = useUserStore();
-
-// 判斷是否登入
-const isLoggedIn = computed(() => userStore.isLoggedIn);
-
-// 用戶資料
-const userProfile = computed(() => userStore.userProfile);
-
-// 處理登出
-const handleLogout = async () => {
-  try {
-    await userStore.logout();
-    window.location.href = '/login';
-  } catch (error) {
-    console.error('登出失敗:', error);
-  }
-};
-</script>
 
 <style scoped>
 .router-link-active {
@@ -83,4 +91,4 @@ const handleLogout = async () => {
 #header > div > div > div:nth-child(2) > div:first-child > a > i > svg {
   display: none;
 }
-</style> 
+</style>

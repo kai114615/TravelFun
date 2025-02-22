@@ -131,7 +131,7 @@ function onSubmit() {
   formRef.value?.validate((errors) => {
     if (!errors)
       addOrder(orderValue);
-  });
+  })
 }
 
 onMounted(() => {

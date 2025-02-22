@@ -7,7 +7,8 @@ import {
   NForm,
   NFormItem,
   NRadio,
-  NRadioGroup, NSpace,
+  NRadioGroup,
+  NSpace,
   useLoadingBar,
 } from 'naive-ui';
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -108,12 +109,12 @@ function onSubmit() {
   formRef.value?.validate((errors) => {
     if (!errors)
       payHandler();
-  });
+  })
 }
 
 onMounted(() => {
   getOrder();
-});
+})
 </script>
 
 <template>

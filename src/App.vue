@@ -42,7 +42,7 @@ const getThemeOverrides = computed(() => {
     },
     Card: isAdmin ? adminCardOverrides : {},
   };
-});
+})
 
 onMounted(() => {
   // 檢查是否需要重定向

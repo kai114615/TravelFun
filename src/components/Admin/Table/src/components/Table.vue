@@ -57,7 +57,7 @@ const getBindValues = computed<DataTableProps>(() => {
     size: unref(getTableSize),
     striped: tableConfig.value.striped,
   };
-});
+})
 </script>
 
 <template>

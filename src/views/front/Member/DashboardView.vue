@@ -34,7 +34,7 @@ axiosInstance.interceptors.request.use((config) => {
 
   config.headers['X-Requested-With'] = 'XMLHttpRequest';
   return config;
-});
+})
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -55,7 +55,7 @@ const avatarUrl = computed(() => {
 
   // 組合完整 URL
   return `${baseUrl}/${url}`;
-});
+})
 
 // 模擬數據
 const pendingOrders = ref(3);

@@ -210,7 +210,7 @@ const avatarUrl = computed(() => {
 
   // 組合完整 URL
   return `${baseUrl}/${url}`;
-});
+})
 
 // 修改密碼
 async function changePassword() {
@@ -273,7 +273,7 @@ async function fetchUserProfile() {
 // 在組件掛載時獲取用戶資料
 onMounted(() => {
   fetchUserProfile();
-});
+})
 
 // 處理頭像上傳
 async function handleAvatarUpload(options: { file: UploadFileInfo }) {

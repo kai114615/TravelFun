@@ -46,6 +46,14 @@ const routes = [
     },
   },
   {
+    path: '/mall-products/:id',
+    name: 'MallProductDetail',
+    component: () => import('../views/front/Mall/MallProductDetailView.vue'),
+    meta: {
+      title: '商品詳情 - Travel Fun'
+    },
+  },
+  {
     path: '/activity',
     name: 'Activity',
     component: () => import('../views/front/Activity/ActivityView.vue'),
@@ -167,6 +175,24 @@ const routes = [
     component: ActivityDetail,
     meta: {
       title: '活動詳細資訊',
+      title: '主題育樂活動'
+    }
+  },
+  {
+    path: '/cart',
+    name: 'Cart',
+    component: () => import('../views/front/Cart/CartView.vue'),
+    meta: {
+      title: '購物車',
+    },
+  },
+  {
+    path: '/checkout',
+    name: 'Checkout',
+    component: () => import('../views/front/Checkout/CheckoutView.vue'),
+    meta: {
+      title: '結帳',
+      requiresAuth: true,
     },
   },
 ];
@@ -178,7 +204,27 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title || '商城';
-  next();
+
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      });
+    } else {
+      next();
+    }
+  } else if (to.path === '/login') {
+    // 如果用戶已登入且訪問登入頁面，檢查是否有重定向路徑
+    const token = localStorage.getItem('access_token');
+    if (token && to.query.redirect)
+      next(to.query.redirect);
+    else
+      next();
+  } else {
+    next();
+  }
 });
 
 export default router;

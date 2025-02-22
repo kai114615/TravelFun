@@ -43,7 +43,7 @@ function generator(routerList: Array<any>) {
       currentMenu.children = generator(item.children);
 
     return currentMenu;
-  });
+  })
 }
 
 /** [TODO:env] */

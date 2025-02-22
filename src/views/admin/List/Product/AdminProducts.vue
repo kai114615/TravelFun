@@ -266,7 +266,7 @@ const getActionColumn = computed(() => ({
 
 onMounted(() => {
   getProducts();
-});
+})
 </script>
 
 <template>
@@ -290,7 +290,7 @@ onMounted(() => {
       </template>
     </BasicTable>
     <ProductModal
-      v-model:showModal="showModal"
+      v-model:show-modal="showModal"
       :is-new="isNew"
       :is-loading="isLoading"
       :temp-product="tempProduct"

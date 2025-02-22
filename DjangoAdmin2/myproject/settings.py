@@ -53,8 +53,8 @@ MIDDLEWARE = [
 ]
 
 # CORS 設置
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False  # 關閉允許所有來源
+CORS_ALLOW_CREDENTIALS = True  # 允許攜帶認證信息
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite 默認端口
     "http://127.0.0.1:5173",
@@ -224,8 +224,8 @@ REST_FRAMEWORK = {
 
 # JWT 設置
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # 延長 token 有效期
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
@@ -233,6 +233,7 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
     'TOKEN_TYPE_CLAIM': 'token_type',
+    'JTI_CLAIM': 'jti',
 }
 
 # Celery Configuration
