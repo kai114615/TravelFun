@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     'restaurant_system',
     'shopping_system',
     'trip_planner',
-    'theme_entertainment',
+    'theme_entertainment.apps.ThemeEntertainmentConfig',  # 確保這行存在
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -56,7 +56,8 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3333",  # 前端開發伺服器
+    "http://localhost:5173",  # Vite 默認端口
+    "http://127.0.0.1:5173",
 ]
 CORS_ALLOW_METHODS = [
     'GET',
@@ -88,6 +89,7 @@ TEMPLATES = [
         'DIRS': [
             os.path.join(BASE_DIR, 'templates'),
             os.path.join(BASE_DIR, 'myapp', 'templates'),
+            os.path.join(BASE_DIR, 'theme_entertainment', 'templates'),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -141,6 +143,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
+    os.path.join(BASE_DIR, 'theme_entertainment', 'static'),
 ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import MallView from '../views/front/Mall/MallView.vue';
 import HomeView from '../views/front/Home/HomeView.vue';
+import ThemeEntertainmentView from '@/views/admin/ThemeEntertainmentView.vue'
 
 const routes = [
   {
@@ -83,7 +84,7 @@ const routes = [
     meta: {
       title: '旅遊地圖 - Travel Fun',
     },
-  }, 
+  },
   {
     path: '/travel/city/:city',
     name: 'TravelCity',
@@ -142,6 +143,23 @@ const routes = [
       requiresAuth: true,
     },
   },
+  {
+    path: '/admin-dashboard/entertainment/activities',
+    name: 'ThemeEntertainmentAdmin',
+    component: ThemeEntertainmentView,
+    meta: {
+      requiresAuth: true,
+      title: '主題育樂活動管理'
+    }
+  },
+  {
+    path: '/activities',
+    name: 'ActivityList',
+    component: () => import('../views/ActivityList.vue'),
+    meta: {
+      title: '主題育樂活動'
+    }
+  }
 ];
 
 const router = createRouter({

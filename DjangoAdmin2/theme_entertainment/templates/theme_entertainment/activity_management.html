@@ -1,0 +1,148 @@
+{% extends "admin-dashboard/base.html" %}
+{% load static %}
+
+
+
+
+
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extrastyle %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div id="app">
+    <!-- Vue 應用將在這裡渲染 -->
+</div>
+
+<!-- 引入 Vue 和相關依賴 -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+
+    const app = createApp({
+        setup() {
+            const activities = ref([]);
+            const loading = ref(false);
+            const error = ref(null);
+
+            // 獲取活動列表
+            const fetchActivities = async () => {
+                try {
+                    loading.value = true;
+                    const response = await axios.get('/admin-dashboard/entertainment/activities/list/');
+                    activities.value = response.data.data;
+                } catch (err) {
+                    error.value = '獲取數據失敗';
+                    console.error('Error:', err);
+                } finally {
+                    loading.value = false;
+                }
+            };
+
+            // 刪除活動
+            const deleteActivity = async (id) => {
+                if (confirm('確定要刪除此活動嗎？')) {
+                    try {
+                        const response = await axios.delete(
+                            `/admin-dashboard/entertainment/activities/${id}/delete/`
+                        );
+                        if (response.data.status === 'success') {
+                            await fetchActivities(); // 重新加載列表
+                        }
+                    } catch (err) {
+                        error.value = '刪除失敗';
+                        console.error('Error:', err);
+                    }
+                }
+            };
+
+            // 在組件掛載時獲取數據
+            onMounted(() => {
+                fetchActivities();
+            });
+
+            return {
+                activities,
+                loading,
+                error,
+                deleteActivity
+            };
+        },
+        template: `
+        <div class="p-6">
+            <!-- 頂部區域 -->
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ page_title }}</h1>
+                    <p class="text-gray-500">{{ page_description }}</p>
+                </div>
+                <a href="/admin-dashboard/entertainment/activities/create/"
+                   class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    新增活動
+                </a>
+            </div>
+
+            <!-- 錯誤提示 -->
+            <div v-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                [[ error ]]
+            </div>
+
+            <!-- 載入中提示 -->
+            <div v-if="loading" class="text-center py-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+            </div>
+
+            <!-- 活動列表表格 -->
+            <div v-else class="overflow-x-auto">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">活動名稱</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">主辦單位</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">活動日期</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">地點</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr v-for="activity in activities" :key="activity.id" class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">[[ activity.activity_name ]]</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">[[ activity.organizer ]]</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">
+                                    [[ activity.start_date ]] ~ [[ activity.end_date ]]
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">[[ activity.location ]]</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <a :href="'/admin-dashboard/entertainment/activities/' + activity.id + '/'"
+                                   class="text-blue-600 hover:text-blue-900 mr-4">編輯</a>
+                                <button @click="deleteActivity(activity.id)"
+                                        class="text-red-600 hover:text-red-900">刪除</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `
+    });
+
+    // 修改 Vue 的分隔符，避免與 Django 模板衝突
+    app.config.compilerOptions.delimiters = ['[[', ']]'];
+
+    // 掛載 Vue 應用
+    app.mount('#app');
+</script>
+{% endblock %}

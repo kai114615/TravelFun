@@ -1,0 +1,331 @@
+{% extends "admin-dashboard/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extracss %}
+<style>
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.2);
+    }
+
+    .card-header {
+        background: linear-gradient(45deg, #4e73df, #36b9cc);
+        border-radius: 15px 15px 0 0 !important;
+        border: none;
+    }
+
+    .card-header h6 {
+        color: white !important;
+    }
+
+    .form-control {
+        border-radius: 10px;
+        padding: 0.8rem 1rem;
+        border: 1px solid #e3e6f0;
+        transition: all 0.2s;
+    }
+
+    .form-control:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    }
+
+    .btn {
+        border-radius: 10px;
+        padding: 0.5rem 1.5rem;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(45deg, #4e73df, #2e59d9);
+        border: none;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(78, 115, 223, 0.4);
+    }
+
+    .custom-file-label {
+        border-radius: 10px;
+        padding: 0.8rem 1rem;
+    }
+
+    .page-header {
+        background: linear-gradient(45deg, #f8f9fc, #ffffff);
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+    }
+
+    .form-group label {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        color: #5a5c69;
+    }
+
+    .icon-circle {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background: rgba(78, 115, 223, 0.1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-sm-flex align-items-center justify-content-between">
+            <div>
+                <h1 class="h3 mb-2 text-gray-800">
+                    <div class="icon-circle">
+                        <i class="fas fa-calendar-plus text-primary"></i>
+                    </div>
+                    {{ page_title }}
+                </h1>
+                <p class="mb-0 text-gray-600">
+                    <i class="fas fa-info-circle mr-1"></i>{{ page_description }}
+                </p>
+            </div>
+            <a href="/admin-dashboard/entertainment/activities/"
+                class="btn btn-secondary btn-icon-split animate__animated animate__fadeIn">
+                <span class="icon text-white-50">
+                    <i class="fas fa-arrow-left"></i>
+                </span>
+                <span class="text">返回列表</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row">
+        <!-- 活動基本資訊卡片 -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-info-circle mr-2"></i>活動基本資訊
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form id="create-form" method="POST" enctype="multipart/form-data" class="needs-validation"
+                        novalidate>
+                        {% csrf_token %}
+
+                        <div class="form-group">
+                            <label class="font-weight-bold text-gray-800">
+                                <i class="fas fa-signature mr-2"></i>活動名稱
+                            </label>
+                            <input type="text" class="form-control" name="activity_name" required placeholder="請輸入活動名稱">
+                            <div class="invalid-feedback">請輸入活動名稱</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="font-weight-bold text-gray-800">
+                                <i class="fas fa-align-left mr-2"></i>活動描述
+                            </label>
+                            <textarea class="form-control" name="description" rows="4" required
+                                placeholder="請輸入活動描述"></textarea>
+                            <div class="invalid-feedback">請輸入活動描述</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="font-weight-bold text-gray-800">
+                                <i class="fas fa-map-marker-alt mr-2"></i>活動地點
+                            </label>
+                            <input type="text" class="form-control" name="location" required placeholder="請輸入活動地點">
+                            <div class="invalid-feedback">請輸入活動地點</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold text-gray-800">
+                                        <i class="fas fa-calendar mr-2"></i>活動日期
+                                    </label>
+                                    <input type="date" class="form-control" name="event_date" required>
+                                    <div class="invalid-feedback">請選擇活動日期</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold text-gray-800">
+                                        <i class="fas fa-clock mr-2"></i>活動時間
+                                    </label>
+                                    <input type="time" class="form-control" name="event_time" required>
+                                    <div class="invalid-feedback">請選擇活動時間</div>
+                                </div>
+                            </div>
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 活動詳細資訊卡片 -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-cog mr-2"></i>活動詳細設定
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="font-weight-bold text-gray-800">
+                            <i class="fas fa-ticket-alt mr-2"></i>票價資訊
+                        </label>
+                        <input type="text" class="form-control" name="ticket_price" placeholder="請輸入票價資訊（若為免費活動可不填）">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold text-gray-800">
+                            <i class="fas fa-tags mr-2"></i>活動類型
+                        </label>
+                        <select class="form-control" name="activity_type" required>
+                            <option value="">請選擇活動類型</option>
+                            <option value="展覽">展覽</option>
+                            <option value="表演">表演</option>
+                            <option value="音樂會">音樂會</option>
+                            <option value="戲劇">戲劇</option>
+                            <option value="其他">其他</option>
+                        </select>
+                        <div class="invalid-feedback">請選擇活動類型</div>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label class="font-weight-bold text-gray-800">
+                            <i class="fas fa-image mr-2"></i>活動圖片
+                        </label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" name="image" accept="image/*">
+                            <label class="custom-file-label">選擇圖片...</label>
+                        </div>
+                        <small class="form-text text-muted mt-2">
+                            <i class="fas fa-info-circle mr-1"></i>建議尺寸: 1200x630 像素，檔案大小不超過 2MB
+                        </small>
+                    </div>
+
+                    <hr>
+
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary btn-icon-split btn-lg">
+                            <span class="icon text-white-50">
+                                <i class="fas fa-save"></i>
+                            </span>
+                            <span class="text">建立活動</span>
+                        </button>
+                        <button type="reset" class="btn btn-light btn-icon-split">
+                            <span class="icon text-gray-600">
+                                <i class="fas fa-undo"></i>
+                            </span>
+                            <span class="text">重置</span>
+                        </button>
+                    </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+    // 表單驗證
+    (function () {
+        'use strict';
+        window.addEventListener('load', function () {
+            var forms = document.getElementsByClassName('needs-validation');
+            Array.prototype.filter.call(forms, function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (form.checkValidity() === false) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        });
+    })();
+
+    // 檔案上傳顯示檔名
+    document.querySelector('.custom-file-input').addEventListener('change', function (e) {
+        var fileName = e.target.files[0].name;
+        var label = e.target.nextElementSibling;
+        label.innerHTML = fileName;
+    });
+
+    // 表單提交處理
+    document.getElementById('create-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const data = {
+            activity_name: formData.get('activity_name'),
+            description: formData.get('description'),
+            organizer: '系統管理員',
+            location: formData.get('location'),
+            start_date: formData.get('event_date'),
+            end_date: formData.get('event_date'),
+            ticket_info: formData.get('ticket_price'),
+            address: formData.get('location')
+        };
+
+        const imageFile = formData.get('image');
+        if (imageFile) {
+            // 圖片上傳處理邏輯
+        }
+
+        fetch('/admin-dashboard/entertainment/activities/create/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '成功！',
+                        text: '活動建立成功',
+                        showConfirmButton: false,
+                        timer: 1500
+                    }).then(() => {
+                        window.location.href = '/admin-dashboard/entertainment/activities/';
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: '錯誤！',
+                        text: '活動建立失敗：' + data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: '錯誤！',
+                    text: '發生錯誤，請稍後再試'
+                });
+            });
+    });
+</script>
+{% endblock %}

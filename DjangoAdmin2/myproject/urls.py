@@ -28,6 +28,7 @@ urlpatterns = [
     path('theme_entertainment/', include('theme_entertainment.urls')),
     path('', include('forum_system.urls')),
     path('admin-dashboard/travel_app/', include('travel_app.urls')),
+    path('admin-dashboard/entertainment/', include('theme_entertainment.urls')),
     path('api/health-check/', health_check, name='health_check'),
     # JWT 認證端點
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
