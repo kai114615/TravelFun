@@ -1,80 +1,65 @@
-from culture_api import CultureAPI
-from tfam_api import TaipeiOpenDataAPI
-from taipei_api import fetch_taipei_events as taipei_events
-from newtaipei_api import fetch_newtaipei_events as newtaipei_events
+import os
+import sys
+import django
 import time
 from datetime import datetime
 import mysql.connector
 import json
 from typing import Dict, Any
-import os
+
+# 設定 Django 環境
+current_dir = os.path.dirname(os.path.abspath(__file__))
+django_root = os.path.dirname(current_dir)  # DjangoAdmin2 目錄
+
+# 將目前目錄加入 Python 路徑
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
+# 將 DjangoAdmin2 目錄加入 Python 路徑
+if django_root not in sys.path:
+    sys.path.append(django_root)
+
+# 設定 Django 設定模組
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
+
+# 初始化 Django
+try:
+    django.setup()
+except Exception as e:
+    print(f"Django 設定錯誤: {e}")
+    print(f"目前的 Python 路徑: {sys.path}")
+    sys.exit(1)
+
+# 導入相關模組
+try:
+    from culture_api import CultureAPI
+    from tfam_api import TaipeiOpenDataAPI
+    from taipei_api import fetch_taipei_events as taipei_events
+    from newtaipei_api import fetch_newtaipei_events as newtaipei_events
+    from json_to_sql import convert_json_to_sql
+except ImportError as e:
+    print(f"模組導入錯誤: {e}")
+    print(f"目前的 Python 路徑: {sys.path}")
+    sys.exit(1)
 
 
 def init_database() -> None:
     """初始化資料庫和資料表"""
-    connection = None
-    cursor = None
     try:
-        # 先建立與MySQL的連接（不指定資料庫）
-        connection = mysql.connector.connect(
-            host=os.environ.get('DB_HOST', 'localhost'),
-            user=os.environ.get('DB_USER', 'root'),
-            password=os.environ.get('DB_PASSWORD', 'P@ssw0rd')
-        )
-        cursor = connection.cursor(buffered=True)  # 使用 buffered cursor
+        # 由於已經有 models.py 定義好資料庫模型，
+        # 這裡只需要執行 Django migrations 即可
+        from django.core.management import execute_from_command_line
 
-        # 建立資料庫（如果不存在）
-        cursor.execute("CREATE DATABASE IF NOT EXISTS fun")
-        cursor.execute("USE fun")
+        # 執行 makemigrations
+        execute_from_command_line(['manage.py', 'makemigrations', 'theme_entertainment'])
 
-        # 讀取並執行SQL檔案中的建表語句
-        sql_file_path = os.path.join(
-            os.path.dirname(__file__), 'create_tables.sql')
-        with open(sql_file_path, 'r', encoding='utf-8') as file:
-            # 分割SQL語句
-            sql_commands = file.read().split(';')
-            for command in sql_commands:
-                if command.strip():
-                    try:
-                        cursor.execute(command)
-                    except mysql.connector.Error as e:
-                        # 如果是表已存在的錯誤，則忽略
-                        if e.errno == 1050:  # Table already exists
-                            continue
-                        else:
-                            raise
+        # 執行 migrate
+        execute_from_command_line(['manage.py', 'migrate'])
 
-        # 建立索引（如果不存在）
-        indexes = [
-            ("theme_events", "idx_events_uid", "uid"),
-            ("theme_events", "idx_events_start_date", "start_date"),
-            ("theme_events", "idx_events_end_date", "end_date"),
-            ("theme_import_dates", "idx_import_dates_date", "import_date"),
-            ("theme_query_results", "idx_query_results_timestamp", "query_timestamp")
-        ]
-
-        for table, index_name, column in indexes:
-            try:
-                cursor.execute(
-                    f"CREATE INDEX {index_name} ON {table}({column})")
-                print(f"已建立索引：{index_name}")
-            except mysql.connector.Error as e:
-                if e.errno == 1061:  # 索引已存在
-                    print(f"索引已存在：{index_name}")
-                    continue
-                else:
-                    raise
-
-        connection.commit()
         print("資料庫初始化成功！")
     except Exception as e:
         print(f"資料庫初始化失敗：{str(e)}")
         raise
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
 
 
 def connect_to_mysql() -> mysql.connector.connection.MySQLConnection:
@@ -129,7 +114,7 @@ def parse_date(date_str: str) -> str:
 
 
 def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.MySQLConnection) -> None:
-    """將資料儲存到MySQL資料庫，檢查並更新已存在的資料"""
+    """將資料儲存到MySQL資料庫"""
     if not data:
         return
 
@@ -137,207 +122,327 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
     try:
         cursor = connection.cursor(buffered=True)
 
-        # 記錄匯入時間
-        current_time = datetime.now()
-        cursor.execute(
-            "INSERT INTO theme_import_dates (import_date, timezone_type, timezone) VALUES (%s, %s, %s)",
-            (current_time, 3, "Asia/Taipei")
-        )
-        import_id = cursor.lastrowid
+        # 修改插入語句以匹配 events_data.json 的欄位
+        insert_sql = """
+        INSERT INTO theme_events (
+            uid, activity_name, description, organizer, address,
+            start_date, end_date, location, latitude, longitude,
+            ticket_price, source_url, image_url
+        ) VALUES (
+            %(uid)s, %(activity_name)s, %(description)s, %(organizer)s, %(address)s,
+            %(start_date)s, %(end_date)s, %(location)s, %(latitude)s, %(longitude)s,
+            %(ticket_price)s, %(source_url)s, %(image_url)s
+        ) ON DUPLICATE KEY UPDATE
+            activity_name = VALUES(activity_name),
+            description = VALUES(description),
+            organizer = VALUES(organizer),
+            address = VALUES(address),
+            start_date = VALUES(start_date),
+            end_date = VALUES(end_date),
+            location = VALUES(location),
+            latitude = VALUES(latitude),
+            longitude = VALUES(longitude),
+            ticket_price = VALUES(ticket_price),
+            source_url = VALUES(source_url),
+            image_url = VALUES(image_url)
+        """
 
-        # 儲存查詢結果資訊
-        if "result" in data:
-            cursor.execute(
-                "INSERT INTO theme_query_results (query_timestamp, limit_count, offset_count, total_count, sort_order) VALUES (%s, %s, %s, %s, %s)",
-                (data.get("queryTime", current_time.strftime("%Y-%m-%d %H:%M:%S")),
-                 data.get("limit", 0),
-                 data.get("offset", 0),
-                 data.get("total", 0),
-                 data.get("sort", ""))
-            )
-            query_id = cursor.lastrowid
+        # 處理每筆資料
+        events = data if isinstance(data, list) else data.get('result', [])
+        for event in events:
+            # 修改 organizer 的處理邏輯
+            event_data = {
+                'uid': event.get('uid', ''),
+                'activity_name': event.get('activity_name', ''),
+                'description': event.get('description', ''),
+                'organizer': event.get('organizer', ''),  # 直接獲取 organizer，不需要特別處理 list
+                'address': event.get('address', ''),
+                'start_date': parse_date(event.get('start_date')) if event.get('start_date') else None,
+                'end_date': parse_date(event.get('end_date')) if event.get('end_date') else None,
+                'location': event.get('location', ''),
+                'latitude': event.get('latitude'),
+                'longitude': event.get('longitude'),
+                'ticket_price': event.get('ticket_price', ''),
+                'source_url': event.get('source_url', ''),
+                'image_url': event.get('image_url', '')
+            }
 
-            # 儲存活動資訊
-            for idx, event in enumerate(data["result"]):
-                # 檢查是否已存在相同的活動
-                cursor.execute(
-                    """SELECT id, start_date, end_date, ticket_price,
-                              related_link, image_url, address
-                       FROM theme_events WHERE uid = %s""",
-                    (event.get("uid", ""),)
-                )
-                existing_event = cursor.fetchone()
-
-                # 處理日期格式
-                start_date = parse_date(event.get("startDate"))
-                end_date = parse_date(event.get("endDate"))
-
-                updates = []
-
-                if existing_event:
-                    # 檢查是否需要更新
-                    event_id, old_start_date, old_end_date, old_price, \
-                        old_link, old_image, old_address = existing_event
-
-                    values = []
-
-                    # 檢查各欄位是否有更新
-                    if start_date and start_date != old_start_date:
-                        updates.append("start_date = %s")
-                        values.append(start_date)
-
-                    if end_date and end_date != old_end_date:
-                        updates.append("end_date = %s")
-                        values.append(end_date)
-
-                    if event.get("price") and event.get("price") != old_price:
-                        updates.append("ticket_price = %s")
-                        values.append(event.get("price"))
-
-                    if event.get("url") and event.get("url") != old_link:
-                        updates.append("related_link = %s")
-                        values.append(event.get("url"))
-
-                    if event.get("imageUrl") and event.get("imageUrl") != old_image:
-                        updates.append("image_url = %s")
-                        values.append(event.get("imageUrl"))
-
-                    if event.get("address") and event.get("address") != old_address:
-                        updates.append("address = %s")
-                        values.append(event.get("address"))
-
-                    # 如果有需要更新的欄位
-                    if updates:
-                        values.append(event_id)
-                        update_query = f"""UPDATE theme_events
-                                         SET {', '.join(updates)}
-                                         WHERE id = %s"""
-                        cursor.execute(update_query, values)
-
-                else:
-                    # 如果活動不存在，則新增
-                    cursor.execute(
-                        """INSERT INTO theme_events
-                        (uid, activity_name, description, organizer, address,
-                         start_date, end_date, location, latitude, longitude,
-                         ticket_price, related_link, image_url)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                        (event.get("uid", ""),
-                         event.get("title", ""),
-                         event.get("description", ""),
-                         event.get("organizer", ""),
-                         event.get("address", ""),
-                         start_date,
-                         end_date,
-                         event.get("location", ""),
-                         event.get("latitude", None),
-                         event.get("longitude", None),
-                         event.get("price", ""),
-                         event.get("url", ""),
-                         event.get("imageUrl", ""))
-                    )
-                    event_id = cursor.lastrowid
-
-                # 建立查詢結果和活動的關聯（先檢查是否已存在）
-                cursor.execute(
-                    """SELECT query_id, event_id FROM theme_query_event_relations
-                       WHERE query_id = %s AND event_id = %s""",
-                    (query_id, event_id)
-                )
-                existing_relation = cursor.fetchone()
-
-                if not existing_relation:
-                    cursor.execute(
-                        """INSERT INTO theme_query_event_relations
-                           (query_id, event_id, display_order)
-                           VALUES (%s, %s, %s)""",
-                        (query_id, event_id, idx + 1)
-                    )
-                else:
-                    # 如果關聯已存在，更新 display_order
-                    cursor.execute(
-                        """UPDATE theme_query_event_relations
-                           SET display_order = %s
-                           WHERE query_id = %s AND event_id = %s""",
-                        (idx + 1, query_id, event_id)
-                    )
-
-        connection.commit()
+            try:
+                # 執行SQL插入
+                cursor.execute(insert_sql, event_data)
+                connection.commit()
+            except mysql.connector.Error as err:
+                print(f"插入資料時發生錯誤: {err}")
+                print(f"問題資料: {event_data}")
+                connection.rollback()
+                continue
 
     except Exception as e:
+        print(f"儲存資料時發生錯誤: {str(e)}")
         connection.rollback()
-        raise e
+        raise
     finally:
         if cursor:
             cursor.close()
 
 
-def main():
-    print(
-        f"\n=== 開始執行資料獲取程序 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+def save_events_to_json(events_data):
+    """
+    將活動資料轉換成JSON格式並儲存，包含更新機制
+    """
+    formatted_events = []
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    connection = None
+    # 檢查是否存在舊的 events_data.json
+    existing_events = {}
+    if os.path.exists('events_data.json'):
+        try:
+            with open('events_data.json', 'r', encoding='utf-8') as f:
+                old_events = json.load(f)
+                existing_events = {event.get('uid'): event for event in old_events}
+        except (json.JSONDecodeError, FileNotFoundError):
+            print("無法讀取舊的 events_data.json 或檔案格式錯誤")
+
+    for event in events_data:
+        # 處理不同的日期欄位名稱
+        start_time = event.get('start_time') or event.get('startDate')
+        end_time = event.get('end_time') or event.get('endDate')
+
+        event_uid = event.get('uid', '')
+        existing_event = existing_events.get(event_uid)
+
+        # 準備新的事件資料
+        new_event = {
+            'uid': event_uid,
+            'activity_name': event.get('title', ''),
+            'description': event.get('description', ''),
+            'organizer': event.get('organizer', ''),
+            'address': event.get('address', ''),
+            'start_date': start_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(start_time, datetime) else start_time,
+            'end_date': end_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(end_time, datetime) else end_time,
+            'location': event.get('location', ''),
+            'latitude': event.get('latitude', ''),
+            'longitude': event.get('longitude', ''),
+            'ticket_price': event.get('price', ''),
+            'source_url': event.get('url', ''),
+            'image_url': event.get('imageUrl', '')
+        }
+
+        if existing_event:
+            # 如果已存在該事件
+            has_changes = False
+            existing_created_at = existing_event.get('created_at')
+
+            # 保留現有的 created_at
+            new_event['created_at'] = existing_created_at
+
+            # 對於每個欄位，檢查是否有變動
+            for field in ['activity_name', 'description', 'organizer', 'address',
+                         'start_date', 'end_date', 'location', 'latitude', 'longitude',
+                         'ticket_price', 'source_url', 'image_url']:
+                existing_value = existing_event.get(field)
+                new_value = new_event.get(field)
+
+                # 如果現有值不為空且不為None，則保留現有值
+                if existing_value and existing_value != 'None':
+                    new_event[field] = existing_value
+                # 如果新值與現有值不同，標記為有變動
+                elif new_value != existing_value:
+                    has_changes = True
+
+            # 只有在有變動時才更新 updated_at
+            if has_changes:
+                new_event['updated_at'] = current_time
+            else:
+                # 如果沒有變動，updated_at 保持與 created_at 相同
+                new_event['updated_at'] = existing_created_at
+        else:
+            # 如果是新事件，設置 created_at 和 updated_at 為當前時間
+            new_event['created_at'] = current_time
+            new_event['updated_at'] = current_time
+
+        formatted_events.append(new_event)
+
+    # 儲存成JSON檔案
+    output_file = 'events_data.json'
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(formatted_events, f, ensure_ascii=False, indent=2)
+
+    print(f'已將活動資料儲存至 {output_file}')
+
+
+def check_events_data_exists() -> bool:
+    """檢查 events_data.json 是否存在"""
+    return os.path.exists('events_data.json')
+
+def load_existing_events() -> Dict[str, Any]:
+    """載入現有的 events_data.json"""
     try:
-        # 初始化資料庫
-        print("初始化資料庫...")
-        init_database()
-        print("資料庫初始化完成！\n")
+        with open('events_data.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
 
-        # 建立資料庫連接
-        connection = connect_to_mysql()
+def update_events_data(existing_events: list, new_events: list) -> list:
+    """更新活動資料，使用 uid 作為唯一識別"""
+    # 建立現有活動的 uid 索引
+    existing_uids = {event['uid']: event for event in existing_events}
+
+    # 更新或添加新活動
+    for new_event in new_events:
+        uid = new_event.get('uid')
+        if uid:
+            existing_uids[uid] = new_event
+
+    return list(existing_uids.values())
+
+def clean_sql_command(command: str) -> str:
+    """清理 SQL 命令中的特殊字符"""
+    # 替換常見的 HTML 實體
+    replacements = {
+        '&nbsp;': ' ',
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&apos;': "'",
+    }
+
+    result = command
+    for entity, char in replacements.items():
+        result = result.replace(entity, char)
+
+    # 移除多餘的空白字符
+    result = ' '.join(result.split())
+
+    return result
+
+def import_sql_to_database(connection: mysql.connector.connection.MySQLConnection, sql_file_path: str) -> None:
+    """將 SQL 檔案匯入資料庫"""
+    try:
+        cursor = connection.cursor()
+
+        # 讀取 SQL 檔案
+        with open(sql_file_path, 'r', encoding='utf-8') as file:
+            sql_content = file.read()
+
+        # 分割並清理每個 SQL 命令
+        sql_commands = sql_content.split(';')
+
+        # 執行每個 SQL 命令
+        for command in sql_commands:
+            if command.strip():
+                try:
+                    # 清理 SQL 命令
+                    cleaned_command = clean_sql_command(command)
+                    if cleaned_command:
+                        cursor.execute(cleaned_command)
+                        connection.commit()
+                except mysql.connector.Error as err:
+                    # print(f"執行 SQL 命令時發生錯誤: {err}")
+                    # print(f"問題的 SQL 命令: {cleaned_command}")
+                    connection.rollback()
+
+        print(f"成功匯入 SQL 檔案: {sql_file_path}")
+
+    except Exception as e:
+        print(f"匯入 SQL 檔案時發生錯誤: {str(e)}")
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+
+def main():
+    print(f"\n=== 開始執行資料獲取程序 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+
+    all_events = []  # 用來收集所有活動資料
+
+    try:
+        # 檢查是否存在 events_data.json
+        if check_events_data_exists():
+            print("發現現有活動資料，開始載入...")
+            existing_events = load_existing_events()
+            print(f"已載入 {len(existing_events)} 筆現有活動資料\n")
+            all_events = existing_events
+
+        # 無論是否有現有資料，都執行 API 更新
+        print("開始從各 API 獲取最新資料...")
 
         # 1. 執行文化部展演資訊 API
         print("1. 正在獲取文化部展演資訊...")
         culture_api = CultureAPI()
         culture_events = culture_api.get_events()
-        # 儲存到MySQL
-        save_to_mysql(culture_events, connection)
-        print("文化部展演資訊獲取完成並儲存到資料庫！\n")
+        all_events = update_events_data(all_events, culture_events.get('result', []))
+        print("文化部展演資訊獲取完成！\n")
 
         integrated_events = culture_api.get_integrated_events()
-        save_to_mysql(integrated_events, connection)
-        print("文化部整合綜藝活動獲取完成並儲存到資料庫！\n")
+        all_events = update_events_data(all_events, integrated_events.get('result', []))
+        print("文化部整合綜藝活動獲取完成！\n")
 
         festival_events = culture_api.get_festival_events()
-        save_to_mysql(festival_events, connection)
-        print("文化部節慶活動獲取完成並儲存到資料庫！\n")
+        all_events = update_events_data(all_events, festival_events.get('result', []))
+        print("文化部節慶活動獲取完成！\n")
 
         # 2. 執行台北市立美術館 API
         print("2. 正在獲取台北市立美術館資訊...")
         tfam_api_1 = TaipeiOpenDataAPI()  # 展覽資訊
-        tfam_api_2 = TaipeiOpenDataAPI(
-            "1700a7e6-3d27-47f9-89d9-1811c9f7489c")  # 活動資訊
+        tfam_api_2 = TaipeiOpenDataAPI("1700a7e6-3d27-47f9-89d9-1811c9f7489c")  # 活動資訊
 
-        # 獲取展覽資訊
         results_1 = tfam_api_1.fetch_data(limit=10)
         if results_1:
-            save_to_mysql(results_1, connection)
+            all_events = update_events_data(all_events, results_1.get('result', []))
 
-        # 獲取活動資訊
         results_2 = tfam_api_2.fetch_data(limit=10)
         if results_2:
-            save_to_mysql(results_2, connection)
-        print("台北市立美術館資訊獲取完成並儲存到資料庫！\n")
+            all_events = update_events_data(all_events, results_2.get('result', []))
+        print("台北市立美術館資訊獲取完成！\n")
 
         # 3. 執行台北市政府開放資料 API
         print("3. 正在獲取台北市政府活動資訊...")
         taipei_data = taipei_events()
-        save_to_mysql(taipei_data, connection)
-        print("台北市政府活動資訊獲取完成並儲存到資料庫！\n")
+        all_events = update_events_data(all_events, taipei_data.get('result', []))
+        print("台北市政府活動資訊獲取完成！\n")
 
         # 4. 執行新北市政府開放資料 API
         print("4. 正在獲取新北市政府活動資訊...")
         newtaipei_data = newtaipei_events()
-        save_to_mysql(newtaipei_data, connection)
-        print("新北市政府活動資訊獲取完成並儲存到資料庫！\n")
+        all_events = update_events_data(all_events, newtaipei_data.get('result', []))
+        print("新北市政府活動資訊獲取完成！\n")
 
-        print(
-            f"\n=== 所有資料獲取完成並儲存到資料庫 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
+        # 5. 將更新後的資料儲存為 JSON
+        print("\n開始將資料轉換為 JSON...")
+        save_events_to_json(all_events)
+        print("資料已成功儲存為 JSON！\n")
+
+        # 6. 執行 json_to_sql.py 生成 SQL 檔案
+        print("\n開始將 JSON 轉換為 SQL...")
+        json_file_path = 'events_data.json'
+        sql_file_path = 'events_data.sql'
+        convert_json_to_sql(json_file_path, sql_file_path)
+        print("已成功生成 SQL 檔案！\n")
+
+        # 7. 初始化資料庫
+        print("\n開始初始化資料庫...")
+        init_database()
+        print("資料庫初始化完成！\n")
+
+        # 8. 建立資料庫連接
+        print("\n開始建立資料庫連接...")
+        connection = connect_to_mysql()
+        print("資料庫連接建立成功！\n")
+
+        # 9. 匯入 SQL 檔案到資料庫
+        # print("\n開始匯入 SQL 檔案到資料庫...")
+        # import_sql_to_database(connection, sql_file_path)
+        # print("SQL 檔案匯入完成！\n")
+
+        # print(f"\n=== 所有資料處理完成 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
+        # print(f"總共處理了 {len(all_events)} 筆活動資料")
 
     except Exception as e:
         print(f"\n執行過程中發生錯誤：{str(e)}")
     finally:
-        if connection:
+        if 'connection' in locals() and connection:
             connection.close()
 
 

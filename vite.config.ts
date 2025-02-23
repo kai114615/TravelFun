@@ -17,5 +17,11 @@ export default defineConfig({
   server: {
     port: 3333, // 固定伺服器埠號為 3000
     open: true, // 啟動時自動開啟瀏覽器 (可選)
+    proxy: {
+      '/theme_entertainment': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      }
+    }
   },
 });

@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from .models import CultureActivity, NewTaipeiActivity, TaipeiActivity, TFAMActivity
 
 
 class ActivitySerializer(serializers.Serializer):
@@ -15,7 +14,7 @@ class ActivitySerializer(serializers.Serializer):
     latitude = serializers.FloatField(allow_null=True)
     longitude = serializers.FloatField(allow_null=True)
     ticket_info = serializers.CharField(allow_null=True)
-    related_link = serializers.CharField(allow_null=True)
+    source_url = serializers.CharField(allow_null=True)
     image_url = serializers.CharField(allow_null=True)
     created_at = serializers.DateTimeField()
 
