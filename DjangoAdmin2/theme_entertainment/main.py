@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import mysql.connector
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 # from django.core.cache import cache
 
 # 設定專案根目錄
@@ -199,9 +199,107 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
             cursor.close()
 
 
+def process_image_url(image_url: Any) -> list:
+    """
+    處理圖片URL，統一轉換為列表格式
+
+    Args:
+        image_url: 輸入的圖片URL（可能是字串或列表）
+
+    Returns:
+        list: 處理後的圖片URL列表
+    """
+    if isinstance(image_url, str):
+        return [image_url] if image_url and image_url != "無資料" else []
+    elif isinstance(image_url, list):
+        return image_url
+    return []
+
+
+def process_event_fields(event: Dict[str, Any], is_new_event: bool, existing_event: Optional[Dict[str, Any]], current_time: str) -> Dict[str, Any]:
+    """
+    處理事件欄位，根據是否為新事件進行不同處理
+
+    Args:
+        event: 原始事件資料
+        is_new_event: 是否為新事件
+        existing_event: 現有事件資料（如果有）
+        current_time: 當前時間
+
+    Returns:
+        Dict[str, Any]: 處理後的事件資料
+    """
+    # 處理不同的日期欄位名稱
+    start_time = event.get('start_time') or event.get('startDate')
+    end_time = event.get('end_time') or event.get('endDate')
+
+    # 處理圖片 URL
+    image_url = process_image_url(event.get('imageUrl', []))
+
+    # 準備新的事件資料
+    new_event = {
+        'uid': event.get('uid', ''),
+        'activity_name': event.get('title', ''),
+        'description': event.get('description', ''),
+        'organizer': event.get('organizer', ''),
+        'address': event.get('address', ''),
+        'start_date': start_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(start_time, datetime) else start_time,
+        'end_date': end_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(end_time, datetime) else end_time,
+        'location': event.get('location', ''),
+        'latitude': event.get('latitude', ''),
+        'longitude': event.get('longitude', ''),
+        'ticket_price': event.get('price', ''),
+        'source_url': event.get('url', ''),
+        'image_url': image_url
+    }
+
+    if is_new_event:
+        # 新事件處理
+        new_event['created_at'] = current_time
+        new_event['updated_at'] = current_time
+
+        # 處理空值
+        for field in ['activity_name', 'description', 'organizer', 'address',
+                     'start_date', 'end_date', 'location', 'latitude', 'longitude',
+                     'ticket_price', 'source_url']:
+            if not new_event.get(field) or new_event[field] == 'None':
+                new_event[field] = "無資料"
+    else:
+        # 舊事件處理
+        new_event['created_at'] = existing_event.get('created_at')
+        has_changes = False
+
+        # 處理各欄位
+        for field in ['activity_name', 'description', 'organizer', 'address',
+                     'start_date', 'end_date', 'location', 'latitude', 'longitude',
+                     'ticket_price', 'source_url']:
+            existing_value = existing_event.get(field)
+            new_value = new_event.get(field)
+
+            if not existing_value or existing_value in ['無資料', 'None', '']:
+                if new_value and new_value not in ['None', '']:
+                    new_event[field] = new_value
+                    has_changes = True
+                else:
+                    new_event[field] = '無資料'
+            else:
+                new_event[field] = existing_value
+
+        # 更新時間戳記
+        if has_changes or new_event['image_url'] != existing_event.get('image_url', []):
+            new_event['updated_at'] = current_time
+        else:
+            new_event['updated_at'] = existing_event.get('updated_at')
+
+    return new_event
+
+
 def save_events_to_json(events_data):
     """
     將活動資料轉換成JSON格式並儲存，包含更新機制
+
+    Args:
+        events_data: 要儲存的活動資料
     """
     try:
         formatted_events = []
@@ -211,7 +309,7 @@ def save_events_to_json(events_data):
         # 確保目標目錄存在
         os.makedirs(os.path.dirname(json_path), exist_ok=True)
 
-        # 檢查是否存在舊的 events_data.json
+        # 載入現有資料
         existing_events = {}
         if os.path.exists(json_path):
             try:
@@ -222,95 +320,18 @@ def save_events_to_json(events_data):
             except (json.JSONDecodeError, FileNotFoundError):
                 print("無法讀取舊的 events_data.json 或檔案格式錯誤")
 
+        # 處理每個事件
         for event in events_data:
-            # 處理不同的日期欄位名稱
-            start_time = event.get('start_time') or event.get('startDate')
-            end_time = event.get('end_time') or event.get('endDate')
-
             event_uid = event.get('uid', '')
             existing_event = existing_events.get(event_uid)
-
-            # 處理圖片 URL
-            image_url = event.get('imageUrl', [])
-            if isinstance(image_url, str):
-                # 如果是字串，轉換為列表
-                image_url = [
-                    image_url] if image_url and image_url != "無資料" else []
-            elif not isinstance(image_url, list):
-                # 如果既不是字串也不是列表，設為空列表
-                image_url = []
-
-            # 準備新的事件資料
-            new_event = {
-                'uid': event_uid,
-                'activity_name': event.get('title', ''),
-                'description': event.get('description', ''),
-                'organizer': event.get('organizer', ''),
-                'address': event.get('address', ''),
-                'start_date': start_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(start_time, datetime) else start_time,
-                'end_date': end_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(end_time, datetime) else end_time,
-                'location': event.get('location', ''),
-                'latitude': event.get('latitude', ''),
-                'longitude': event.get('longitude', ''),
-                'ticket_price': event.get('price', ''),
-                'source_url': event.get('url', ''),
-                'image_url': image_url  # 現在儲存為列表
-            }
-
-            # 檢查是否為新事件
             is_new_event = not existing_event
 
-            # 如果是新事件，設置時間戳記
-            if is_new_event:
-                new_event['created_at'] = current_time
-                new_event['updated_at'] = current_time
-            else:
-                # 保留現有的 created_at
-                new_event['created_at'] = existing_event.get('created_at')
-                # 合併現有的圖片列表
-                existing_images = existing_event.get('image_url', [])
-                if isinstance(existing_images, list) and existing_images:
-                    new_event['image_url'] = list(
-                        set(existing_images + image_url))
-
-            # 檢查所有欄位是否有變動
-            has_changes = False
-            for field in ['activity_name', 'description', 'organizer', 'address',
-                          'start_date', 'end_date', 'location', 'latitude', 'longitude',
-                          'ticket_price', 'source_url']:
-
-                # 取得新值
-                new_value = new_event.get(field)
-
-                # 檢查新值是否為空或"None"
-                if not new_value or new_value == 'None':
-                    new_event[field] = "無資料"
-                    # 如果是既有事件且值有變化，標記為有變動
-                    if not is_new_event and existing_event.get(field) != "無資料":
-                        has_changes = True
-                else:
-                    if is_new_event:
-                        # 新事件直接使用新值
-                        new_event[field] = new_value
-                    else:
-                        # 既有事件且現有值不為"無資料"時保留現有值
-                        existing_value = existing_event.get(field)
-                        if existing_value != "無資料":
-                            new_event[field] = existing_value
-                        else:
-                            new_event[field] = new_value
-                            has_changes = True
-
-            # 根據是否有變動更新 updated_at
-            if not is_new_event:
-                if has_changes or new_event['image_url'] != existing_event.get('image_url', []):
-                    new_event['updated_at'] = current_time
-                else:
-                    new_event['updated_at'] = new_event['created_at']
-
+            # 處理事件欄位
+            new_event = process_event_fields(
+                event, is_new_event, existing_event, current_time)
             formatted_events.append(new_event)
 
-        # 添加更詳細的日誌
+        # 寫入檔案
         print(f"JSON 檔案路徑: {json_path}")
         print(f"處理的活動數量: {len(formatted_events)}")
 
