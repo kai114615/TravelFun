@@ -6,6 +6,7 @@ from datetime import datetime
 import mysql.connector
 import json
 from typing import Dict, Any
+from django.core.cache import cache
 
 # 設定 Django 環境
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -51,7 +52,8 @@ def init_database() -> None:
         from django.core.management import execute_from_command_line
 
         # 執行 makemigrations
-        execute_from_command_line(['manage.py', 'makemigrations', 'theme_entertainment'])
+        execute_from_command_line(
+            ['manage.py', 'makemigrations', 'theme_entertainment'])
 
         # 執行 migrate
         execute_from_command_line(['manage.py', 'migrate'])
@@ -155,7 +157,8 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
                 'uid': event.get('uid', ''),
                 'activity_name': event.get('activity_name', ''),
                 'description': event.get('description', ''),
-                'organizer': event.get('organizer', ''),  # 直接獲取 organizer，不需要特別處理 list
+                # 直接獲取 organizer，不需要特別處理 list
+                'organizer': event.get('organizer', ''),
                 'address': event.get('address', ''),
                 'start_date': parse_date(event.get('start_date')) if event.get('start_date') else None,
                 'end_date': parse_date(event.get('end_date')) if event.get('end_date') else None,
@@ -190,98 +193,131 @@ def save_events_to_json(events_data):
     """
     將活動資料轉換成JSON格式並儲存，包含更新機制
     """
-    formatted_events = []
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        formatted_events = []
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # 檢查是否存在舊的 events_data.json
-    existing_events = {}
-    if os.path.exists('events_data.json'):
-        try:
-            with open('events_data.json', 'r', encoding='utf-8') as f:
-                old_events = json.load(f)
-                existing_events = {event.get('uid'): event for event in old_events}
-        except (json.JSONDecodeError, FileNotFoundError):
-            print("無法讀取舊的 events_data.json 或檔案格式錯誤")
+        # 獲取當前檔案的目錄
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # 構建到 src/assets 的相對路徑
+        json_path = os.path.join(current_dir, '..', '..', 'src',
+                                 'assets', 'theme_entertainment', 'events_data.json')
 
-    for event in events_data:
-        # 處理不同的日期欄位名稱
-        start_time = event.get('start_time') or event.get('startDate')
-        end_time = event.get('end_time') or event.get('endDate')
+        # 確保目標目錄存在
+        os.makedirs(os.path.dirname(json_path), exist_ok=True)
 
-        event_uid = event.get('uid', '')
-        existing_event = existing_events.get(event_uid)
+        # 檢查是否存在舊的 events_data.json
+        existing_events = {}
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    old_events = json.load(f)
+                    existing_events = {
+                        event.get('uid'): event for event in old_events}
+            except (json.JSONDecodeError, FileNotFoundError):
+                print("無法讀取舊的 events_data.json 或檔案格式錯誤")
 
-        # 準備新的事件資料
-        new_event = {
-            'uid': event_uid,
-            'activity_name': event.get('title', ''),
-            'description': event.get('description', ''),
-            'organizer': event.get('organizer', ''),
-            'address': event.get('address', ''),
-            'start_date': start_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(start_time, datetime) else start_time,
-            'end_date': end_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(end_time, datetime) else end_time,
-            'location': event.get('location', ''),
-            'latitude': event.get('latitude', ''),
-            'longitude': event.get('longitude', ''),
-            'ticket_price': event.get('price', ''),
-            'source_url': event.get('url', ''),
-            'image_url': event.get('imageUrl', '')
-        }
+        for event in events_data:
+            # 處理不同的日期欄位名稱
+            start_time = event.get('start_time') or event.get('startDate')
+            end_time = event.get('end_time') or event.get('endDate')
 
-        if existing_event:
-            # 如果已存在該事件
-            has_changes = False
-            existing_created_at = existing_event.get('created_at')
+            event_uid = event.get('uid', '')
+            existing_event = existing_events.get(event_uid)
 
-            # 保留現有的 created_at
-            new_event['created_at'] = existing_created_at
+            # 準備新的事件資料
+            new_event = {
+                'uid': event_uid,
+                'activity_name': event.get('title', ''),
+                'description': event.get('description', ''),
+                'organizer': event.get('organizer', ''),
+                'address': event.get('address', ''),
+                'start_date': start_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(start_time, datetime) else start_time,
+                'end_date': end_time.strftime('%Y-%m-%d %H:%M:%S') if isinstance(end_time, datetime) else end_time,
+                'location': event.get('location', ''),
+                'latitude': event.get('latitude', ''),
+                'longitude': event.get('longitude', ''),
+                'ticket_price': event.get('price', ''),
+                'source_url': event.get('url', ''),
+                'image_url': event.get('imageUrl', '')
+            }
 
-            # 對於每個欄位，檢查是否有變動
-            for field in ['activity_name', 'description', 'organizer', 'address',
-                         'start_date', 'end_date', 'location', 'latitude', 'longitude',
-                         'ticket_price', 'source_url', 'image_url']:
-                existing_value = existing_event.get(field)
-                new_value = new_event.get(field)
+            # 檢查是否為新事件
+            is_new_event = not existing_event
 
-                # 如果現有值不為空且不為None，則保留現有值
-                if existing_value and existing_value != 'None':
-                    new_event[field] = existing_value
-                # 如果新值與現有值不同，標記為有變動
-                elif new_value != existing_value:
-                    has_changes = True
-
-            # 只有在有變動時才更新 updated_at
-            if has_changes:
+            # 如果是新事件，設置時間戳記
+            if is_new_event:
+                new_event['created_at'] = current_time
                 new_event['updated_at'] = current_time
             else:
-                # 如果沒有變動，updated_at 保持與 created_at 相同
-                new_event['updated_at'] = existing_created_at
-        else:
-            # 如果是新事件，設置 created_at 和 updated_at 為當前時間
-            new_event['created_at'] = current_time
-            new_event['updated_at'] = current_time
+                # 保留現有的 created_at
+                new_event['created_at'] = existing_event.get('created_at')
 
-        formatted_events.append(new_event)
+            # 檢查所有欄位是否有變動
+            has_changes = False
+            for field in ['activity_name', 'description', 'organizer', 'address',
+                          'start_date', 'end_date', 'location', 'latitude', 'longitude',
+                          'ticket_price', 'source_url', 'image_url']:
 
-    # 儲存成JSON檔案
-    output_file = 'events_data.json'
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(formatted_events, f, ensure_ascii=False, indent=2)
+                # 取得新值
+                new_value = new_event.get(field)
 
-    print(f'已將活動資料儲存至 {output_file}')
+                # 檢查新值是否為空或"None"
+                if not new_value or new_value == 'None':
+                    new_event[field] = "無資料"
+                    # 如果是既有事件且值有變化，標記為有變動
+                    if not is_new_event and existing_event.get(field) != "無資料":
+                        has_changes = True
+                else:
+                    if is_new_event:
+                        # 新事件直接使用新值
+                        new_event[field] = new_value
+                    else:
+                        # 既有事件且現有值不為"無資料"時保留現有值
+                        existing_value = existing_event.get(field)
+                        if existing_value != "無資料":
+                            new_event[field] = existing_value
+                        else:
+                            new_event[field] = new_value
+                            has_changes = True
+
+            # 根據是否有變動更新 updated_at
+            if not is_new_event:
+                if has_changes:
+                    new_event['updated_at'] = current_time
+                else:
+                    new_event['updated_at'] = new_event['created_at']
+
+            formatted_events.append(new_event)
+
+        # 儲存成JSON檔案
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(formatted_events, f, ensure_ascii=False, indent=2)
+        print(f'已將活動資料儲存至 {json_path}')
+
+    except Exception as e:
+        print(f"儲存 JSON 檔案時發生錯誤: {str(e)}")
 
 
 def check_events_data_exists() -> bool:
     """檢查 events_data.json 是否存在"""
-    return os.path.exists('events_data.json')
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(current_dir, '..', '..', 'src',
+                             'assets', 'theme_entertainment', 'events_data.json')
+    return os.path.exists(json_path)
+
 
 def load_existing_events() -> Dict[str, Any]:
     """載入現有的 events_data.json"""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(current_dir, '..', '..', 'src',
+                             'assets', 'theme_entertainment', 'events_data.json')
     try:
-        with open('events_data.json', 'r', encoding='utf-8') as f:
+        with open(json_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return []
+
 
 def update_events_data(existing_events: list, new_events: list) -> list:
     """更新活動資料，使用 uid 作為唯一識別"""
@@ -295,6 +331,7 @@ def update_events_data(existing_events: list, new_events: list) -> list:
             existing_uids[uid] = new_event
 
     return list(existing_uids.values())
+
 
 def clean_sql_command(command: str) -> str:
     """清理 SQL 命令中的特殊字符"""
@@ -316,6 +353,7 @@ def clean_sql_command(command: str) -> str:
     result = ' '.join(result.split())
 
     return result
+
 
 def import_sql_to_database(connection: mysql.connector.connection.MySQLConnection, sql_file_path: str) -> None:
     """將 SQL 檔案匯入資料庫"""
@@ -352,8 +390,10 @@ def import_sql_to_database(connection: mysql.connector.connection.MySQLConnectio
         if cursor:
             cursor.close()
 
+
 def main():
-    print(f"\n=== 開始執行資料獲取程序 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+    print(
+        f"\n=== 開始執行資料獲取程序 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
 
     all_events = []  # 用來收集所有活動資料
 
@@ -372,41 +412,49 @@ def main():
         print("1. 正在獲取文化部展演資訊...")
         culture_api = CultureAPI()
         culture_events = culture_api.get_events()
-        all_events = update_events_data(all_events, culture_events.get('result', []))
+        all_events = update_events_data(
+            all_events, culture_events.get('result', []))
         print("文化部展演資訊獲取完成！\n")
 
         integrated_events = culture_api.get_integrated_events()
-        all_events = update_events_data(all_events, integrated_events.get('result', []))
+        all_events = update_events_data(
+            all_events, integrated_events.get('result', []))
         print("文化部整合綜藝活動獲取完成！\n")
 
         festival_events = culture_api.get_festival_events()
-        all_events = update_events_data(all_events, festival_events.get('result', []))
+        all_events = update_events_data(
+            all_events, festival_events.get('result', []))
         print("文化部節慶活動獲取完成！\n")
 
         # 2. 執行台北市立美術館 API
         print("2. 正在獲取台北市立美術館資訊...")
         tfam_api_1 = TaipeiOpenDataAPI()  # 展覽資訊
-        tfam_api_2 = TaipeiOpenDataAPI("1700a7e6-3d27-47f9-89d9-1811c9f7489c")  # 活動資訊
+        tfam_api_2 = TaipeiOpenDataAPI(
+            "1700a7e6-3d27-47f9-89d9-1811c9f7489c")  # 活動資訊
 
         results_1 = tfam_api_1.fetch_data(limit=10)
         if results_1:
-            all_events = update_events_data(all_events, results_1.get('result', []))
+            all_events = update_events_data(
+                all_events, results_1.get('result', []))
 
         results_2 = tfam_api_2.fetch_data(limit=10)
         if results_2:
-            all_events = update_events_data(all_events, results_2.get('result', []))
+            all_events = update_events_data(
+                all_events, results_2.get('result', []))
         print("台北市立美術館資訊獲取完成！\n")
 
         # 3. 執行台北市政府開放資料 API
         print("3. 正在獲取台北市政府活動資訊...")
         taipei_data = taipei_events()
-        all_events = update_events_data(all_events, taipei_data.get('result', []))
+        all_events = update_events_data(
+            all_events, taipei_data.get('result', []))
         print("台北市政府活動資訊獲取完成！\n")
 
         # 4. 執行新北市政府開放資料 API
         print("4. 正在獲取新北市政府活動資訊...")
         newtaipei_data = newtaipei_events()
-        all_events = update_events_data(all_events, newtaipei_data.get('result', []))
+        all_events = update_events_data(
+            all_events, newtaipei_data.get('result', []))
         print("新北市政府活動資訊獲取完成！\n")
 
         # 5. 將更新後的資料儲存為 JSON

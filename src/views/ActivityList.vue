@@ -1,109 +1,3 @@
-<template>
-  <div class="activity-list">
-    <div class="search-container">
-      <div class="search-bar">
-        <input type="text" v-model="searchQuery" placeholder="搜尋活動名稱、地點..." class="search-input">
-        <div class="date-picker-container">
-          <input type="date" v-model="searchDate" class="date-input" :min="minDate" :max="maxDate">
-        </div>
-        <button class="search-button" @click="handleSearch">
-          <i class="fas fa-search"></i>
-        </button>
-      </div>
-    </div>
-
-    <template v-if="loading">
-      <div class="loading-state">
-        <div class="loading-spinner"></div>
-        <p>載入活動資料中...</p>
-      </div>
-    </template>
-
-    <template v-else-if="error">
-      <div class="error-state">
-        <p>{{ error }}</p>
-        <button @click="fetchActivities" class="retry-button">重試</button>
-      </div>
-    </template>
-
-    <template v-else>
-      <div class="activities-container">
-        <div v-for="activity in paginatedActivities" :key="activity.id" class="activity-card">
-          <div class="activity-image">
-            <div v-if="Array.isArray(activity.image_url) && activity.image_url.length > 0" class="carousel">
-              <img :src="activity.image_url[currentImageIndexes[activity.id] || 0]" :alt="activity.activity_name"
-                @error="handleImageError" loading="lazy">
-              <div class="carousel-controls" v-if="activity.image_url.length > 1">
-                <button class="carousel-btn prev" @click="prevImage(activity.id)">
-                  <i class="fas fa-chevron-left"></i>
-                </button>
-                <button class="carousel-btn next" @click="nextImage(activity.id)">
-                  <i class="fas fa-chevron-right"></i>
-                </button>
-                <div class="carousel-indicators">
-                  <span v-for="(_, index) in activity.image_url" :key="index"
-                    :class="['indicator', { active: (currentImageIndexes[activity.id] || 0) === index }]"
-                    @click="setImage(activity.id, index)"></span>
-                </div>
-              </div>
-            </div>
-            <img v-else :src="getImageUrl(activity)" :alt="activity.activity_name" @error="handleImageError"
-              loading="lazy">
-          </div>
-          <div class="activity-content">
-            <h2 class="activity-title">{{ activity.activity_name }}</h2>
-            <div class="activity-details">
-              <p class="activity-date">
-                <i class="fas fa-calendar-alt"></i>
-                {{ formatDate(activity.start_date) }} - {{ formatDate(activity.end_date) }}
-              </p>
-              <p class="activity-location">
-                <i class="fas fa-map-marker-alt"></i>
-                {{ activity.location }}
-              </p>
-            </div>
-            <div class="content-divider"></div>
-            <p class="activity-description">{{ activity.description }}</p>
-            <div class="activity-status" :class="getStatusClass(activity)">
-              {{ getStatusText(activity) }}
-            </div>
-            <div class="activity-footer">
-              <button class="detail-button" @click="viewDetails(activity)">
-                <i class="fas fa-info-circle"></i>
-                活動詳情
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="pagination" v-if="totalPages > 1">
-        <button :disabled="currentPage === 1" @click="changePage(1)" class="page-button" title="第一頁">
-          <i class="fas fa-angle-double-left"></i>
-        </button>
-
-        <button :disabled="currentPage === 1" @click="changePage(currentPage - 1)" class="page-button" title="上一頁">
-          <i class="fas fa-angle-left"></i>
-        </button>
-
-        <button v-for="page in displayedPages" :key="page" :class="['page-button', { active: currentPage === page }]"
-          @click="changePage(page)">
-          {{ page }}
-        </button>
-
-        <button :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)" class="page-button"
-          title="下一頁">
-          <i class="fas fa-angle-right"></i>
-        </button>
-
-        <button :disabled="currentPage === totalPages" @click="changePage(totalPages)" class="page-button" title="最後一頁">
-          <i class="fas fa-angle-double-right"></i>
-        </button>
-      </div>
-    </template>
-  </div>
-</template>
-
 <script>
 import axios from 'axios';
 
@@ -173,11 +67,11 @@ export default {
         // 旅行 Traveling
         'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&auto=format&fit=crop&q=80',
         // 露營車 RV Camping
-        'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&auto=format&fit=crop&q=80'
+        'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&auto=format&fit=crop&q=80',
       ],
       usedImageIndexes: new Set(), // 追蹤已使用的圖片索引
       currentImageIndexes: {}, // 儲存每個活動當前顯示的圖片索引
-    }
+    };
   },
   computed: {
     totalPages() {
@@ -192,34 +86,78 @@ export default {
 
     displayedPages() {
       let start = Math.max(1, this.currentPage - Math.floor(this.maxDisplayPages / 2));
-      let end = Math.min(this.totalPages, start + this.maxDisplayPages - 1);
+      const end = Math.min(this.totalPages, start + this.maxDisplayPages - 1);
 
-      if (end - start + 1 < this.maxDisplayPages) {
+      if (end - start + 1 < this.maxDisplayPages)
         start = Math.max(1, end - this.maxDisplayPages + 1);
-      }
 
       return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-    }
+    },
+  },
+  watch: {
+    searchQuery: {
+      handler(newVal, oldVal) {
+        if (newVal !== oldVal)
+          this.handleSearch();
+      },
+      immediate: false,
+    },
+    searchDate: {
+      handler(newVal, oldVal) {
+        if (newVal !== oldVal)
+          this.handleSearch();
+      },
+      immediate: false,
+    },
+  },
+  mounted() {
+    this.fetchActivities();
+    const today = new Date();
+    this.minDate = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
+      .toISOString().split('T')[0];
+    this.maxDate = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
+      .toISOString().split('T')[0];
   },
   methods: {
     async fetchActivities() {
       this.loading = true;
       this.error = null;
+
       try {
-        const response = await axios.get(`${this.baseURL}/theme_entertainment/activities/api/list/`);
-        if (Array.isArray(response.data)) {
-          this.allActivities = this.sortActivities(response.data);
+        // 首先嘗試使用本地 JSON 檔案
+        const localData = await import('@/assets/theme_entertainment/events_data.json');
+        if (Array.isArray(localData.default)) {
+          this.allActivities = this.sortActivities(localData.default);
           this.activities = [...this.allActivities];
-        } else if (response.data.status === 'success' && Array.isArray(response.data.data)) {
-          this.allActivities = this.sortActivities(response.data.data);
-          this.activities = [...this.allActivities];
-        } else {
-          throw new Error('無效的數據格式');
+          console.log('使用本地數據');
         }
-      } catch (error) {
-        console.error('API Error:', error);
-        this.error = '無法載入活動資料，請稍後再試';
-      } finally {
+      }
+      catch (localError) {
+        console.error('Local data error:', localError);
+
+        // 如果本地數據載入失敗，嘗試從 API 獲取
+        try {
+          const response = await axios.get('/theme_entertainment/activities/api/list/');
+          const data = response.data;
+
+          if (Array.isArray(data)) {
+            this.allActivities = this.sortActivities(data);
+            this.activities = [...this.allActivities];
+          }
+          else if (data.status === 'success' && Array.isArray(data.data)) {
+            this.allActivities = this.sortActivities(data.data);
+            this.activities = [...this.allActivities];
+          }
+          else {
+            throw new Error('API 返回的數據格式無效');
+          }
+        }
+        catch (apiError) {
+          console.error('API Error:', apiError);
+          this.error = '無法載入活動資料，請稍後再試';
+        }
+      }
+      finally {
         this.loading = false;
       }
     },
@@ -232,13 +170,13 @@ export default {
         const startDate = new Date(activity.start_date);
         const endDate = new Date(activity.end_date);
 
-        if (now < startDate) {
+        if (now < startDate)
           acc.upcoming.push({ ...activity, timeDistance: startDate - now });
-        } else if (now > endDate) {
+        else if (now > endDate)
           acc.ended.push({ ...activity, timeDistance: endDate - now });
-        } else {
+        else
           acc.ongoing.push({ ...activity, timeDistance: startDate - now });
-        }
+
         return acc;
       }, { upcoming: [], ongoing: [], ended: [] });
 
@@ -251,7 +189,7 @@ export default {
       return [
         ...categorizedActivities.upcoming,
         ...categorizedActivities.ongoing,
-        ...categorizedActivities.ended
+        ...categorizedActivities.ended,
       ];
     },
 
@@ -261,16 +199,17 @@ export default {
 
       if (!query && !searchDate) {
         this.activities = [...this.allActivities]; // 已排序的活動列表
-      } else {
-        const filteredActivities = this.allActivities.filter(activity => {
-          const matchesQuery = !query ||
-            activity.activity_name?.toLowerCase().includes(query.toLowerCase()) ||
-            activity.location?.toLowerCase().includes(query.toLowerCase()) ||
-            activity.description?.toLowerCase().includes(query.toLowerCase());
+      }
+      else {
+        const filteredActivities = this.allActivities.filter((activity) => {
+          const matchesQuery = !query
+            || activity.activity_name?.toLowerCase().includes(query.toLowerCase())
+            || activity.location?.toLowerCase().includes(query.toLowerCase())
+            || activity.description?.toLowerCase().includes(query.toLowerCase());
 
-          const matchesDate = !searchDate ||
-            (new Date(activity.start_date) <= searchDate &&
-              new Date(activity.end_date) >= searchDate);
+          const matchesDate = !searchDate
+            || (new Date(activity.start_date) <= searchDate
+              && new Date(activity.end_date) >= searchDate);
 
           return matchesQuery && matchesDate;
         });
@@ -278,24 +217,24 @@ export default {
         this.activities = filteredActivities; // 保持原有排序
       }
 
-      if (this.currentPage !== 1) {
+      if (this.currentPage !== 1)
         this.currentPage = 1;
-      }
     },
 
     formatDate(dateString) {
-      if (!dateString) return '待定';
+      if (!dateString)
+        return '待定';
       return new Date(dateString).toLocaleDateString('zh-TW', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
       });
     },
 
     getRandomUniqueImageIndex() {
       let availableIndexes = Array.from(
         { length: this.defaultImages.length },
-        (_, i) => i
+        (_, i) => i,
       ).filter(i => !this.usedImageIndexes.has(i));
 
       // 如果所有圖片都被使用過，重置追蹤器
@@ -303,7 +242,7 @@ export default {
         this.usedImageIndexes.clear();
         availableIndexes = Array.from(
           { length: this.defaultImages.length },
-          (_, i) => i
+          (_, i) => i,
         );
       }
 
@@ -322,12 +261,12 @@ export default {
     },
 
     getImageUrl(activity) {
-      if (Array.isArray(activity.image_url) && activity.image_url.length > 0) {
+      if (Array.isArray(activity.image_url) && activity.image_url.length > 0)
         return activity.image_url[0]; // 返回第一張圖片
-      }
-      if (activity.image_url) {
+
+      if (activity.image_url)
         return activity.image_url;
-      }
+
       const index = this.getRandomUniqueImageIndex();
       return this.defaultImages[index];
     },
@@ -343,8 +282,10 @@ export default {
       const startDate = new Date(activity.start_date);
       const endDate = new Date(activity.end_date);
 
-      if (now < startDate) return '即將開始';
-      if (now > endDate) return '已結束';
+      if (now < startDate)
+        return '即將開始';
+      if (now > endDate)
+        return '已結束';
       return '進行中';
     },
 
@@ -353,7 +294,7 @@ export default {
       return {
         'status-upcoming': status === '即將開始',
         'status-ongoing': status === '進行中',
-        'status-ended': status === '已結束'
+        'status-ended': status === '已結束',
       };
     },
 
@@ -386,34 +327,130 @@ export default {
       this.currentImageIndexes[activityId] = index;
     },
   },
-  watch: {
-    searchQuery: {
-      handler(newVal, oldVal) {
-        if (newVal !== oldVal) {
-          this.handleSearch();
-        }
-      },
-      immediate: false
-    },
-    searchDate: {
-      handler(newVal, oldVal) {
-        if (newVal !== oldVal) {
-          this.handleSearch();
-        }
-      },
-      immediate: false
-    }
-  },
-  mounted() {
-    this.fetchActivities();
-    const today = new Date();
-    this.minDate = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
-      .toISOString().split('T')[0];
-    this.maxDate = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
-      .toISOString().split('T')[0];
-  }
-}
+};
 </script>
+
+<template>
+  <div class="activity-list">
+    <div class="search-container">
+      <div class="search-bar">
+        <input v-model="searchQuery" type="text" placeholder="搜尋活動名稱、地點..." class="search-input">
+        <div class="date-picker-container">
+          <input v-model="searchDate" type="date" class="date-input" :min="minDate" :max="maxDate">
+        </div>
+        <button class="search-button" @click="handleSearch">
+          <i class="fas fa-search" />
+        </button>
+      </div>
+    </div>
+
+    <template v-if="loading">
+      <div class="loading-state">
+        <div class="loading-spinner" />
+        <p>載入活動資料中...</p>
+      </div>
+    </template>
+
+    <template v-else-if="error">
+      <div class="error-state">
+        <p>{{ error }}</p>
+        <button class="retry-button" @click="fetchActivities">
+          重試
+        </button>
+      </div>
+    </template>
+
+    <template v-else>
+      <div class="activities-container">
+        <div v-for="activity in paginatedActivities" :key="activity.id" class="activity-card">
+          <div class="activity-image">
+            <div v-if="Array.isArray(activity.image_url) && activity.image_url.length > 0" class="carousel">
+              <img
+                :src="activity.image_url[currentImageIndexes[activity.id] || 0]" :alt="activity.activity_name"
+                loading="lazy" @error="handleImageError"
+              >
+              <div v-if="activity.image_url.length > 1" class="carousel-controls">
+                <button class="carousel-btn prev" @click="prevImage(activity.id)">
+                  <i class="fas fa-chevron-left" />
+                </button>
+                <button class="carousel-btn next" @click="nextImage(activity.id)">
+                  <i class="fas fa-chevron-right" />
+                </button>
+                <div class="carousel-indicators">
+                  <span
+                    v-for="(_, index) in activity.image_url" :key="index"
+                    class="indicator" :class="[{ active: (currentImageIndexes[activity.id] || 0) === index }]"
+                    @click="setImage(activity.id, index)"
+                  />
+                </div>
+              </div>
+            </div>
+            <img
+              v-else :src="getImageUrl(activity)" :alt="activity.activity_name" loading="lazy"
+              @error="handleImageError"
+            >
+          </div>
+          <div class="activity-content">
+            <h2 class="activity-title">
+              {{ activity.activity_name }}
+            </h2>
+            <div class="activity-details">
+              <p class="activity-date">
+                <i class="fas fa-calendar-alt" />
+                {{ formatDate(activity.start_date) }} - {{ formatDate(activity.end_date) }}
+              </p>
+              <p class="activity-location">
+                <i class="fas fa-map-marker-alt" />
+                {{ activity.location }}
+              </p>
+            </div>
+            <div class="content-divider" />
+            <p class="activity-description">
+              {{ activity.description }}
+            </p>
+            <div class="activity-status" :class="getStatusClass(activity)">
+              {{ getStatusText(activity) }}
+            </div>
+            <div class="activity-footer">
+              <button class="detail-button" @click="viewDetails(activity)">
+                <i class="fas fa-info-circle" />
+                活動詳情
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="totalPages > 1" class="pagination">
+        <button :disabled="currentPage === 1" class="page-button" title="第一頁" @click="changePage(1)">
+          <i class="fas fa-angle-double-left" />
+        </button>
+
+        <button :disabled="currentPage === 1" class="page-button" title="上一頁" @click="changePage(currentPage - 1)">
+          <i class="fas fa-angle-left" />
+        </button>
+
+        <button
+          v-for="page in displayedPages" :key="page" class="page-button" :class="[{ active: currentPage === page }]"
+          @click="changePage(page)"
+        >
+          {{ page }}
+        </button>
+
+        <button
+          :disabled="currentPage === totalPages" class="page-button" title="下一頁"
+          @click="changePage(currentPage + 1)"
+        >
+          <i class="fas fa-angle-right" />
+        </button>
+
+        <button :disabled="currentPage === totalPages" class="page-button" title="最後一頁" @click="changePage(totalPages)">
+          <i class="fas fa-angle-double-right" />
+        </button>
+      </div>
+    </template>
+  </div>
+</template>
 
 <style scoped>
 /* 主要容器樣式 */

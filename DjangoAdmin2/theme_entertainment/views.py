@@ -137,24 +137,27 @@ class ActivityDetailView(RetrieveAPIView):
 
 
 # 前端頁面路由（供一般用戶瀏覽）
+@csrf_exempt
+@require_http_methods(["GET"])
 def activity_list(request):
+    """獲取活動列表的API"""
     try:
-        activities = Events.objects.all()
-        data = [{
-            'id': activity.id,
-            'activity_name': activity.activity_name,
-            'description': activity.description,
-            'start_date': activity.start_date,
-            'end_date': activity.end_date,
-            'location': activity.location,
-            'image_url': activity.image_url if activity.image_url else None
-        } for activity in activities]
+        # 直接從 JSON 檔案讀取
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        json_path = os.path.join(current_dir, '..', '..', 'src', 'assets', 'theme_entertainment', 'events_data.json')
 
-        return JsonResponse({
-            'status': 'success',
-            'data': data
-        })
+        if not os.path.exists(json_path):
+            # 如果檔案不存在，嘗試從資料庫獲取
+            events = Events.objects.all().values()
+            events_list = list(events)
+            return JsonResponse(events_list, safe=False)
+
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return JsonResponse(data, safe=False)
+
     except Exception as e:
+        logger.error(f"Error in activity_list: {str(e)}")
         return JsonResponse({
             'status': 'error',
             'message': str(e)
@@ -228,7 +231,8 @@ def get_events(request):
             # 格式化日期
             for event in events:
                 if event.get('start_date'):
-                    event['start_date'] = event['start_date'].strftime('%Y-%m-%d')
+                    event['start_date'] = event['start_date'].strftime(
+                        '%Y-%m-%d')
                 if event.get('end_date'):
                     event['end_date'] = event['end_date'].strftime('%Y-%m-%d')
 
@@ -271,7 +275,8 @@ def create_event(request):
     try:
         logger.info("開始創建新活動")
         data = json.loads(request.body)
-        required_fields = ['activity_name', 'organizer', 'start_date', 'end_date', 'location']
+        required_fields = ['activity_name', 'organizer',
+                           'start_date', 'end_date', 'location']
 
         # 檢查必填欄位
         for field in required_fields:
@@ -354,7 +359,8 @@ def update_event(request, event_id):
         with transaction.atomic():
             with connection.cursor() as cursor:
                 # 檢查活動是否存在
-                cursor.execute("SELECT id FROM theme_events WHERE id = %s", [event_id])
+                cursor.execute(
+                    "SELECT id FROM theme_events WHERE id = %s", [event_id])
                 if not cursor.fetchone():
                     return JsonResponse({
                         'status': 'error',
@@ -430,7 +436,8 @@ def delete_event(request, event_id):
         with transaction.atomic():
             with connection.cursor() as cursor:
                 # 檢查活動是否存在
-                cursor.execute("SELECT id FROM theme_events WHERE id = %s", [event_id])
+                cursor.execute(
+                    "SELECT id FROM theme_events WHERE id = %s", [event_id])
                 if not cursor.fetchone():
                     return JsonResponse({
                         'status': 'error',
@@ -438,7 +445,8 @@ def delete_event(request, event_id):
                     }, status=404)
 
                 # 刪除活動
-                cursor.execute("DELETE FROM theme_events WHERE id = %s", [event_id])
+                cursor.execute(
+                    "DELETE FROM theme_events WHERE id = %s", [event_id])
 
                 return JsonResponse({
                     'status': 'success',
@@ -452,4 +460,15 @@ def delete_event(request, event_id):
         }, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def sync_activities(request):
+    """同步活動數據的API"""
+    try:
+        # 重新執行數據同步
+        from .main import main
+        main()
 
+        return JsonResponse({'status': 'success', 'message': '數據同步完成'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
