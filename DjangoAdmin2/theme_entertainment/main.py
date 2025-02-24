@@ -6,7 +6,7 @@ from datetime import datetime
 import mysql.connector
 import json
 from typing import Dict, Any
-from django.core.cache import cache
+# from django.core.cache import cache
 
 # 設定專案根目錄
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -163,7 +163,6 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
         # 處理每筆資料
         events = data if isinstance(data, list) else data.get('result', [])
         for event in events:
-            # 修改 organizer 的處理邏輯
             event_data = {
                 'uid': event.get('uid', ''),
                 'activity_name': event.get('activity_name', ''),
