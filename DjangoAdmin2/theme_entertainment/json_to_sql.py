@@ -3,14 +3,42 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any
 
-def read_json_file(file_path: str) -> List[Dict[str, Any]]:
+# 設定專案根目錄
+current_dir = os.path.dirname(os.path.abspath(__file__))
+django_root = os.path.dirname(current_dir)  # DjangoAdmin2 目錄
+project_dir = os.path.dirname(django_root)  # TravelFun 專案根目錄
+
+# 全域設定
+CONFIG = {
+    'paths': {
+        'data': {
+            'json': os.path.join(project_dir, 'src', 'assets', 'theme_entertainment', 'events_data.json'),
+            # SQL 檔案放在 theme_entertainment/sql 目錄下
+            'sql': os.path.join(current_dir, 'events_data.sql')
+        }
+    },
+    'sql': {
+        'table_name': 'theme_events',
+        'date_fields': ['start_date', 'end_date', 'created_at', 'updated_at'],
+        'batch_size': 100
+    }
+}
+
+
+def read_json_file(json_path: str) -> List[Dict[str, Any]]:
     """讀取 JSON 檔案"""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        # 確保 SQL 目錄存在
+        sql_dir = os.path.join(current_dir, 'sql')
+        if not os.path.exists(sql_dir):
+            os.makedirs(sql_dir)
+
+        with open(json_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         print(f"讀取 JSON 檔案時發生錯誤: {str(e)}")
         return []
+
 
 def format_value(value: Any) -> str:
     """格式化 SQL 值"""
@@ -40,6 +68,7 @@ def format_value(value: Any) -> str:
     else:
         return f"'{str(value)}'"
 
+
 def convert_datetime_format(date_str: str) -> str:
     """轉換日期時間格式為 MySQL 格式"""
     if not date_str or date_str == 'NULL':
@@ -66,6 +95,7 @@ def convert_datetime_format(date_str: str) -> str:
     except Exception:
         return 'NULL'
 
+
 def generate_insert_sql(table_name: str, data: Dict[str, Any]) -> str:
     """生成插入 SQL 語句"""
     columns = []
@@ -80,6 +110,7 @@ def generate_insert_sql(table_name: str, data: Dict[str, Any]) -> str:
 
     return f"INSERT INTO {table_name} ({columns_str}) VALUES ({values_str});"
 
+
 def generate_update_sql(table_name: str, data: Dict[str, Any], uid: str) -> str:
     """生成更新 SQL 語句"""
     updates = []
@@ -91,6 +122,7 @@ def generate_update_sql(table_name: str, data: Dict[str, Any], uid: str) -> str:
     updates_str = ', '.join(updates)
 
     return f"UPDATE {table_name} SET {updates_str} WHERE uid = {format_value(uid)};"
+
 
 def generate_upsert_sql(table_name: str, data: Dict[str, Any]) -> str:
     """生成 UPSERT SQL 語句"""
@@ -120,9 +152,10 @@ def generate_upsert_sql(table_name: str, data: Dict[str, Any]) -> str:
             VALUES ({values_str}) AS new
             ON DUPLICATE KEY UPDATE {updates_str};"""
 
-def convert_json_to_sql(json_file_path: str, output_file_path: str) -> None:
+
+def convert_json_to_sql(json_path: str, output_file_path: str) -> None:
     """將 JSON 檔案轉換為 SQL 檔案"""
-    events_data = read_json_file(json_file_path)
+    events_data = read_json_file(json_path)
     if not events_data:
         return
 
@@ -130,7 +163,8 @@ def convert_json_to_sql(json_file_path: str, output_file_path: str) -> None:
         with open(output_file_path, 'w', encoding='utf-8') as f:
             # 寫入 SQL 檔案標頭
             f.write("-- 自動生成的 SQL 檔案\n")
-            f.write(f"-- 生成時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write(
+                f"-- 生成時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
             # 設定 MySQL 環境
             f.write("SET NAMES utf8mb4;\n")
@@ -160,7 +194,8 @@ def convert_json_to_sql(json_file_path: str, output_file_path: str) -> None:
                 }
 
                 # 生成 UPSERT SQL
-                sql = generate_upsert_sql('theme_events', event_data)
+                sql = generate_upsert_sql(
+                    CONFIG['sql']['table_name'], event_data)
                 f.write(f"{sql}\n")
 
             # 寫入 SQL 檔案結尾
@@ -171,15 +206,12 @@ def convert_json_to_sql(json_file_path: str, output_file_path: str) -> None:
     except Exception as e:
         print(f"生成 SQL 檔案時發生錯誤: {str(e)}")
 
+
 def main():
     """主程式"""
-    # 設定檔案路徑
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    json_file = os.path.join(current_dir, 'events_data.json')
-    sql_file = os.path.join(current_dir, 'events_data.sql')
+    convert_json_to_sql(CONFIG['paths']['data']['json'],
+                        CONFIG['paths']['data']['sql'])
 
-    # 執行轉換
-    convert_json_to_sql(json_file, sql_file)
 
 if __name__ == "__main__":
     main()

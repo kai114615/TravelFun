@@ -25,8 +25,10 @@ class Events(models.Model):
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
-    latitude = models.DecimalField(max_digits=10, decimal_places=8, blank=True, null=True)
-    longitude = models.DecimalField(max_digits=11, decimal_places=8, blank=True, null=True)
+    latitude = models.DecimalField(
+        max_digits=10, decimal_places=8, blank=True, null=True)
+    longitude = models.DecimalField(
+        max_digits=11, decimal_places=8, blank=True, null=True)
     ticket_price = models.TextField(blank=True, null=True)
     source_url = models.TextField(blank=True, null=True)
     image_url = models.TextField(blank=True, null=True)

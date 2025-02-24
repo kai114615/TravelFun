@@ -144,17 +144,21 @@ def activity_list(request):
     try:
         # 直接從 JSON 檔案讀取
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        json_path = os.path.join(current_dir, '..', '..', 'src', 'assets', 'theme_entertainment', 'events_data.json')
+        json_path = os.path.join(current_dir, 'events_data.json')
 
         if not os.path.exists(json_path):
-            # 如果檔案不存在，嘗試從資料庫獲取
-            events = Events.objects.all().values()
-            events_list = list(events)
-            return JsonResponse(events_list, safe=False)
+            # 如果檔案不存在，返回空列表
+            return JsonResponse([], safe=False)
 
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             return JsonResponse(data, safe=False)
+
+    except FileNotFoundError:
+        # 如果找不到檔案，嘗試從資料庫獲取
+        events = Events.objects.all().values()
+        events_list = list(events)
+        return JsonResponse(events_list, safe=False)
 
     except Exception as e:
         logger.error(f"Error in activity_list: {str(e)}")

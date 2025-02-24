@@ -8,9 +8,10 @@ import json
 from typing import Dict, Any
 from django.core.cache import cache
 
-# 設定 Django 環境
+# 設定專案根目錄
 current_dir = os.path.dirname(os.path.abspath(__file__))
 django_root = os.path.dirname(current_dir)  # DjangoAdmin2 目錄
+project_dir = os.path.dirname(django_root)  # TravelFun 專案根目錄
 
 # 將目前目錄加入 Python 路徑
 if current_dir not in sys.path:
@@ -30,6 +31,21 @@ except Exception as e:
     print(f"Django 設定錯誤: {e}")
     print(f"目前的 Python 路徑: {sys.path}")
     sys.exit(1)
+
+# 全域設定
+CONFIG = {
+    'paths': {
+        'json': os.path.join(project_dir, 'src', 'assets', 'theme_entertainment', 'events_data.json'),
+        # SQL 檔案放在 theme_entertainment/sql 目錄下
+        'sql': os.path.join(current_dir, 'events_data.sql')
+    },
+    'db': {
+        'host': os.environ.get('DB_HOST', 'localhost'),
+        'user': os.environ.get('DB_USER', 'root'),
+        'password': os.environ.get('DB_PASSWORD', 'P@ssw0rd'),
+        'database': 'fun'
+    }
+}
 
 # 導入相關模組
 try:
@@ -66,12 +82,7 @@ def init_database() -> None:
 
 def connect_to_mysql() -> mysql.connector.connection.MySQLConnection:
     """建立MySQL資料庫連接"""
-    return mysql.connector.connect(
-        host=os.environ.get('DB_HOST', 'localhost'),
-        user=os.environ.get('DB_USER', 'root'),
-        password=os.environ.get('DB_PASSWORD', 'P@ssw0rd'),
-        database="fun"
-    )
+    return mysql.connector.connect(**CONFIG['db'])
 
 
 def parse_date(date_str: str) -> str:
@@ -196,12 +207,7 @@ def save_events_to_json(events_data):
     try:
         formatted_events = []
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-        # 獲取當前檔案的目錄
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        # 構建到 src/assets 的相對路徑
-        json_path = os.path.join(current_dir, '..', '..', 'src',
-                                 'assets', 'theme_entertainment', 'events_data.json')
+        json_path = CONFIG['paths']['json']
 
         # 確保目標目錄存在
         os.makedirs(os.path.dirname(json_path), exist_ok=True)
@@ -225,6 +231,16 @@ def save_events_to_json(events_data):
             event_uid = event.get('uid', '')
             existing_event = existing_events.get(event_uid)
 
+            # 處理圖片 URL
+            image_url = event.get('imageUrl', [])
+            if isinstance(image_url, str):
+                # 如果是字串，轉換為列表
+                image_url = [
+                    image_url] if image_url and image_url != "無資料" else []
+            elif not isinstance(image_url, list):
+                # 如果既不是字串也不是列表，設為空列表
+                image_url = []
+
             # 準備新的事件資料
             new_event = {
                 'uid': event_uid,
@@ -239,7 +255,7 @@ def save_events_to_json(events_data):
                 'longitude': event.get('longitude', ''),
                 'ticket_price': event.get('price', ''),
                 'source_url': event.get('url', ''),
-                'image_url': event.get('imageUrl', '')
+                'image_url': image_url  # 現在儲存為列表
             }
 
             # 檢查是否為新事件
@@ -252,12 +268,17 @@ def save_events_to_json(events_data):
             else:
                 # 保留現有的 created_at
                 new_event['created_at'] = existing_event.get('created_at')
+                # 合併現有的圖片列表
+                existing_images = existing_event.get('image_url', [])
+                if isinstance(existing_images, list) and existing_images:
+                    new_event['image_url'] = list(
+                        set(existing_images + image_url))
 
             # 檢查所有欄位是否有變動
             has_changes = False
             for field in ['activity_name', 'description', 'organizer', 'address',
                           'start_date', 'end_date', 'location', 'latitude', 'longitude',
-                          'ticket_price', 'source_url', 'image_url']:
+                          'ticket_price', 'source_url']:
 
                 # 取得新值
                 new_value = new_event.get(field)
@@ -283,37 +304,34 @@ def save_events_to_json(events_data):
 
             # 根據是否有變動更新 updated_at
             if not is_new_event:
-                if has_changes:
+                if has_changes or new_event['image_url'] != existing_event.get('image_url', []):
                     new_event['updated_at'] = current_time
                 else:
                     new_event['updated_at'] = new_event['created_at']
 
             formatted_events.append(new_event)
 
-        # 儲存成JSON檔案
+        # 添加更詳細的日誌
+        print(f"JSON 檔案路徑: {json_path}")
+        print(f"處理的活動數量: {len(formatted_events)}")
+
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(formatted_events, f, ensure_ascii=False, indent=2)
-        print(f'已將活動資料儲存至 {json_path}')
+        print(f'成功: 活動資料已儲存至 {json_path}')
 
     except Exception as e:
-        print(f"儲存 JSON 檔案時發生錯誤: {str(e)}")
+        print(f"錯誤: 儲存 JSON 檔案失敗 - {str(e)}")
 
 
 def check_events_data_exists() -> bool:
     """檢查 events_data.json 是否存在"""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(current_dir, '..', '..', 'src',
-                             'assets', 'theme_entertainment', 'events_data.json')
-    return os.path.exists(json_path)
+    return os.path.exists(CONFIG['paths']['json'])
 
 
 def load_existing_events() -> Dict[str, Any]:
     """載入現有的 events_data.json"""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(current_dir, '..', '..', 'src',
-                             'assets', 'theme_entertainment', 'events_data.json')
     try:
-        with open(json_path, 'r', encoding='utf-8') as f:
+        with open(CONFIG['paths']['json'], 'r', encoding='utf-8') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return []
@@ -464,10 +482,9 @@ def main():
 
         # 6. 執行 json_to_sql.py 生成 SQL 檔案
         print("\n開始將 JSON 轉換為 SQL...")
-        json_file_path = 'events_data.json'
-        sql_file_path = 'events_data.sql'
-        convert_json_to_sql(json_file_path, sql_file_path)
-        print("已成功生成 SQL 檔案！\n")
+
+        convert_json_to_sql(CONFIG['paths']['json'], CONFIG['paths']['sql'])
+        print("成功: SQL 檔案已生成\n")
 
         # 7. 初始化資料庫
         print("\n開始初始化資料庫...")
@@ -481,7 +498,7 @@ def main():
 
         # 9. 匯入 SQL 檔案到資料庫
         # print("\n開始匯入 SQL 檔案到資料庫...")
-        # import_sql_to_database(connection, sql_file_path)
+        # import_sql_to_database(connection, CONFIG['paths']['sql'])
         # print("SQL 檔案匯入完成！\n")
 
         # print(f"\n=== 所有資料處理完成 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
