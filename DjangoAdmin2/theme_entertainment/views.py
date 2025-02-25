@@ -24,6 +24,7 @@ from django.views.decorators.http import require_http_methods
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import os
+from django.core.paginator import Paginator
 
 logger = logging.getLogger(__name__)
 
@@ -142,23 +143,30 @@ class ActivityDetailView(RetrieveAPIView):
 def activity_list(request):
     """獲取活動列表的API"""
     try:
-        # 直接從 JSON 檔案讀取
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        json_path = os.path.join(current_dir, 'events_data.json')
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
 
-        if not os.path.exists(json_path):
-            # 如果檔案不存在，返回空列表
-            return JsonResponse([], safe=False)
+        activities = Events.objects.all().order_by('id')
+        paginator = Paginator(activities, page_size)
 
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            return JsonResponse(data, safe=False)
+        current_page = paginator.page(page)
 
-    except FileNotFoundError:
-        # 如果找不到檔案，嘗試從資料庫獲取
-        events = Events.objects.all().values()
-        events_list = list(events)
-        return JsonResponse(events_list, safe=False)
+        data = [{
+            'id': activity.id,
+            'activity_name': activity.activity_name,
+            'location': activity.location,
+            'start_date': activity.start_date,
+            'end_date': activity.end_date,
+            'ticket_price': activity.ticket_price,
+        } for activity in current_page]
+
+        return JsonResponse({
+            'status': 'success',
+            'data': data,
+            'total': paginator.count,
+            'page': page,
+            'total_pages': paginator.num_pages
+        })
 
     except Exception as e:
         logger.error(f"Error in activity_list: {str(e)}")

@@ -10,6 +10,94 @@
 
 {% block extrastyle %}
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<!-- 添加 Naive UI 的樣式 -->
+<link href="https://unpkg.com/naive-ui@2.34.4/dist/index.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<style>
+    .page-container {
+        @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    }
+
+    .custom-card {
+        @apply shadow-md rounded-lg border border-gray-200 bg-white backdrop-blur-sm backdrop-filter;
+    }
+
+    .page-header {
+        @apply bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-6 mb-6;
+    }
+
+    .custom-table {
+        @apply rounded-lg overflow-hidden bg-white shadow-sm;
+    }
+
+    .table-header {
+        @apply bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200;
+    }
+
+    .table-header th {
+        @apply px-6 py-4 text-sm font-semibold text-gray-600 uppercase tracking-wider first:rounded-tl-lg last:rounded-tr-lg;
+    }
+
+    .table-row {
+        @apply transition-all duration-200 hover:bg-blue-50 border-b border-gray-100 last:border-0;
+    }
+
+    .table-cell {
+        @apply px-6 py-4 text-sm whitespace-nowrap align-middle;
+    }
+
+    .table-cell-primary {
+        @apply font-medium text-gray-900;
+    }
+
+    .table-cell-secondary {
+        @apply text-gray-600;
+    }
+
+    .table-icon {
+        @apply inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-500 mr-3;
+    }
+
+    .table-actions {
+        @apply flex items-center justify-end space-x-2;
+    }
+
+    .action-button {
+        @apply inline-flex items-center justify-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2;
+    }
+
+    .action-button-edit {
+        @apply bg-blue-500 hover:bg-blue-600 text-white focus:ring-blue-500;
+    }
+
+    .action-button-delete {
+        @apply bg-red-500 hover:bg-red-600 text-white focus:ring-red-500;
+    }
+
+    .date-badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800;
+    }
+
+    .location-badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800;
+    }
+
+    .btn-primary {
+        @apply bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-all transform hover:-translate-y-0.5 hover:shadow-lg;
+    }
+
+    .btn-danger {
+        @apply bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition-all transform hover:-translate-y-0.5 hover:shadow-lg;
+    }
+
+    .loading-spinner {
+        @apply animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto my-8;
+    }
+
+    .status-badge {
+        @apply px-2 py-1 rounded-full text-xs font-medium;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -17,25 +105,49 @@
     <!-- Vue 應用將在這裡渲染 -->
 </div>
 
-<!-- 引入 Vue 和相關依賴 -->
+<!-- 引入相關依賴 -->
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://unpkg.com/naive-ui@2.34.4/dist/index.js"></script>
 
 <script>
-    const { createApp, ref, onMounted } = Vue;
+    const { createApp, ref, onMounted, h, watch } = Vue;
+    const { NButton, NSpace, NCard, NDataTable, NIcon, NLayout, NLayoutHeader, NLayoutContent, NGrid, NGridItem } = naive;
 
     const app = createApp({
+        components: {
+            NButton, NSpace, NCard, NDataTable, NIcon, NLayout, NLayoutHeader, NLayoutContent, NGrid, NGridItem
+        },
         setup() {
             const activities = ref([]);
             const loading = ref(false);
             const error = ref(null);
+            const pagination = ref({
+                page: 1,
+                pageSize: 10,
+                showSizePicker: true,
+                pageSizes: [10, 50, 100, 500, 1000],
+                onChange: (page) => {
+                    pagination.value.page = page;
+                },
+                onUpdatePageSize: (pageSize) => {
+                    pagination.value.pageSize = pageSize;
+                    pagination.value.page = 1;
+                }
+            });
 
-            // 獲取活動列表
+            // 修改獲取活動列表函數以支援分頁
             const fetchActivities = async () => {
                 try {
                     loading.value = true;
-                    const response = await axios.get('/admin-dashboard/entertainment/activities/list/');
+                    const response = await axios.get('/admin-dashboard/entertainment/activities/list/', {
+                        params: {
+                            page: pagination.value.page,
+                            page_size: pagination.value.pageSize
+                        }
+                    });
                     activities.value = response.data.data;
+                    pagination.value.itemCount = response.data.total; // 假設後端返回總數
                 } catch (err) {
                     error.value = '獲取數據失敗';
                     console.error('Error:', err);
@@ -43,6 +155,11 @@
                     loading.value = false;
                 }
             };
+
+            // 監聽分頁變化
+            watch(() => [pagination.value.page, pagination.value.pageSize], () => {
+                fetchActivities();
+            });
 
             // 刪除活動
             const deleteActivity = async (id) => {
@@ -66,83 +183,133 @@
                 fetchActivities();
             });
 
+            const columns = [
+                {
+                    title: 'ID',
+                    key: 'id',
+                    width: 80,
+                    sorter: 'default',
+                    defaultSortOrder: 'ascend',
+                    render(row) {
+                        return h('span', { class: 'text-gray-500 font-mono' }, `#${row.id}`);
+                    }
+                },
+                {
+                    title: '活動名稱',
+                    key: 'activity_name',
+                    width: 200,
+                    sorter: 'default',
+                    render(row) {
+                        return h('span', { class: 'font-medium' }, row.activity_name);
+                    }
+                },
+                {
+                    title: '活動地點',
+                    key: 'location',
+                    width: 150,
+                    sorter: 'default',
+                    render(row) {
+                        return h('div', { class: 'text-gray-600' }, [
+                            h('i', { class: 'fas fa-map-marker-alt mr-2' }),
+                            row.location || '未指定地點'
+                        ]);
+                    }
+                },
+                {
+                    title: '活動日期',
+                    key: 'date',
+                    width: 200,
+                    sorter: (row1, row2) => new Date(row1.start_date) - new Date(row2.start_date),
+                    render(row) {
+                        return h('div', { class: 'text-gray-600' }, [
+                            h('i', { class: 'far fa-calendar-alt mr-2' }),
+                            `${row.start_date || ''} ~ ${row.end_date || ''}`
+                        ]);
+                    }
+                },
+                {
+                    title: '票價',
+                    key: 'ticket_price',
+                    width: 120,
+                    sorter: 'default',
+                    render(row) {
+                        return h('div', { class: 'text-gray-600' }, [
+                            h('i', { class: 'fas fa-ticket-alt mr-2' }),
+                            row.ticket_price ? `NT$ ${row.ticket_price}` : '免費'
+                        ]);
+                    }
+                },
+                {
+                    title: '操作',
+                    key: 'actions',
+                    width: 150,
+                    render(row) {
+                        return h(NSpace, null, {
+                            default: () => [
+                                h(NButton, {
+                                    type: 'primary',
+                                    size: 'small',
+                                    onClick: () => window.location.href = `/admin-dashboard/entertainment/activities/${row.id}/`
+                                }, { default: () => '編輯' }),
+                                h(NButton, {
+                                    type: 'error',
+                                    size: 'small',
+                                    onClick: () => deleteActivity(row.id)
+                                }, { default: () => '刪除' })
+                            ]
+                        });
+                    }
+                }
+            ];
+
             return {
                 activities,
                 loading,
                 error,
-                deleteActivity
+                deleteActivity,
+                columns,
+                pagination
             };
         },
         template: `
-        <div class="p-6">
-            <!-- 頂部區域 -->
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">{{ page_title }}</h1>
-                    <p class="text-gray-500">{{ page_description }}</p>
-                </div>
-                <a href="/admin-dashboard/entertainment/activities/create/"
-                   class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                    新增活動
-                </a>
-            </div>
+            <n-layout>
+                <n-layout-header style="padding: 24px">
+                    <n-card>
+                        <n-grid :cols="2">
+                            <n-grid-item>
+                                <h1 style="font-size: 24px; margin: 0">{{ page_title }}</h1>
+                                <p style="margin: 8px 0 0; color: #666">{{ page_description }}</p>
+                            </n-grid-item>
+                            <n-grid-item style="text-align: right">
+                                <n-button type="primary" @click="window.location.href='/admin-dashboard/entertainment/activities/create/'">
+                                    <template #icon><i class="fas fa-plus"></i></template>
+                                    新增活動
+                                </n-button>
+                            </n-grid-item>
+                        </n-grid>
+                    </n-card>
+                </n-layout-header>
+                <n-layout-content style="padding: 24px">
+                    <n-card v-if="error" type="error" style="margin-bottom: 16px">
+                        {{ error }}
+                    </n-card>
+                    <n-card>
+                        <n-data-table
+                            :columns="columns"
+                            :data="activities"
+                            :loading="loading"
+                            :bordered="false"
+                            :single-line="false"
+                            :pagination="pagination"
+                            style="margin-top: 16px"
+                            :default-sort="{ columnKey: 'id', order: 'ascend' }"
+                        />
+                    </n-card>
+                </n-layout-content>
+            </n-layout>
+        `    });
 
-            <!-- 錯誤提示 -->
-            <div v-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                [[ error ]]
-            </div>
-
-            <!-- 載入中提示 -->
-            <div v-if="loading" class="text-center py-4">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            </div>
-
-            <!-- 活動列表表格 -->
-            <div v-else class="overflow-x-auto">
-                <table class="min-w-full bg-white">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">活動名稱</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">主辦單位</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">活動日期</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">地點</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        <tr v-for="activity in activities" :key="activity.id" class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-medium text-gray-900">[[ activity.activity_name ]]</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">[[ activity.organizer ]]</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">
-                                    [[ activity.start_date ]] ~ [[ activity.end_date ]]
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">[[ activity.location ]]</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <a :href="'/admin-dashboard/entertainment/activities/' + activity.id + '/'"
-                                   class="text-blue-600 hover:text-blue-900 mr-4">編輯</a>
-                                <button @click="deleteActivity(activity.id)"
-                                        class="text-red-600 hover:text-red-900">刪除</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `
-    });
-
-    // 修改 Vue 的分隔符，避免與 Django 模板衝突
     app.config.compilerOptions.delimiters = ['[[', ']]'];
-
-    // 掛載 Vue 應用
     app.mount('#app');
 </script>
 {% endblock %}
