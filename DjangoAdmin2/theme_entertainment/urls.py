@@ -42,17 +42,13 @@ urlpatterns = [
          name='activity_management'),
 
     path('activities/create/',
-         views.theme_create,
-         name='theme_create'),
+         views.create_event,
+         name='create_activity'),
 
     # 後台 API 路由 - 需要認證
     path('activities/list/',
          views.get_events,
          name='admin_events'),
-
-    path('activities/create/',
-         views.create_event,
-         name='create_activity'),
 
     path('activities/<int:event_id>/',
          views.update_event,

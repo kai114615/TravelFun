@@ -176,7 +176,6 @@ def activity_list(request):
         }, status=500)
 
 
-@csrf_exempt
 def theme_create(request):
     """顯示創建活動頁面"""
     if request.method == "GET":
@@ -184,19 +183,6 @@ def theme_create(request):
             'page_title': '新增活動',
             'page_description': '創建新的主題育樂活動'
         })
-    elif request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            # 處理活動創建邏輯
-            return JsonResponse({
-                'status': 'success',
-                'message': '活動創建成功'
-            })
-        except Exception as e:
-            return JsonResponse({
-                'status': 'error',
-                'message': str(e)
-            }, status=500)
 
 
 def activity_management(request):
@@ -260,23 +246,8 @@ def get_events(request):
         }, status=500)
 
 
-@csrf_exempt
-@require_http_methods(["GET", "POST"])
 def create_event(request):
-    """
-    創建新活動或顯示創建表單
-
-    GET: 顯示創建活動的表單頁面
-    POST: 處理活動創建請求
-
-    返回格式：
-    GET: 渲染表單頁面
-    POST: {
-        'status': 'success',
-        'message': '活動創建成功',
-        'id': int
-    }
-    """
+    """創建新活動或顯示創建表單"""
     if request.method == "GET":
         context = {
             'page_title': '新增活動',
