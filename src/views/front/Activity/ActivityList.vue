@@ -411,7 +411,8 @@ export default {
               >
               <!-- 活動狀態標籤 -->
               <div
-                class="absolute top-3 right-3 px-3 py-1 rounded-md text-sm font-medium text-white transition-transform duration-300" :class="[
+                class="absolute top-3 right-3 px-4 py-1.5 min-w-[80px] text-center rounded-md text-sm font-medium text-white transition-transform duration-300"
+                :class="[
                   {
                     'bg-yellow-500/80': getStatusText(activity) === '即將開始',
                     'bg-green-500/80 animate-pulse-soft': getStatusText(activity) === '進行中',
@@ -486,12 +487,14 @@ export default {
 <style scoped>
 /* 主要容器樣式 */
 .activity-list {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
 /* 搜尋區塊樣式 */
 .search-container {
-  @apply mb-8;
+  margin-bottom: 2rem;
 }
 
 .search-bar {
@@ -662,9 +665,12 @@ export default {
 }
 
 @keyframes pulse-soft {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
