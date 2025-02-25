@@ -30,8 +30,15 @@ export default {
     async fetchActivityDetail() {
       try {
         const id = this.$route.params.id;
-        const response = await axios.get(`/theme_entertainment/activities/api/${event_id}/`);
-        this.activity = response.data;
+        const response = await axios.get(`/theme_entertainment/activities/api/${id}/`);
+        // this.activity = response.data;
+        console.log(response.data);
+
+        // 確保我們使用正確的數據結構
+        if (response.data.status === 'success')
+          this.activity = response.data.data; // 注意這裡使用 response.data.data
+        else
+          throw new Error(response.data.message || '獲取數據失敗');
       }
       catch (error) {
         this.error = '無法載入活動詳細資訊';

@@ -3,29 +3,29 @@
 包含前端頁面渲染和 API 端點
 """
 
-from django.shortcuts import render, redirect
-from rest_framework import viewsets, permissions, filters
-from rest_framework.response import Response
-from rest_framework import serializers
-from datetime import datetime
-from .serializers import ActivitySerializer
-from rest_framework.pagination import PageNumberPagination
-from django.db.models import Q
-from itertools import chain
-from rest_framework.generics import ListAPIView, RetrieveAPIView
-from django.db import connection, transaction
-import logging
+# Django 核心
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
-from .models import Events
-from django.core.serializers import serialize
-import json
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-import os
 from django.core.paginator import Paginator
+from django.db import connection
 
+# Django REST framework
+from rest_framework import permissions
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+
+# 本地應用
+from .models import Events
+from .serializers import ActivitySerializer
+
+# 工具
+import json
+import logging
+
+# 設置日誌
 logger = logging.getLogger(__name__)
 
 
@@ -116,25 +116,20 @@ class ActivityListView(ListAPIView):
             'total': len(queryset)
         })
 
+# 後台管理頁面
+def activity_management(request):
+    return render(request, 'theme_entertainment/activity_management.html', {
+        'page_title': '主題育樂活動管理',
+        'page_description': '管理所有活動資訊'
+    })
 
-class ActivityDetailView(RetrieveAPIView):
-    serializer_class = ActivitySerializer
-    permission_classes = [permissions.AllowAny]
 
-    def get_object(self):
-        pk = self.kwargs.get('pk')
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT id, uid, activity_name, description, organizer,
-                       address, start_date, end_date, location,
-                       latitude, longitude, ticket_price as ticket_info,
-                       related_link, image_url, created_at
-                FROM theme_events
-                WHERE id = %s
-            """, [pk])
-            columns = [col[0] for col in cursor.description]
-            event = dict(zip(columns, cursor.fetchone()))
-            return event
+# 創建活動頁面
+def create_event(request):
+    if request.method == "POST":
+        return render(request, 'theme_entertainment/create.html', {
+            'page_title': '新增活動'
+        })
 
 
 # 前端頁面路由（供一般用戶瀏覽）
@@ -176,24 +171,7 @@ def activity_list(request):
         }, status=500)
 
 
-def theme_create(request):
-    """顯示創建活動頁面"""
-    if request.method == "GET":
-        return render(request, 'theme_entertainment/create.html', {
-            'page_title': '新增活動',
-            'page_description': '創建新的主題育樂活動'
-        })
-
-
-def activity_management(request):
-    """後台管理頁面"""
-    return render(request, 'theme_entertainment/activity_management.html', {
-        'page_title': '主題育樂活動管理',
-        'page_description': '管理所有主題育樂活動資訊'
-    })
-
-
-# API 端點（供後台管理和前端 AJAX 調用）
+# API 端點（供後台管理）
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_events(request):
@@ -250,21 +228,19 @@ def get_events(request):
         }, status=500)
 
 
+# 創建活動（POST）
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def create_event(request):
     if request.method == "GET":
-        context = {
+        return render(request, 'theme_entertainment/create.html', {
             'page_title': '新增活動',
-            'page_description': '創建新的主題育樂活動'
-        }
-        return render(request, 'theme_entertainment/create.html', context)
+            'page_description': '創建新的活動'
+        })
 
     elif request.method == "POST":
         try:
-            # 解析 JSON 數據
             data = json.loads(request.body)
-            logger.info(f"Received POST data: {data}")  # 調試日誌
 
             # 驗證必要欄位
             required_fields = ['activity_name', 'description', 'location', 'start_date', 'end_date']
@@ -275,192 +251,100 @@ def create_event(request):
                         'message': f'缺少必要欄位: {field}'
                     }, status=400)
 
-            with transaction.atomic():
-                with connection.cursor() as cursor:
-                    # 檢查 uid 是否已存在
-                    cursor.execute(
-                        "SELECT id FROM theme_events WHERE uid = %s",
-                        [data.get('uid')]
-                    )
-                    if cursor.fetchone():
-                        return JsonResponse({
-                            'status': 'error',
-                            'message': 'uid 已存在'
-                        }, status=400)
+            # 檢查 uid 是否存在
+            if Events.objects.filter(uid=data.get('uid')).exists():
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'uid 已存在'
+                }, status=400)
 
-                    # 插入新活動
-                    cursor.execute("""
-                        INSERT INTO theme_events (
-                            uid, activity_name, description, organizer,
-                            address, start_date, end_date, location,
-                            latitude, longitude, ticket_price, source_url,
-                            image_url, created_at, updated_at
-                        ) VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
-                        ) RETURNING id
-                    """, [
-                        data.get('uid'),
-                        data.get('activity_name'),
-                        data.get('description'),
-                        data.get('organizer'),
-                        data.get('address'),
-                        data.get('start_date'),
-                        data.get('end_date'),
-                        data.get('location'),
-                        data.get('latitude'),
-                        data.get('longitude'),
-                        data.get('ticket_price'),
-                        data.get('source_url'),
-                        data.get('image_url', '')
-                    ])
+            # 創建新活動
+            new_event = Events.objects.create(
+                uid=data.get('uid'),
+                activity_name=data.get('activity_name'),
+                description=data.get('description'),
+                organizer=data.get('organizer'),
+                address=data.get('address'),
+                start_date=data.get('start_date'),
+                end_date=data.get('end_date'),
+                location=data.get('location'),
+                latitude=data.get('latitude'),
+                longitude=data.get('longitude'),
+                ticket_price=data.get('ticket_price'),
+                source_url=data.get('source_url'),
+                image_url=data.get('image_url', '')
+            )
 
-                    new_id = cursor.fetchone()[0]
-
-                    return JsonResponse({
-                        'status': 'success',
-                        'message': '活動創建成功',
-                        'id': new_id
-                    })
-
-        except json.JSONDecodeError:
             return JsonResponse({
-                'status': 'error',
-                'message': '無效的 JSON 格式'
-            }, status=400)
+                'status': 'success',
+                'message': '活動創建成功',
+                'id': new_event.id
+            })
+
         except Exception as e:
-            logger.error(f"Error in create_event: {str(e)}")
             return JsonResponse({
                 'status': 'error',
                 'message': str(e)
             }, status=500)
 
 
+# 更新活動（PUT）
 @csrf_exempt
 @require_http_methods(["PUT"])
 def update_event(request, event_id):
-    """
-    更新現有活動
-
-    參數：
-    - event_id: 活動ID
-
-    可更新欄位：
-    - 所有活動相關欄位都可選擇性更新
-    - 使用 COALESCE 保留未提供的欄位原值
-
-    特點：
-    - 使用事務確保數據一致性
-    - 先檢查活動是否存在
-    - 只更新提供的欄位
-
-    返回格式：
-    {
-        'status': 'success',
-        'message': '活動更新成功'
-    }
-    """
     try:
-        logger.info(f"開始更新活動 ID: {event_id}")
         data = json.loads(request.body)
+        event = get_object_or_404(Events, id=event_id)
 
-        with transaction.atomic():
-            with connection.cursor() as cursor:
-                # 檢查活動是否存在
-                cursor.execute(
-                    "SELECT id FROM theme_events WHERE id::text = %s", [event_id])
-                if not cursor.fetchone():
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': '活動不存在'
-                    }, status=404)
+        # 更新提供的欄位
+        fields_to_update = [
+            'activity_name', 'description', 'organizer', 'address',
+            'start_date', 'end_date', 'location', 'latitude',
+            'longitude', 'ticket_price', 'source_url', 'image_url'
+        ]
 
-                # 更新活動
-                cursor.execute("""
-                    UPDATE theme_events SET
-                        activity_name = COALESCE(%s, activity_name),
-                        description = COALESCE(%s, description),
-                        organizer = COALESCE(%s, organizer),
-                        address = COALESCE(%s, address),
-                        start_date = COALESCE(%s, start_date),
-                        end_date = COALESCE(%s, end_date),
-                        location = COALESCE(%s, location),
-                        latitude = COALESCE(%s, latitude),
-                        longitude = COALESCE(%s, longitude),
-                        ticket_price = COALESCE(%s, ticket_price),
-                        source_url = COALESCE(%s, source_url),
-                        image_url = COALESCE(%s, image_url)
-                    WHERE id = %s
-                """, [
-                    data.get('activity_name'),
-                    data.get('description'),
-                    data.get('organizer'),
-                    data.get('address'),
-                    data.get('start_date'),
-                    data.get('end_date'),
-                    data.get('location'),
-                    data.get('latitude'),
-                    data.get('longitude'),
-                    data.get('ticket_info'),
-                    data.get('source_url'),
-                    data.get('image_url'),
-                    event_id
-                ])
+        for field in fields_to_update:
+            if field in data:
+                setattr(event, field, data[field])
 
-                return JsonResponse({
-                    'status': 'success',
-                    'message': '活動更新成功'
-                })
+        event.save()
+
+        return JsonResponse({
+            'status': 'success',
+            'message': '活動更新成功'
+        })
+
+    except Events.DoesNotExist:
+        return JsonResponse({
+            'status': 'error',
+            'message': '活動不存在'
+        }, status=404)
     except Exception as e:
-        logger.error(f"Error in update_event: {str(e)}")
         return JsonResponse({
             'status': 'error',
             'message': str(e)
         }, status=500)
 
 
+# 刪除活動（DELETE）
 @csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_event(request, event_id):
-    """
-    刪除指定活動
-
-    參數：
-    - event_id: 活動ID
-
-    處理流程：
-    1. 檢查活動是否存在
-    2. 使用事務確保安全刪除
-    3. 完整的錯誤處理
-
-    返回格式：
-    {
-        'status': 'success',
-        'message': '活動刪除成功'
-    }
-    """
     try:
-        logger.info(f"開始刪除活動 ID: {event_id}")
-        with transaction.atomic():
-            with connection.cursor() as cursor:
-                # 檢查活動是否存在
-                cursor.execute(
-                    "SELECT id FROM theme_events WHERE id = %s", [event_id])
-                if not cursor.fetchone():
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': '活動不存在'
-                    }, status=404)
+        event = get_object_or_404(Events, id=event_id)
+        event.delete()
 
-                # 刪除活動
-                cursor.execute(
-                    "DELETE FROM theme_events WHERE id = %s", [event_id])
+        return JsonResponse({
+            'status': 'success',
+            'message': '活動刪除成功'
+        })
 
-                return JsonResponse({
-                    'status': 'success',
-                    'message': '活動刪除成功'
-                })
+    except Events.DoesNotExist:
+        return JsonResponse({
+            'status': 'error',
+            'message': '活動不存在'
+        }, status=404)
     except Exception as e:
-        logger.error(f"Error in delete_event: {str(e)}")
         return JsonResponse({
             'status': 'error',
             'message': str(e)
@@ -468,56 +352,44 @@ def delete_event(request, event_id):
 
 
 @csrf_exempt
-@require_http_methods(["POST"])
-def sync_activities(request):
-    """同步活動數據的API"""
-    try:
-        # 重新執行數據同步
-        from .main import main
-        main()
-
-        return JsonResponse({'status': 'success', 'message': '數據同步完成'})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
 @require_http_methods(["GET"])
 def get_event_detail(request, event_id):
     """
     獲取單個活動的詳細資訊
     """
     try:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT id, uid, activity_name, description, organizer,
-                       address, start_date, end_date, location,
-                       latitude, longitude, ticket_price, source_url,
-                       image_url, created_at, updated_at
-                FROM theme_events
-                WHERE id::text = %s  # 確保 id 比較的類型一致
-            """, [event_id])
+        # 使用 ORM 而不是原始 SQL，避免類型轉換問題
+        event = get_object_or_404(Events, id=event_id)
 
-            columns = [col[0] for col in cursor.description]
-            row = cursor.fetchone()
+        data = {
+            'id': event.id,
+            'uid': event.uid,
+            'activity_name': event.activity_name,
+            'description': event.description,
+            'organizer': event.organizer,
+            'address': event.address,
+            'start_date': event.start_date.strftime('%Y-%m-%d') if event.start_date else None,
+            'end_date': event.end_date.strftime('%Y-%m-%d') if event.end_date else None,
+            'location': event.location,
+            'latitude': float(event.latitude) if event.latitude else None,
+            'longitude': float(event.longitude) if event.longitude else None,
+            'ticket_price': event.ticket_price,
+            'source_url': event.source_url,
+            'image_url': event.image_url,
+            'created_at': event.created_at.strftime('%Y-%m-%d') if event.created_at else None,
+            'updated_at': event.updated_at.strftime('%Y-%m-%d') if event.updated_at else None
+        }
 
-            if not row:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': '找不到該活動'
-                }, status=404)
+        return JsonResponse({
+            'status': 'success',
+            'data': data
+        })
 
-            event = dict(zip(columns, row))
-
-            # 格式化日期
-            for date_field in ['start_date', 'end_date', 'created_at', 'updated_at']:
-                if event.get(date_field):
-                    event[date_field] = event[date_field].strftime('%Y-%m-%d')
-
-            return JsonResponse({
-                'status': 'success',
-                'data': event
-            })
-
+    except Events.DoesNotExist:
+        return JsonResponse({
+            'status': 'error',
+            'message': '找不到該活動'
+        }, status=404)
     except Exception as e:
         logger.error(f"Error in get_event_detail: {str(e)}")
         return JsonResponse({

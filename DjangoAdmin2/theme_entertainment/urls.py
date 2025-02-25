@@ -32,9 +32,9 @@ urlpatterns = [
          name='activity_list'),
 
     # 新增用於更新本地數據的API
-    path('activities/api/sync/',
-         csrf_exempt(views.sync_activities),
-         name='sync_activities'),
+#     path('activities/api/sync/',
+#          csrf_exempt(views.sync_activities),
+#          name='sync_activities'),
 
     # 後台管理頁面路由
     path('activities/',
@@ -50,12 +50,12 @@ urlpatterns = [
          views.get_events,
          name='admin_events'),
 
-    # 新增活動詳情 API 路由
-    path('activities/api/<int:event_id>/',
+    # 活動詳情 API 路由
+    path('activities/api/<int:id>/',
          views.get_event_detail,
          name='event_detail'),
 
-    path('activities/<int:event_id>/',
+    path('activities/<int:event_id>/update/',
          views.update_event,
          name='update_event'),
 

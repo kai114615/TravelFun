@@ -162,9 +162,12 @@ const routes = [
     },
   },
   {
-    path: '/activity/:id',
+    path: '/activity/api/:id',
     name: 'ActivityDetail',
-    component: ActivityDetail,
+    component: () => import('../views/front/Activity/ActivityDetail.vue'),
+    meta: {
+      title: '活動詳細資訊',
+    },
   },
 ];
 
