@@ -204,6 +204,10 @@ def get_events(request):
     try:
         # 判斷是否為管理介面的請求
         is_admin = request.GET.get('is_admin', 'false').lower() == 'true'
+        sort_order = request.GET.get('sort', 'desc').lower()  # 預設降序
+
+        # 設定排序方向
+        order_by = 'DESC' if sort_order == 'desc' else 'ASC'
 
         with connection.cursor() as cursor:
             if is_admin:
@@ -211,8 +215,8 @@ def get_events(request):
                 cursor.execute("""
                     SELECT *
                     FROM theme_events
-                    ORDER BY start_date DESC
-                """)
+                    ORDER BY id %s, start_date %s
+                """ % (order_by, order_by))
             else:
                 # 前台查詢（只顯示未結束的活動）
                 cursor.execute("""
@@ -220,8 +224,8 @@ def get_events(request):
                            start_date, end_date, location, image_url
                     FROM theme_events
                     WHERE end_date >= CURRENT_DATE
-                    ORDER BY start_date ASC
-                """)
+                    ORDER BY id %s, start_date %s
+                """ % (order_by, order_by))
 
             columns = [col[0] for col in cursor.description]
             events = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -246,69 +250,89 @@ def get_events(request):
         }, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def create_event(request):
-    """創建新活動或顯示創建表單"""
     if request.method == "GET":
         context = {
             'page_title': '新增活動',
-            'page_description': '建立新的主題育樂活動'
+            'page_description': '創建新的主題育樂活動'
         }
         return render(request, 'theme_entertainment/create.html', context)
 
-    try:
-        logger.info("開始創建新活動")
-        data = json.loads(request.body)
-        required_fields = ['activity_name', 'organizer',
-                           'start_date', 'end_date', 'location']
+    elif request.method == "POST":
+        try:
+            # 解析 JSON 數據
+            data = json.loads(request.body)
+            logger.info(f"Received POST data: {data}")  # 調試日誌
 
-        # 檢查必填欄位
-        for field in required_fields:
-            if not data.get(field):
-                return JsonResponse({
-                    'status': 'error',
-                    'message': f'缺少必填欄位: {field}'
-                }, status=400)
+            # 驗證必要欄位
+            required_fields = ['activity_name', 'description', 'location', 'start_date', 'end_date']
+            for field in required_fields:
+                if not data.get(field):
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'缺少必要欄位: {field}'
+                    }, status=400)
 
-        with transaction.atomic():
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO theme_events (
-                        activity_name, description, organizer,
-                        address, start_date, end_date,
-                        location, latitude, longitude,
-                        ticket_price, source_url, image_url,
-                        created_at
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
-                    ) RETURNING id
-                """, [
-                    data.get('activity_name'),
-                    data.get('description', ''),
-                    data.get('organizer'),
-                    data.get('address', ''),
-                    data.get('start_date'),
-                    data.get('end_date'),
-                    data.get('location'),
-                    data.get('latitude', 0),
-                    data.get('longitude', 0),
-                    data.get('ticket_info', ''),
-                    data.get('source_url', ''),
-                    data.get('image_url', '')
-                ])
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    # 檢查 uid 是否已存在
+                    cursor.execute(
+                        "SELECT id FROM theme_events WHERE uid = %s",
+                        [data.get('uid')]
+                    )
+                    if cursor.fetchone():
+                        return JsonResponse({
+                            'status': 'error',
+                            'message': 'uid 已存在'
+                        }, status=400)
 
-                new_id = cursor.fetchone()[0]
+                    # 插入新活動
+                    cursor.execute("""
+                        INSERT INTO theme_events (
+                            uid, activity_name, description, organizer,
+                            address, start_date, end_date, location,
+                            latitude, longitude, ticket_price, source_url,
+                            image_url, created_at, updated_at
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
+                        ) RETURNING id
+                    """, [
+                        data.get('uid'),
+                        data.get('activity_name'),
+                        data.get('description'),
+                        data.get('organizer'),
+                        data.get('address'),
+                        data.get('start_date'),
+                        data.get('end_date'),
+                        data.get('location'),
+                        data.get('latitude'),
+                        data.get('longitude'),
+                        data.get('ticket_price'),
+                        data.get('source_url'),
+                        data.get('image_url', '')
+                    ])
 
-                return JsonResponse({
-                    'status': 'success',
-                    'message': '活動創建成功',
-                    'id': new_id
-                })
-    except Exception as e:
-        logger.error(f"Error in create_event: {str(e)}")
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        }, status=500)
+                    new_id = cursor.fetchone()[0]
+
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': '活動創建成功',
+                        'id': new_id
+                    })
+
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'status': 'error',
+                'message': '無效的 JSON 格式'
+            }, status=400)
+        except Exception as e:
+            logger.error(f"Error in create_event: {str(e)}")
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
 
 
 @csrf_exempt

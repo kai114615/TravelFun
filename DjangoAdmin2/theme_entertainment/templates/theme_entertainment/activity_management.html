@@ -8,11 +8,11 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% block extrastyle %}
+{% block extracss %}
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <!-- 添加 Naive UI 的樣式 -->
 <link href="https://unpkg.com/naive-ui@2.34.4/dist/index.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<script src="https://kit.fontawesome.com/your-kit-code.js" crossorigin="anonymous"></script>
 <style>
     .page-container {
         max-width: 80rem;
@@ -310,7 +310,7 @@
                 {
                     title: '活動名稱',
                     key: 'activity_name',
-                    width: 300,
+                    width: 350,
                     sorter: 'default',
                     render(row) {
                         return h('span', { class: 'font-medium' }, row.activity_name);
@@ -343,7 +343,7 @@
                 {
                     title: '票價',
                     key: 'ticket_price',
-                    width: 80,
+                    width: 50,
                     sorter: 'default',
                     render(row) {
                         return h('div', { class: 'text-gray-600' }, [
@@ -355,7 +355,7 @@
                 {
                     title: '操作',
                     key: 'actions',
-                    width: 100,
+                    width: 150,
                     render(row) {
                         return h(NSpace, null, {
                             default: () => [
@@ -363,12 +363,12 @@
                                     type: 'primary',
                                     size: 'small',
                                     onClick: () => window.location.href = `/admin-dashboard/entertainment/activities/${row.id}/`
-                                }, { default: () => '編輯' }),
+                                }, { default: () => '✏️ 編輯' }),
                                 h(NButton, {
                                     type: 'error',
                                     size: 'small',
                                     onClick: () => deleteActivity(row.id)
-                                }, { default: () => '刪除' })
+                                }, { default: () => '🗑️ 刪除' })
                             ]
                         });
                     }
@@ -396,7 +396,7 @@
                             </n-grid-item>
                             <n-grid-item style="text-align: right">
                                 <n-button type="primary" @click="handleCreateClick">
-                                    <template #icon><i class="fas fa-plus"></i></template>
+                                    <template #icon>➕</template>
                                     新增活動
                                 </n-button>
                             </n-grid-item>
