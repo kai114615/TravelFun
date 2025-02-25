@@ -367,7 +367,7 @@ def update_event(request, event_id):
             with connection.cursor() as cursor:
                 # 檢查活動是否存在
                 cursor.execute(
-                    "SELECT id FROM theme_events WHERE id = %s", [event_id])
+                    "SELECT id FROM theme_events WHERE id::text = %s", [event_id])
                 if not cursor.fetchone():
                     return JsonResponse({
                         'status': 'error',
@@ -479,3 +479,48 @@ def sync_activities(request):
         return JsonResponse({'status': 'success', 'message': '數據同步完成'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def get_event_detail(request, event_id):
+    """
+    獲取單個活動的詳細資訊
+    """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT id, uid, activity_name, description, organizer,
+                       address, start_date, end_date, location,
+                       latitude, longitude, ticket_price, source_url,
+                       image_url, created_at, updated_at
+                FROM theme_events
+                WHERE id::text = %s  # 確保 id 比較的類型一致
+            """, [event_id])
+
+            columns = [col[0] for col in cursor.description]
+            row = cursor.fetchone()
+
+            if not row:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': '找不到該活動'
+                }, status=404)
+
+            event = dict(zip(columns, row))
+
+            # 格式化日期
+            for date_field in ['start_date', 'end_date', 'created_at', 'updated_at']:
+                if event.get(date_field):
+                    event[date_field] = event[date_field].strftime('%Y-%m-%d')
+
+            return JsonResponse({
+                'status': 'success',
+                'data': event
+            })
+
+    except Exception as e:
+        logger.error(f"Error in get_event_detail: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)

@@ -1,8 +1,19 @@
 <script>
 import axios from 'axios';
+import { NButton, NCard, NIcon, NPagination } from 'naive-ui';
+import { CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
 export default {
   name: 'ActivityList',
+  components: {
+    NCard,
+    NButton,
+    NPagination,
+    NIcon,
+    LocationOutline,
+    CalendarOutline,
+    TicketOutline,
+  },
   data() {
     return {
       activities: [],
@@ -223,7 +234,7 @@ export default {
 
     formatDate(dateString) {
       if (!dateString)
-        return '待定';
+        return '時間未定';
       return new Date(dateString).toLocaleDateString('zh-TW', {
         year: 'numeric',
         month: 'long',
@@ -278,14 +289,39 @@ export default {
     },
 
     getStatusText(activity) {
-      const now = new Date();
-      const startDate = new Date(activity.start_date);
-      const endDate = new Date(activity.end_date);
+      // 如果沒有開始或結束日期，返回未知狀態
+      if (!activity.start_date || !activity.end_date)
+        return '未知';
 
-      if (now < startDate)
+      // 獲取今天的日期（不含時間）
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // 獲取3天後的日期
+      const threeDaysLater = new Date(today);
+      threeDaysLater.setDate(today.getDate() + 3);
+
+      const startDate = new Date(activity.start_date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(activity.end_date);
+      endDate.setHours(23, 59, 59, 999);
+
+      // 如果開始日期在今天到3天內，則為"即將開始"
+      if (startDate > today && startDate <= threeDaysLater)
         return '即將開始';
-      if (now > endDate)
+
+      // 如果今天在活動期間內（包含開始日和結束日），則為"進行中"
+      if (today >= startDate && today <= endDate)
+        return '進行中';
+
+      // 如果結束日期在今天之前，則為"已結束"
+      if (endDate < today)
         return '已結束';
+
+      // 開始日期在3天後
+      if (startDate > threeDaysLater)
+        return '未開始';
+
       return '進行中';
     },
 
@@ -361,92 +397,87 @@ export default {
     </template>
 
     <template v-else>
-      <div class="activities-container">
-        <div v-for="activity in paginatedActivities" :key="activity.id" class="activity-card">
-          <div class="activity-image">
-            <div v-if="Array.isArray(activity.image_url) && activity.image_url.length > 0" class="carousel">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+        <template v-for="activity in paginatedActivities" :key="activity.id">
+          <NCard
+            class="activity-card transform transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+            :bordered="false" size="small"
+          >
+            <!-- 圖片容器 -->
+            <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg">
               <img
-                :src="activity.image_url[currentImageIndexes[activity.id] || 0]" :alt="activity.activity_name"
-                loading="lazy" @error="handleImageError"
+                :src="getImageUrl(activity)" :alt="activity.activity_name" class="w-full h-full object-cover"
+                @error="handleImageError"
               >
-              <div v-if="activity.image_url.length > 1" class="carousel-controls">
-                <button class="carousel-btn prev" @click="prevImage(activity.id)">
-                  <i class="fas fa-chevron-left" />
-                </button>
-                <button class="carousel-btn next" @click="nextImage(activity.id)">
-                  <i class="fas fa-chevron-right" />
-                </button>
-                <div class="carousel-indicators">
-                  <span
-                    v-for="(_, index) in activity.image_url" :key="index"
-                    class="indicator" :class="[{ active: (currentImageIndexes[activity.id] || 0) === index }]"
-                    @click="setImage(activity.id, index)"
-                  />
-                </div>
+              <!-- 活動狀態標籤 -->
+              <div
+                class="absolute top-3 right-3 px-3 py-1 rounded-md text-sm font-medium text-white transition-transform duration-300" :class="[
+                  {
+                    'bg-yellow-500/80': getStatusText(activity) === '即將開始',
+                    'bg-green-500/80 animate-pulse-soft': getStatusText(activity) === '進行中',
+                    'bg-gray-400/80': getStatusText(activity) === '已結束',
+                    'bg-amber-900/80': getStatusText(activity) === '未知',
+                    'bg-gray-700/80': getStatusText(activity) === '未開始',
+                  },
+                ]"
+              >
+                {{ getStatusText(activity) }}
               </div>
             </div>
-            <img
-              v-else :src="getImageUrl(activity)" :alt="activity.activity_name" loading="lazy"
-              @error="handleImageError"
-            >
-          </div>
-          <div class="activity-content">
-            <h2 class="activity-title">
-              {{ activity.activity_name }}
-            </h2>
-            <div class="activity-details">
-              <p class="activity-date">
-                <i class="fas fa-calendar-alt" />
-                {{ formatDate(activity.start_date) }} - {{ formatDate(activity.end_date) }}
+
+            <!-- 活動內容 -->
+            <div class="p-4">
+              <!-- 活動標題 -->
+              <h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                {{ activity.activity_name }}
+              </h3>
+
+              <!-- 活動資訊 -->
+              <div class="space-y-2 text-sm text-gray-600">
+                <div class="flex items-center">
+                  <NIcon class="mr-2">
+                    <LocationOutline />
+                  </NIcon>
+                  {{ activity.location || '地點未定' }}
+                </div>
+                <div class="flex items-center">
+                  <NIcon class="mr-2">
+                    <CalendarOutline />
+                  </NIcon>
+                  {{ formatDate(activity.start_date) }} ~ {{ formatDate(activity.end_date) }}
+                </div>
+                <div class="flex items-center">
+                  <NIcon class="mr-2">
+                    <TicketOutline />
+                  </NIcon>
+                  {{ activity.ticket_price || '免費' }}
+                </div>
+              </div>
+
+              <!-- 活動描述 -->
+              <p class="mt-3 text-sm text-gray-500 line-clamp-2">
+                {{ activity.description }}
               </p>
-              <p class="activity-location">
-                <i class="fas fa-map-marker-alt" />
-                {{ activity.location }}
-              </p>
+
+              <!-- 按鈕區域 -->
+              <div class="mt-4 flex justify-end">
+                <NButton
+                  type="primary" size="small" class="hover:shadow-md transition-shadow"
+                  @click="viewDetails(activity)"
+                >
+                  查看詳情
+                </NButton>
+              </div>
             </div>
-            <div class="content-divider" />
-            <p class="activity-description">
-              {{ activity.description }}
-            </p>
-            <div class="activity-status" :class="getStatusClass(activity)">
-              {{ getStatusText(activity) }}
-            </div>
-            <div class="activity-footer">
-              <button class="detail-button" @click="viewDetails(activity)">
-                <i class="fas fa-info-circle" />
-                活動詳情
-              </button>
-            </div>
-          </div>
-        </div>
+          </NCard>
+        </template>
       </div>
 
-      <div v-if="totalPages > 1" class="pagination">
-        <button :disabled="currentPage === 1" class="page-button" title="第一頁" @click="changePage(1)">
-          <i class="fas fa-angle-double-left" />
-        </button>
-
-        <button :disabled="currentPage === 1" class="page-button" title="上一頁" @click="changePage(currentPage - 1)">
-          <i class="fas fa-angle-left" />
-        </button>
-
-        <button
-          v-for="page in displayedPages" :key="page" class="page-button" :class="[{ active: currentPage === page }]"
-          @click="changePage(page)"
-        >
-          {{ page }}
-        </button>
-
-        <button
-          :disabled="currentPage === totalPages" class="page-button" title="下一頁"
-          @click="changePage(currentPage + 1)"
-        >
-          <i class="fas fa-angle-right" />
-        </button>
-
-        <button :disabled="currentPage === totalPages" class="page-button" title="最後一頁" @click="changePage(totalPages)">
-          <i class="fas fa-angle-double-right" />
-        </button>
+      <div class="flex justify-center mt-8 mb-12">
+        <NPagination
+          v-model:page="currentPage" :page-count="totalPages" :page-sizes="[12, 24, 36]" show-size-picker
+          @update:page="changePage"
+        />
       </div>
     </template>
   </div>
@@ -455,19 +486,12 @@ export default {
 <style scoped>
 /* 主要容器樣式 */
 .activity-list {
-  min-height: 100vh;
-  background-color: #f8f9fa;
-  padding: 20px;
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 
 /* 搜尋區塊樣式 */
 .search-container {
-  width: 100%;
-  padding: 15px;
-  background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
+  @apply mb-8;
 }
 
 .search-bar {
@@ -525,170 +549,6 @@ export default {
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-/* 活動卡片容器樣式 */
-.activities-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-  margin: 0 auto;
-  padding: 15px;
-}
-
-/* 活動卡片樣式 */
-.activity-card {
-  background: white;
-  border-radius: 4px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-  border: 1px solid #dee2e6;
-  position: relative;
-}
-
-.activity-card:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-.activity-image {
-  height: 200px;
-  overflow: hidden;
-  position: relative;
-  border-bottom: 1px solid #dee2e6;
-  background-color: #f8f9fa;
-}
-
-.activity-image::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 40%;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.2), transparent);
-}
-
-.activity-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease;
-  background-color: #f8f9fa;
-}
-
-.activity-card:hover .activity-image img {
-  transform: scale(1.05);
-}
-
-.activity-content {
-  padding: 20px;
-  text-align: left;
-}
-
-.activity-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #212529;
-  margin-bottom: 12px;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-clamp: 2;
-  overflow: hidden;
-}
-
-.activity-details {
-  margin: 12px 0;
-  color: #495057;
-}
-
-.activity-details p {
-  display: flex;
-  align-items: center;
-  margin: 8px 0;
-  font-size: 14px;
-}
-
-.activity-details i {
-  width: 20px;
-  margin-right: 10px;
-  color: #6c757d;
-  font-size: 15px;
-  text-align: center;
-}
-
-.content-divider {
-  height: 1px;
-  background-color: #dee2e6;
-  margin: 12px 0;
-}
-
-.activity-description {
-  margin: 12px 0;
-  color: #6c757d;
-  line-height: 1.6;
-  font-size: 14px;
-  text-align: left;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-clamp: 2;
-  overflow: hidden;
-  max-height: 44px;
-  position: relative;
-  word-break: break-word;
-}
-
-.activity-description::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 40px;
-  height: 22px;
-  background: linear-gradient(to right, transparent, white);
-}
-
-/* 活動狀態樣式 */
-.activity-status {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 3px;
-  font-size: 12px;
-  font-weight: 500;
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  min-width: 72px;
-  /* 根據「即將開始」的寬度設置 */
-  text-align: center;
-}
-
-.status-upcoming {
-  background-color: rgba(52, 58, 64, 0.6);
-  /* 提高透明度 */
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  /* 調整邊框透明度 */
-}
-
-.status-ongoing {
-  background-color: rgba(40, 167, 69, 0.6);
-  /* 保持一致的透明度 */
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.status-ended {
-  background-color: rgba(108, 117, 125, 0.6);
-  /* 保持一致的透明度 */
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
 /* 載入狀態樣式 */
 .loading-state {
   text-align: center;
@@ -726,125 +586,6 @@ export default {
 
 .retry-button:hover {
   background-color: #c82333;
-}
-
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .activities-container {
-    grid-template-columns: 1fr;
-    padding: 10px;
-  }
-
-  .activity-card {
-    margin-bottom: 15px;
-  }
-}
-
-/* 分頁樣式 */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  margin: 30px 0;
-  padding: 15px;
-}
-
-.page-button {
-  min-width: 36px;
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid #dee2e6;
-  background-color: #fff;
-  color: #495057;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  margin: 0 2px;
-}
-
-.page-button i {
-  font-size: 12px;
-}
-
-.page-button:first-child,
-.page-button:last-child {
-  font-size: 12px;
-}
-
-.page-button:hover:not(:disabled) {
-  background-color: #e9ecef;
-  border-color: #dee2e6;
-  color: #007bff;
-}
-
-.page-button.active {
-  background-color: #007bff;
-  border-color: #007bff;
-  color: #fff;
-}
-
-.page-button:disabled {
-  background-color: #f8f9fa;
-  border-color: #dee2e6;
-  color: #6c757d;
-  cursor: not-allowed;
-}
-
-/* 響應式設計補充 */
-@media (max-width: 768px) {
-  .pagination {
-    gap: 4px;
-  }
-
-  .page-button {
-    min-width: 32px;
-    height: 32px;
-    padding: 0 8px;
-  }
-
-  /* 在移動端隱藏部分頁碼 */
-  .page-button:not(:first-child):not(:last-child):not(.active) {
-    display: none;
-  }
-}
-
-/* 活動卡片底部樣式 */
-.activity-footer {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #dee2e6;
-  text-align: right;
-}
-
-.detail-button {
-  padding: 6px 12px;
-  background-color: #343a40;
-  /* 改用深色系 */
-  color: #fff;
-  border: none;
-  border-radius: 3px;
-  font-size: 13px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.detail-button:hover {
-  background-color: #23272b;
-  /* 深色系的 hover 狀態 */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.detail-button i {
-  font-size: 12px;
 }
 
 /* 輪播樣式 */
@@ -918,5 +659,18 @@ export default {
 .indicator.active {
   background-color: white;
   transform: scale(1.2);
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
 }
 </style>

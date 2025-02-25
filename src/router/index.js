@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import MallView from '../views/front/Mall/MallView.vue';
 import HomeView from '../views/front/Home/HomeView.vue';
 import ThemeEntertainmentView from '@/views/admin/ThemeEntertainmentView.vue';
+import ActivityDetail from '@/views/front/Activity/ActivityDetail.vue';
 
 const routes = [
   {
@@ -159,6 +160,11 @@ const routes = [
     meta: {
       title: '主題育樂活動',
     },
+  },
+  {
+    path: '/activity/:id',
+    name: 'ActivityDetail',
+    component: ActivityDetail,
   },
 ];
 
