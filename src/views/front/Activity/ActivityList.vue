@@ -400,8 +400,12 @@ export default {
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
         <template v-for="activity in paginatedActivities" :key="activity.id">
           <NCard
-            class="activity-card transform transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-            :bordered="false" size="small"
+            class="activity-card transform transition-all duration-300 hover:-translate-y-1"
+            :bordered="false"
+            size="medium"
+            :segmented="{ content: true }"
+            :hoverable="true"
+            style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
           >
             <!-- 圖片容器 -->
             <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg">
@@ -665,7 +669,6 @@ export default {
 }
 
 @keyframes pulse-soft {
-
   0%,
   100% {
     transform: scale(1);
