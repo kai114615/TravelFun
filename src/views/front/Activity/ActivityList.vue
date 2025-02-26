@@ -81,6 +81,7 @@ export default {
         'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&auto=format&fit=crop&q=80',
       ],
       currentImageIndexes: {}, // 改用 localStorage 來持久化儲存
+      topPagination: true, // 控制上方分頁的顯示
     };
   },
   computed: {
@@ -413,6 +414,14 @@ export default {
     </template>
 
     <template v-else>
+      <!-- 添加上方分頁 -->
+      <div class="flex justify-center mb-8">
+        <NPagination
+          v-model:page="currentPage" :page-count="totalPages" :page-sizes="[12, 24, 36, 48]" show-size-picker
+          @update:page="changePage"
+        />
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
         <template v-for="activity in paginatedActivities" :key="activity.id">
           <NCard
@@ -491,9 +500,10 @@ export default {
         </template>
       </div>
 
+      <!-- 保留原有的下方分頁 -->
       <div class="flex justify-center mt-8 mb-12">
         <NPagination
-          v-model:page="currentPage" :page-count="totalPages" :page-sizes="[12, 24, 36]" show-size-picker
+          v-model:page="currentPage" :page-count="totalPages" :page-sizes="[12, 24, 36, 48]" show-size-picker
           @update:page="changePage"
         />
       </div>
@@ -695,5 +705,23 @@ export default {
 
 .animate-pulse-soft {
   animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* 添加分頁相關樣式 */
+.n-pagination {
+  @apply bg-white rounded-lg shadow-sm p-2;
+}
+
+/* 確保上下分頁的一致性 */
+.n-pagination :deep(.n-pagination-item) {
+  @apply min-w-[32px] h-8 leading-8 mx-1;
+}
+
+.n-pagination :deep(.n-pagination-item--active) {
+  @apply bg-blue-500 text-white;
+}
+
+.n-pagination :deep(.n-pagination-item:hover:not(.n-pagination-item--active)) {
+  @apply bg-gray-100;
 }
 </style>
