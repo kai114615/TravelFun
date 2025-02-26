@@ -80,8 +80,7 @@ export default {
         // 露營車 RV Camping
         'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&auto=format&fit=crop&q=80',
       ],
-      usedImageIndexes: new Set(), // 追蹤已使用的圖片索引
-      currentImageIndexes: {}, // 儲存每個活動當前顯示的圖片索引
+      currentImageIndexes: {}, // 改用 localStorage 來持久化儲存
     };
   },
   computed: {
@@ -242,49 +241,64 @@ export default {
       });
     },
 
+    getImageUrl(activity) {
+      // 如果活動有自己的圖片，優先使用
+      if (Array.isArray(activity.image_url) && activity.image_url.length > 0)
+        return activity.image_url[0];
+
+      if (activity.image_url)
+        return activity.image_url;
+
+      // 使用 localStorage 來保存圖片分配
+      const storageKey = `activity_image_${activity.id}`;
+      let imageIndex = localStorage.getItem(storageKey);
+
+      // 如果沒有儲存過，分配新的圖片索引
+      if (imageIndex === null) {
+        imageIndex = this.getRandomUniqueImageIndex();
+        localStorage.setItem(storageKey, imageIndex);
+      }
+
+      return this.defaultImages[Number.parseInt(imageIndex)];
+    },
+
     getRandomUniqueImageIndex() {
+      // 從 localStorage 獲取所有已使用的索引
+      const usedIndexes = new Set();
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('activity_image_'))
+          usedIndexes.add(Number.parseInt(localStorage.getItem(key)));
+      }
+
+      // 獲取可用的索引
       let availableIndexes = Array.from(
         { length: this.defaultImages.length },
         (_, i) => i,
-      ).filter(i => !this.usedImageIndexes.has(i));
+      ).filter(i => !usedIndexes.has(i));
 
-      // 如果所有圖片都被使用過，重置追蹤器
+      // 如果所有圖片都被使用過，重新開始分配
       if (availableIndexes.length === 0) {
-        this.usedImageIndexes.clear();
         availableIndexes = Array.from(
           { length: this.defaultImages.length },
           (_, i) => i,
         );
       }
 
-      const randomIndex = availableIndexes[
-        Math.floor(Math.random() * availableIndexes.length)
-      ];
-      this.usedImageIndexes.add(randomIndex);
-
-      // 保持追蹤器大小在合理範圍
-      if (this.usedImageIndexes.size > this.itemsPerPage) {
-        const firstUsed = Array.from(this.usedImageIndexes)[0];
-        this.usedImageIndexes.delete(firstUsed);
-      }
-
-      return randomIndex;
-    },
-
-    getImageUrl(activity) {
-      if (Array.isArray(activity.image_url) && activity.image_url.length > 0)
-        return activity.image_url[0]; // 返回第一張圖片
-
-      if (activity.image_url)
-        return activity.image_url;
-
-      const index = this.getRandomUniqueImageIndex();
-      return this.defaultImages[index];
+      // 隨機選擇一個可用索引
+      return availableIndexes[Math.floor(Math.random() * availableIndexes.length)];
     },
 
     handleImageError(e) {
-      const index = this.getRandomUniqueImageIndex();
-      e.target.src = this.defaultImages[index];
+      const activity = this.paginatedActivities.find(
+        a => a.id === e.target.dataset.activityId,
+      );
+      if (activity) {
+        const storageKey = `activity_image_${activity.id}`;
+        const newIndex = this.getRandomUniqueImageIndex();
+        localStorage.setItem(storageKey, newIndex);
+        e.target.src = this.defaultImages[newIndex];
+      }
       e.target.onerror = null;
     },
 
@@ -337,7 +351,6 @@ export default {
     changePage(page) {
       if (page >= 1 && page <= this.totalPages) {
         this.currentPage = page;
-        this.usedImageIndexes.clear(); // 重置已使用的圖片記錄
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     },
@@ -410,8 +423,8 @@ export default {
             <!-- 圖片容器 -->
             <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg">
               <img
-                :src="getImageUrl(activity)" :alt="activity.activity_name" class="w-full h-full object-cover"
-                @error="handleImageError"
+                :src="getImageUrl(activity)" :alt="activity.activity_name" :data-activity-id="activity.id"
+                class="w-full h-full object-cover" @error="handleImageError"
               >
               <!-- 活動狀態標籤 -->
               <div

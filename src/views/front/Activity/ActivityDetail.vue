@@ -21,6 +21,12 @@ export default {
       activity: null,
       loading: true,
       error: null,
+      defaultImages: [
+        'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&auto=format&fit=crop&q=80',
+      ],
+      currentImageIndex: 0,
     };
   },
   async created() {
@@ -59,6 +65,40 @@ export default {
     },
     goBack() {
       this.$router.back();
+    },
+    getImageUrl() {
+      if (!this.activity)
+        return '';
+
+      if (Array.isArray(this.activity.image_url) && this.activity.image_url.length > 0)
+        return this.activity.image_url[this.currentImageIndex];
+
+      if (typeof this.activity.image_url === 'string' && this.activity.image_url)
+        return this.activity.image_url;
+
+      return this.defaultImages[this.currentImageIndex % this.defaultImages.length];
+    },
+    handleImageError(e) {
+      const randomIndex = Math.floor(Math.random() * this.defaultImages.length);
+      e.target.src = this.defaultImages[randomIndex];
+      e.target.onerror = null;
+    },
+    prevImage() {
+      const totalImages = this.getTotalImages();
+      this.currentImageIndex = (this.currentImageIndex - 1 + totalImages) % totalImages;
+    },
+    nextImage() {
+      const totalImages = this.getTotalImages();
+      this.currentImageIndex = (this.currentImageIndex + 1) % totalImages;
+    },
+    getTotalImages() {
+      if (Array.isArray(this.activity?.image_url))
+        return this.activity.image_url.length;
+
+      if (typeof this.activity?.image_url === 'string')
+        return 1;
+
+      return this.defaultImages.length;
     },
   },
 };
@@ -99,7 +139,37 @@ export default {
       <NCard class="overflow-hidden">
         <!-- 活動圖片 -->
         <div class="relative aspect-video mb-6 overflow-hidden rounded-lg">
-          <img :src="activity.image_url" :alt="activity.activity_name" class="w-full h-full object-cover">
+          <img
+            :src="getImageUrl()" :alt="activity.activity_name" class="w-full h-full object-cover"
+            @error="handleImageError"
+          >
+
+          <!-- 輪播控制按鈕 -->
+          <div
+            class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-opacity"
+          >
+            <button
+              class="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+              @click="prevImage"
+            >
+              <i class="fas fa-chevron-left" />
+            </button>
+            <button
+              class="bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+              @click="nextImage"
+            >
+              <i class="fas fa-chevron-right" />
+            </button>
+          </div>
+
+          <!-- 圖片指示器 -->
+          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+            <button
+              v-for="index in getTotalImages()" :key="index" class="w-2 h-2 rounded-full transition-all"
+              :class="index - 1 === currentImageIndex ? 'bg-white scale-125' : 'bg-white/50'"
+              @click="currentImageIndex = index - 1"
+            />
+          </div>
         </div>
 
         <!-- 活動內容 -->
@@ -208,5 +278,22 @@ export default {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* 添加新的輪播相關樣式 */
+.carousel-button {
+  @apply bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors;
+}
+
+.carousel-indicator {
+  @apply w-2 h-2 rounded-full transition-all;
+}
+
+.carousel-indicator.active {
+  @apply bg-white scale-125;
+}
+
+.carousel-indicator:not(.active) {
+  @apply bg-white/50;
 }
 </style>
