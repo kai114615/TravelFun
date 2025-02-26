@@ -65,11 +65,15 @@ def fetch_newtaipei_events():
             except json.JSONDecodeError:
                 try:
                     # JSON 解析失敗，嘗試解析 CSV
-                    csv_content = io.StringIO(
-                        response.content.decode('utf-8-sig'))
+                    csv_content = io.StringIO(response.content.decode('utf-8-sig'))
                     csv_reader = csv.DictReader(csv_content)
                     events = []
                     for row in csv_reader:
+                        # 處理 picUrl 欄位，用"、"分割成列表
+                        pic_urls = []
+                        if row.get("picUrl"):
+                            pic_urls = [url.strip() for url in row["picUrl"].split("、") if url.strip()]
+
                         event = {
                             "id": row.get("id", ""),
                             "title": row.get("title", ""),
@@ -83,7 +87,7 @@ def fetch_newtaipei_events():
                             "address": row.get("address", ""),
                             "traffic": row.get("traffic", ""),
                             "abouturl": row.get("abouturl", ""),
-                            "picurl": row.get("picurl", "")
+                            "picUrl": pic_urls  # 儲存為列表
                         }
                         events.append(event)
                 except (csv.Error, UnicodeDecodeError) as e:
@@ -106,7 +110,7 @@ def fetch_newtaipei_events():
                     "地址": event.get("address", ""),
                     "交通說明": event.get("traffic", ""),
                     "相關連結": event.get("abouturl", ""),
-                    "圖片連結": event.get("picurl", "")
+                    "圖片連結": event.get("picUrl", [])  # 現在是列表
                 }
                 formatted_events.append(formatted_event)
             events = formatted_events
@@ -149,7 +153,8 @@ def fetch_newtaipei_events():
                     "longitude": None,
                     "price": "",  # 新北市的資料沒有價格資訊
                     "url": event["相關連結"],
-                    "imageUrl": event["圖片連結"]
+                    "imageUrl": event["圖片連結"],
+                    # [0] if event["圖片連結"] else ""  # 使用第一張圖片，如果有的話
                 }
                 formatted_data["result"].append(formatted_event)
 

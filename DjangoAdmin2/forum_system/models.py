@@ -74,6 +74,7 @@ class Comment(models.Model):
         verbose_name = '評論'
         verbose_name_plural = '評論'
         ordering = ['created_at']
+        db_table = 'forum_system_comment'  # 指定資料表名稱
 
     def __str__(self):
         return f'{self.author.username} 評論 {self.post.title}'

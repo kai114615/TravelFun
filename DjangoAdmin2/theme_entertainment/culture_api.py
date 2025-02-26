@@ -139,6 +139,15 @@ class CultureAPI:
         if image_url and not image_url.startswith('http'):
             image_url = f"https://cloud.culture.tw{image_url}"
 
+        # 處理主辦單位：從串列中提取第一個元素
+        master_unit = event.get('masterUnit', [])
+        if isinstance(master_unit, list) and master_unit:
+            master_unit = master_unit[0]  # 取得第一個元素
+        elif isinstance(master_unit, str):
+            master_unit = master_unit
+        else:
+            master_unit = ''  # 如果是空串列或其他類型，設為空字串
+
         # 建立過濾後的資料結構
         filtered_data = {
             'UID': event.get('UID', ''),
@@ -146,7 +155,8 @@ class CultureAPI:
             '演出單位': event.get('showUnit', ''),
             '簡介說明': event.get('descriptionFilterHtml', ''),
             '圖片連結': image_url,
-            '主辦單位': event.get('masterUnit', ''),
+            '主辦單位': master_unit,  # 使用處理後的主辦單位
+            '網址': event.get('webSales', '') if event.get('webSales', '').strip() else event.get('sourceWebPromote', ''),
             '相關資訊': show_info_list
         }
         return filtered_data
@@ -183,8 +193,7 @@ class CultureAPI:
         try:
             self.params["category"] = category
             raw_data = self.make_request(self.base_url, self.params)
-            filtered_data = [self.filter_event_data(
-                event) for event in raw_data]
+            filtered_data = [self.filter_event_data(event) for event in raw_data]
 
             # 建立結果資料夾（如果不存在）
             os.makedirs("culture_api", exist_ok=True)
@@ -206,7 +215,7 @@ class CultureAPI:
             print(f"成功獲取{category_name}展演資訊，共 {
                   len(filtered_data)} 筆！資料已儲存至：{filename}")
 
-            # 將資料轉換為標準格式
+            # 修改格式化資料的部分
             formatted_data = {
                 "result": [],
                 "queryTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -223,11 +232,16 @@ class CultureAPI:
                 latitude = validate_coordinate(show_info.get('緯度'), True)
                 longitude = validate_coordinate(show_info.get('經度'), False)
 
+                # 處理網址：優先使用 webSales，如果為空則使用 sourceWebPromote
+                source_url = event.get('網址', '').strip()
+                if not source_url:  # 如果 webSales 為空或只包含空格
+                    source_url = event.get('sourceWebPromote', '').strip()
+
                 formatted_event = {
                     "uid": str(event['UID']),  # 確保是字串
                     "title": str(event['活動名稱']),
                     "description": str(event['簡介說明']),
-                    "organizer": str(event['主辦單位']),
+                    "organizer": str(event['主辦單位']),  # 已在 filter_event_data 中處理過
                     "address": str(show_info.get('地址', '')),
                     "startDate": show_info.get('活動起始日期'),
                     "endDate": show_info.get('活動結束日期'),
@@ -235,7 +249,7 @@ class CultureAPI:
                     "latitude": latitude,
                     "longitude": longitude,
                     "price": str(show_info.get('票價', '')),
-                    "url": "",  # 文化部的資料沒有直接的 URL
+                    "url": source_url,  # 更新後的網址欄位
                     "imageUrl": str(event['圖片連結'])
                 }
                 formatted_data["result"].append(formatted_event)
