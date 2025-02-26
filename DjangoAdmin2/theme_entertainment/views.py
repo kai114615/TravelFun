@@ -10,10 +10,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.db import connection
+from django.http import Http404
 
 # Django REST framework
 from rest_framework import permissions
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
@@ -115,6 +116,60 @@ class ActivityListView(ListAPIView):
             'data': serializer.data,
             'total': len(queryset)
         })
+
+
+class ActivityDetailView(RetrieveAPIView):
+    """活動詳情 API 視圖"""
+    serializer_class = ActivitySerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_object(self):
+        """獲取單個活動詳情"""
+        uid = self.kwargs.get('id')  # 從 URL 參數獲取 uid
+        try:
+            # 使用 uid 查詢而不是 id
+            event = get_object_or_404(Events, uid=uid)
+            return {
+                'id': event.id,
+                'uid': event.uid,
+                'activity_name': event.activity_name,
+                'description': event.description,
+                'organizer': event.organizer,
+                'address': event.address,
+                'start_date': event.start_date.strftime('%Y-%m-%d') if event.start_date else None,
+                'end_date': event.end_date.strftime('%Y-%m-%d') if event.end_date else None,
+                'location': event.location,
+                'latitude': float(event.latitude) if event.latitude else None,
+                'longitude': float(event.longitude) if event.longitude else None,
+                'ticket_price': event.ticket_price,
+                'source_url': event.source_url,
+                'image_url': event.image_url,
+                'created_at': event.created_at.strftime('%Y-%m-%d') if event.created_at else None,
+                'updated_at': event.updated_at.strftime('%Y-%m-%d') if event.updated_at else None
+            }
+        except Events.DoesNotExist:
+            raise Http404("活動不存在")
+
+    def retrieve(self, request, *args, **kwargs):
+        """自定義回應格式"""
+        try:
+            instance = self.get_object()
+            return Response({
+                'status': 'success',
+                'data': instance
+            })
+        except Http404:
+            return Response({
+                'status': 'error',
+                'message': '找不到該活動'
+            }, status=404)
+        except Exception as e:
+            logger.error(f"Error in ActivityDetailView: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
+
 
 # 後台管理頁面
 def activity_management(request):
@@ -345,53 +400,6 @@ def delete_event(request, event_id):
             'message': '活動不存在'
         }, status=404)
     except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        }, status=500)
-
-
-@csrf_exempt
-@require_http_methods(["GET"])
-def get_event_detail(request, event_id):
-    """
-    獲取單個活動的詳細資訊
-    """
-    try:
-        # 使用 ORM 而不是原始 SQL，避免類型轉換問題
-        event = get_object_or_404(Events, id=event_id)
-
-        data = {
-            'id': event.id,
-            'uid': event.uid,
-            'activity_name': event.activity_name,
-            'description': event.description,
-            'organizer': event.organizer,
-            'address': event.address,
-            'start_date': event.start_date.strftime('%Y-%m-%d') if event.start_date else None,
-            'end_date': event.end_date.strftime('%Y-%m-%d') if event.end_date else None,
-            'location': event.location,
-            'latitude': float(event.latitude) if event.latitude else None,
-            'longitude': float(event.longitude) if event.longitude else None,
-            'ticket_price': event.ticket_price,
-            'source_url': event.source_url,
-            'image_url': event.image_url,
-            'created_at': event.created_at.strftime('%Y-%m-%d') if event.created_at else None,
-            'updated_at': event.updated_at.strftime('%Y-%m-%d') if event.updated_at else None
-        }
-
-        return JsonResponse({
-            'status': 'success',
-            'data': data
-        })
-
-    except Events.DoesNotExist:
-        return JsonResponse({
-            'status': 'error',
-            'message': '找不到該活動'
-        }, status=404)
-    except Exception as e:
-        logger.error(f"Error in get_event_detail: {str(e)}")
         return JsonResponse({
             'status': 'error',
             'message': str(e)

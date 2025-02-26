@@ -36,7 +36,7 @@ export default {
 
         // 確保我們使用正確的數據結構
         if (response.data.status === 'success')
-          this.activity = response.data.data; // 注意這裡使用 response.data.data
+          this.activity = response.data.data;
         else
           throw new Error(response.data.message || '獲取數據失敗');
       }
@@ -70,7 +70,9 @@ export default {
     <div class="mb-6">
       <NButton class="flex items-center" @click="goBack">
         <template #icon>
-          <NIcon><ArrowBackOutline /></NIcon>
+          <NIcon>
+            <ArrowBackOutline />
+          </NIcon>
         </template>
         返回活動列表
       </NButton>

@@ -50,10 +50,10 @@ urlpatterns = [
          views.get_events,
          name='admin_events'),
 
-    # 活動詳情 API 路由
-    path('activities/api/<int:id>/',
-         views.get_event_detail,
-         name='event_detail'),
+    # 新增基於類的活動詳情視圖路由
+    path('activities/api/<str:id>/',
+         views.ActivityDetailView.as_view(),
+         name='activity_detail'),
 
     path('activities/<int:event_id>/update/',
          views.update_event,
