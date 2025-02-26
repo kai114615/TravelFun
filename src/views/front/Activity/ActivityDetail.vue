@@ -207,6 +207,13 @@ export default {
               <NIcon class="mr-2 text-blue-500">
                 <TicketOutline />
               </NIcon>
+              <span class="font-medium">主辦單位：</span>
+              <span class="ml-2">{{ activity.organizer || '免費' }}</span>
+            </div>
+            <div class="flex items-center text-gray-700">
+              <NIcon class="mr-2 text-blue-500">
+                <TicketOutline />
+              </NIcon>
               <span class="font-medium">票價資訊：</span>
               <span class="ml-2">{{ activity.ticket_price || '免費' }}</span>
             </div>
@@ -230,14 +237,6 @@ export default {
               其他資訊
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="bg-gray-50 p-4 rounded-lg">
-                <h3 class="font-medium text-gray-900 mb-2">
-                  主辦單位
-                </h3>
-                <p class="text-gray-600">
-                  {{ activity.organizer || '未提供' }}
-                </p>
-              </div>
               <div class="bg-gray-50 p-4 rounded-lg">
                 <h3 class="font-medium text-gray-900 mb-2">
                   相關連結
