@@ -3,329 +3,365 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extracss %}
-<style>
-    .card {
-        border: none;
-        border-radius: 15px;
-        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-        transition: all 0.3s ease;
-    }
-
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.2);
-    }
-
-    .card-header {
-        background: linear-gradient(45deg, #4e73df, #36b9cc);
-        border-radius: 15px 15px 0 0 !important;
-        border: none;
-    }
-
-    .card-header h6 {
-        color: white !important;
-    }
-
-    .form-control {
-        border-radius: 10px;
-        padding: 0.8rem 1rem;
-        border: 1px solid #e3e6f0;
-        transition: all 0.2s;
-    }
-
-    .form-control:focus {
-        border-color: #4e73df;
-        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
-    }
-
-    .btn {
-        border-radius: 10px;
-        padding: 0.5rem 1.5rem;
-        transition: all 0.3s;
-    }
-
-    .btn-primary {
-        background: linear-gradient(45deg, #4e73df, #2e59d9);
-        border: none;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(78, 115, 223, 0.4);
-    }
-
-    .custom-file-label {
-        border-radius: 10px;
-        padding: 0.8rem 1rem;
-    }
-
-    .page-header {
-        background: linear-gradient(45deg, #f8f9fc, #ffffff);
-        padding: 1.5rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-    }
-
-    .form-group label {
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
-        color: #5a5c69;
-    }
-
-    .icon-circle {
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        background: rgba(78, 115, 223, 0.1);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 10px;
-    }
-</style>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link href="https://unpkg.com/naive-ui@2.34.4/dist/index.css" rel="stylesheet">
+<script src="https://kit.fontawesome.com/your-kit-code.js" crossorigin="anonymous"></script>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Page Header -->
-    <div class="page-header">
-        <div class="d-sm-flex align-items-center justify-content-between">
-            <div>
-                <h1 class="h3 mb-2 text-gray-800">
-                    <div class="icon-circle">
-                        <i class="fas fa-calendar-plus text-primary"></i>
-                    </div>
-                    {{ page_title }}
-                </h1>
-                <p class="mb-0 text-gray-600">
-                    <i class="fas fa-info-circle mr-1"></i>{{ page_description }}
-                </p>
-            </div>
-            <a href="/admin-dashboard/entertainment/activities/"
-                class="btn btn-secondary btn-icon-split animate__animated animate__fadeIn">
-                <span class="icon text-white-50">
-                    <i class="fas fa-arrow-left"></i>
-                </span>
-                <span class="text">返回列表</span>
-            </a>
-        </div>
-    </div>
-
-    <!-- Content Row -->
-    <div class="row">
-        <!-- 活動基本資訊卡片 -->
-        <div class="col-xl-8 col-lg-7">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex align-items-center">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-info-circle mr-2"></i>活動基本資訊
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <form id="create-form" method="POST" enctype="multipart/form-data" class="needs-validation"
-                        novalidate>
-                        {% csrf_token %}
-
-                        <div class="form-group">
-                            <label class="font-weight-bold text-gray-800">
-                                <i class="fas fa-signature mr-2"></i>活動名稱
-                            </label>
-                            <input type="text" class="form-control" name="activity_name" required placeholder="請輸入活動名稱">
-                            <div class="invalid-feedback">請輸入活動名稱</div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="font-weight-bold text-gray-800">
-                                <i class="fas fa-align-left mr-2"></i>活動描述
-                            </label>
-                            <textarea class="form-control" name="description" rows="4" required
-                                placeholder="請輸入活動描述"></textarea>
-                            <div class="invalid-feedback">請輸入活動描述</div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="font-weight-bold text-gray-800">
-                                <i class="fas fa-map-marker-alt mr-2"></i>活動地點
-                            </label>
-                            <input type="text" class="form-control" name="location" required placeholder="請輸入活動地點">
-                            <div class="invalid-feedback">請輸入活動地點</div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="font-weight-bold text-gray-800">
-                                        <i class="fas fa-calendar mr-2"></i>活動日期
-                                    </label>
-                                    <input type="date" class="form-control" name="event_date" required>
-                                    <div class="invalid-feedback">請選擇活動日期</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="font-weight-bold text-gray-800">
-                                        <i class="fas fa-clock mr-2"></i>活動時間
-                                    </label>
-                                    <input type="time" class="form-control" name="event_time" required>
-                                    <div class="invalid-feedback">請選擇活動時間</div>
-                                </div>
-                            </div>
-                        </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 活動詳細資訊卡片 -->
-        <div class="col-xl-4 col-lg-5">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-cog mr-2"></i>活動詳細設定
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label class="font-weight-bold text-gray-800">
-                            <i class="fas fa-ticket-alt mr-2"></i>票價資訊
-                        </label>
-                        <input type="text" class="form-control" name="ticket_price" placeholder="請輸入票價資訊（若為免費活動可不填）">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="font-weight-bold text-gray-800">
-                            <i class="fas fa-tags mr-2"></i>活動類型
-                        </label>
-                        <select class="form-control" name="activity_type" required>
-                            <option value="">請選擇活動類型</option>
-                            <option value="展覽">展覽</option>
-                            <option value="表演">表演</option>
-                            <option value="音樂會">音樂會</option>
-                            <option value="戲劇">戲劇</option>
-                            <option value="其他">其他</option>
-                        </select>
-                        <div class="invalid-feedback">請選擇活動類型</div>
-                    </div>
-
-                    <div class="form-group mb-4">
-                        <label class="font-weight-bold text-gray-800">
-                            <i class="fas fa-image mr-2"></i>活動圖片
-                        </label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" name="image" accept="image/*">
-                            <label class="custom-file-label">選擇圖片...</label>
-                        </div>
-                        <small class="form-text text-muted mt-2">
-                            <i class="fas fa-info-circle mr-1"></i>建議尺寸: 1200x630 像素，檔案大小不超過 2MB
-                        </small>
-                    </div>
-
-                    <hr>
-
-                    <div class="d-flex justify-content-between">
-                        <button type="submit" class="btn btn-primary btn-icon-split btn-lg">
-                            <span class="icon text-white-50">
-                                <i class="fas fa-save"></i>
-                            </span>
-                            <span class="text">建立活動</span>
-                        </button>
-                        <button type="reset" class="btn btn-light btn-icon-split">
-                            <span class="icon text-gray-600">
-                                <i class="fas fa-undo"></i>
-                            </span>
-                            <span class="text">重置</span>
-                        </button>
-                    </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+<div id="app">
+    <!-- Vue 應用將在這裡渲染 -->
 </div>
-{% endblock %}
 
-{% block extrajs %}
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/naive-ui@2.34.4/dist/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
 <script>
-    // 表單驗證
-    (function () {
-        'use strict';
-        window.addEventListener('load', function () {
-            var forms = document.getElementsByClassName('needs-validation');
-            Array.prototype.filter.call(forms, function (form) {
-                form.addEventListener('submit', function (event) {
-                    if (form.checkValidity() === false) {
-                        event.preventDefault();
-                        event.stopPropagation();
+    const { createApp, ref } = Vue;
+    const { NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider, useMessage } = naive;
+
+    const app = createApp({
+        components: {
+            NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider
+        },
+        setup() {
+            const handleBack = () => {
+                window.location.href = '/admin-dashboard/entertainment/activities/';
+            };
+
+            const message = ref(null);
+            const handleMessage = () => {
+                message.value = useMessage();
+            };
+            const formRef = ref(null);
+            const formValue = ref({
+                activity_name: '',
+                description: '',
+                location: '',
+                date_range: null,
+                start_time: null,
+                end_time: null,
+                ticket_price: '',
+                activity_type: null,
+                image: null
+            });
+
+            const activityTypes = [
+                { label: '展覽', value: '展覽' },
+                { label: '表演', value: '表演' },
+                { label: '音樂會', value: '音樂會' },
+                { label: '戲劇', value: '戲劇' },
+                { label: '其他', value: '其他' }
+            ];
+
+            const rules = {
+                activity_name: {
+                    required: true,
+                    message: '請輸入活動名稱',
+                    trigger: 'blur',
+                    validator: (rule, value) => {
+                        if (value && value.length > 50) {
+                            return new Error('活動名稱不能超過50字');
+                        }
+                        return true;
                     }
-                    form.classList.add('was-validated');
-                }, false);
-            });
-        });
-    })();
-
-    // 檔案上傳顯示檔名
-    document.querySelector('.custom-file-input').addEventListener('change', function (e) {
-        var fileName = e.target.files[0].name;
-        var label = e.target.nextElementSibling;
-        label.innerHTML = fileName;
-    });
-
-    // 表單提交處理
-    document.getElementById('create-form').addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const formData = new FormData(this);
-        const data = {
-            activity_name: formData.get('activity_name'),
-            description: formData.get('description'),
-            organizer: '系統管理員',
-            location: formData.get('location'),
-            start_date: formData.get('event_date'),
-            end_date: formData.get('event_date'),
-            ticket_info: formData.get('ticket_price'),
-            address: formData.get('location')
-        };
-
-        const imageFile = formData.get('image');
-        if (imageFile) {
-            // 圖片上傳處理邏輯
-        }
-
-        fetch('/admin-dashboard/entertainment/activities/create/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify(data)
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '成功！',
-                        text: '活動建立成功',
-                        showConfirmButton: false,
-                        timer: 1500
-                    }).then(() => {
-                        window.location.href = '/admin-dashboard/entertainment/activities/';
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: '錯誤！',
-                        text: '活動建立失敗：' + data.message
-                    });
+                },
+                description: {
+                    required: true,
+                    message: '請輸入活動介紹',
+                    trigger: 'blur',
+                    validator: (rule, value) => {
+                        if (value && value.length > 500) {
+                            return new Error('活動介紹不能超過500字');
+                        }
+                        return true;
+                    }
+                },
+                location: {
+                    required: true,
+                    message: '請輸入活動地點',
+                    trigger: 'blur'
+                },
+                date_range: {
+                    required: true,
+                    message: '請選擇活動日期範圍',
+                    trigger: 'blur',
+                    validator: (rule, value) => {
+                        if (!value || !value[0] || !value[1]) {
+                            return new Error('請選擇完整的日期範圍');
+                        }
+                        return true;
+                    }
+                },
+                activity_type: {
+                    required: true,
+                    message: '請選擇活動類型',
+                    trigger: 'change'
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: '錯誤！',
-                    text: '發生錯誤，請稍後再試'
-                });
-            });
+            };
+
+            const handleSubmit = async (e) => {
+        e.preventDefault();
+                try {
+                    // 先進行表單驗證
+                    await formRef.value?.validate();
+
+                    // 處理日期格式
+                    const formatDate = (date) => {
+                        if (!date) return null;
+                        const d = new Date(date);
+                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    };
+
+                    // 處理時間格式
+                    const formatTime = (time) => {
+                        if (!time) return null;
+                        return `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+                    };
+
+                    // 準備要發送的數據
+                    const submitData = {
+                        uid: Date.now().toString(), // 生成唯一ID
+                        activity_name: formValue.value.activity_name,
+                        description: formValue.value.description,
+                        organizer: '', // 可為空
+                        address: formValue.value.location, // 使用location作為address
+                        location: formValue.value.location,
+                        start_date: formatDate(formValue.value.date_range?.[0]),
+                        end_date: formatDate(formValue.value.date_range?.[1]),
+                        latitude: null,
+                        longitude: null,
+                        ticket_price: formValue.value.ticket_price || '',
+                        source_url: '',
+                        image_url: formValue.value.image || ''
+                    };
+
+                    // 檢查必要欄位
+                    const requiredFields = ['activity_name', 'description', 'location', 'start_date', 'end_date'];
+                    for (const field of requiredFields) {
+                        if (!submitData[field]) {
+                            throw new Error(`${field} 是必填欄位`);
+                        }
+                    }
+
+                    console.log('Submitting data:', submitData); // 用於調試
+
+                    try {
+                        const response = await axios.post('/admin-dashboard/entertainment/activities/create/',
+                            submitData,
+                            {
+            headers: {
+                                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                                    'Content-Type': 'application/json'
+                                }
+                            }
+                        );
+
+                        console.log('Response:', response.data); // 用於調試
+
+                        if (response.data.status === 'success') {
+                            message.value.success('活動建立成功');
+                            setTimeout(() => {
+                                window.location.href = '/admin-dashboard/entertainment/activities/?sort=desc';
+                            }, 1500);
+                } else {
+                            throw new Error(response.data.message || '建立活動失敗');
+                        }
+                    } catch (error) {
+                        console.error('API Error:', error.response?.data || error);
+                        message.value.error(error.response?.data?.message || error.message || '建立活動失敗');
+                    }
+                } catch (error) {
+                    console.error('Form Error:', error);
+                    message.value.error(error.message || '表單驗證失敗');
+                }
+            };
+
+            const resetForm = () => {
+                formValue.value = {
+                    activity_name: '',
+                    description: '',
+                    location: '',
+                    date_range: null,
+                    start_time: null,
+                    end_time: null,
+                    ticket_price: '',
+                    activity_type: null,
+                    image: null
+                };
+                formRef.value?.restoreValidation();
+            };
+
+            return {
+                formRef,
+                formValue,
+                activityTypes,
+                rules,
+                handleSubmit,
+                handleMessage,
+                handleBack,
+                resetForm
+            };
+        },
+        template: `
+        <n-message-provider>
+            <n-layout class="p-6" @mounted="handleMessage">
+                <n-card class="mb-6">
+                    <n-grid :cols="2">
+                        <n-grid-item>
+                            <h1 class="text-2xl font-bold mb-2">{{ page_title }}</h1>
+                            <p class="text-gray-600">{{ page_description }}</p>
+                        </n-grid-item>
+                        <n-grid-item class="text-right">
+                            <n-button type="default" @click="handleBack">
+                                <template #icon>&#8592;</template>
+                                返回列表
+                            </n-button>
+                        </n-grid-item>
+                    </n-grid>
+                </n-card>
+
+                <n-grid :x-gap="12" :cols="2">
+                    <n-grid-item span="1">
+                        <n-card title="活動基本資訊" class="mb-6">
+                            <n-form ref="formRef" :model="formValue" :rules="rules">
+                                <n-form-item label="活動名稱" path="activity_name">
+                                    <n-input
+                                        v-model:value="formValue.activity_name"
+                                        placeholder="請輸入活動名稱（最多50字）"
+                                        :maxlength="50"
+                                        show-count
+                                    />
+                                </n-form-item>
+
+                                <n-form-item label="請輸入活動介紹" path="description">
+                                    <n-input
+                                        v-model:value="formValue.description"
+                                        type="textarea"
+                                        placeholder="請輸入活動介紹（最多500字）"
+                                        :rows="4"
+                                        :maxlength="500"
+                                        show-count
+                                        :autosize="{ minRows: 4, maxRows: 8 }"
+                                    />
+                                </n-form-item>
+
+                                <n-form-item label="活動地點" path="location">
+                                    <n-input v-model:value="formValue.location" placeholder="請輸入活動地點"/>
+                                </n-form-item>
+
+                                <n-grid :cols="2" :x-gap="12">
+                                    <n-grid-item>
+                                        <n-form-item label="活動日期" path="date_range">
+                                            <div style="max-width: 300px;">
+                                                <n-date-picker
+                                                    v-model:value="formValue.date_range"
+                                                    type="daterange"
+                                                    clearable
+                                                    :disabled-date="(ts) => ts < Date.now() - 24 * 60 * 60 * 1000"
+                                                    start-placeholder="開始日期"
+                                                    end-placeholder="結束日期"
+                                                    :default-time="['00:00:00', '23:59:59']"
+                                                    style="width: 100%;"
+                                                />
+                                            </div>
+                                        </n-form-item>
+                                    </n-grid-item>
+                                    <n-grid-item>
+                                        <n-grid :cols="2" :x-gap="8">
+                                            <n-grid-item>
+                                                <n-form-item label="活動起始時間" path="start_time">
+                                                    <n-time-picker
+                                                        v-model:value="formValue.start_time"
+                                                        clearable
+                                                        format="HH:mm"
+                                                        :minutes-step="5"
+                                                        :minutes-options="[
+                                                            '00', '05', '10', '15', '20', '25',
+                                                            '30', '35', '40', '45', '50', '55'
+                                                        ]"
+                                                        :use-12-hours="false"
+                                                        placement="top-start"
+                                                        :is-hours-disabled="(hour) => false"
+                                                        :is-minutes-disabled="(minute) => minute % 5 !== 0"
+                                                        :actions="null"
+                                                        style="width: 100%;"
+                                                    />
+                                                </n-form-item>
+                                            </n-grid-item>
+                                            <n-grid-item>
+                                                <n-form-item label="活動結束時間" path="end_time">
+                                                    <n-time-picker
+                                                        v-model:value="formValue.end_time"
+                                                        clearable
+                                                        format="HH:mm"
+                                                        :minutes-step="5"
+                                                        :minutes-options="[
+                                                            '00', '05', '10', '15', '20', '25',
+                                                            '30', '35', '40', '45', '50', '55'
+                                                        ]"
+                                                        :use-12-hours="false"
+                                                        placement="top-start"
+                                                        :is-hours-disabled="(hour) => false"
+                                                        :is-minutes-disabled="(minute) => minute % 5 !== 0"
+                                                        :actions="null"
+                                                        style="width: 100%;"
+                                                    />
+                                                </n-form-item>
+                                            </n-grid-item>
+                                        </n-grid>
+                                    </n-grid-item>
+                                </n-grid>
+                            </n-form>
+                        </n-card>
+                    </n-grid-item>
+
+                    <n-grid-item span="1">
+                        <n-card title="活動詳細設定" class="mb-6">
+                            <n-form ref="formRef" :model="formValue" :rules="rules">
+                                <n-form-item label="票價資訊">
+                                    <n-input v-model:value="formValue.ticket_price" placeholder="請輸入票價資訊（若為免費活動可不填）"/>
+                                </n-form-item>
+
+                                <n-form-item label="活動類型" path="activity_type">
+                                    <n-select
+                                        v-model:value="formValue.activity_type"
+                                        :options="activityTypes"
+                                        placeholder="請選擇活動類型"
+                                    />
+                                </n-form-item>
+
+                                <n-form-item label="活動圖片">
+                                    <n-upload
+                                        accept="image/*"
+                                        :max="1"
+                                        @change="handleImageUpload"
+                                    >
+                                        <n-button>上傳圖片</n-button>
+                                    </n-upload>
+                                    <p class="text-sm text-gray-500 mt-2">建議尺寸: 1200x630 像素，檔案大小不超過 2MB</p>
+                                </n-form-item>
+
+                                <div class="flex justify-between mt-6 space-x-12">
+                                    <n-button type="primary" @click="handleSubmit" size="large">
+                                        <template #icon>💾</template>
+                                        建立活動
+                                    </n-button>
+                                    <n-button type="error" @click="resetForm" size="large">
+                                        <template #icon>🔄</template>
+                                        重置
+                                    </n-button>
+                                </div>
+                            </n-form>
+                        </n-card>
+                    </n-grid-item>
+                </n-grid>
+            </n-layout>
+        </n-message-provider>
+    `
     });
+
+    app.mount('#app');
 </script>
 {% endblock %}

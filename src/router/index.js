@@ -1,7 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import MallView from '../views/front/Mall/MallView.vue';
 import HomeView from '../views/front/Home/HomeView.vue';
-import ThemeEntertainmentView from '@/views/admin/ThemeEntertainmentView.vue'
+import ThemeEntertainmentView from '@/views/admin/ThemeEntertainmentView.vue';
+import ActivityDetail from '@/views/front/Activity/ActivityDetail.vue';
 
 const routes = [
   {
@@ -149,17 +150,25 @@ const routes = [
     component: ThemeEntertainmentView,
     meta: {
       requiresAuth: true,
-      title: '主題育樂活動管理'
-    }
+      title: '主題育樂活動管理',
+    },
   },
   {
     path: '/activities',
     name: 'ActivityList',
-    component: () => import('../views/ActivityList.vue'),
+    component: () => import('../views/front/Activity/ActivityList.vue'),
     meta: {
-      title: '主題育樂活動'
-    }
-  }
+      title: '主題育樂活動',
+    },
+  },
+  {
+    path: '/activity/:id',
+    name: 'ActivityDetail',
+    component: ActivityDetail,
+    meta: {
+      title: '活動詳細資訊',
+    },
+  },
 ];
 
 const router = createRouter({

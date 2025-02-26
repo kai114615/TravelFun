@@ -8,8 +8,354 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% block extrastyle %}
+{% block extracss %}
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<!-- 添加 Naive UI 的樣式 -->
+<link href="https://unpkg.com/naive-ui@2.34.4/dist/index.css" rel="stylesheet">
+<script src="https://kit.fontawesome.com/your-kit-code.js" crossorigin="anonymous"></script>
+<style>
+    /* 全局變量定義 */
+    :root {
+        --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        --secondary-gradient: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* 主要布局樣式 */
+    .n-layout {
+        min-height: 100vh;
+        /* 確保最小高度填滿視窗 */
+        background: #f5f7fa;
+        /* 淺灰背景色 */
+    }
+
+    /* 頁面頂部區域樣式 */
+    .n-layout-header {
+        background: transparent;
+        /* 透明背景 */
+        padding: 0.5rem 2.5rem 0.75rem;
+        /* 上右下左內邊距 */
+        position: sticky;
+        /* 固定在頂部 */
+        top: 0;
+        /* 貼齊頂部 */
+        z-index: 100;
+        /* 確保在其他元素上方 */
+    }
+
+    /* 內容區域樣式 */
+    .n-layout-content {
+        padding: 0 1rem 1rem;
+        /* 內容區域內邊距 */
+    }
+
+    /* 頁面標題卡片樣式 */
+    .page-header-card {
+        background: var(--secondary-gradient);
+        /* 漸變背景 */
+        border: 1px solid var(--border-color);
+        /* 邊框 */
+        backdrop-filter: blur(10px);
+        /* 背景模糊效果 */
+        box-shadow: var(--card-shadow);
+        /* 陰影效果 */
+        margin-bottom: 1rem;
+        /* 底部間距 */
+    }
+
+    /* 標題容器樣式 */
+    .header-container {
+        display: flex;
+        /* Flex布局 */
+        justify-content: space-between;
+        /* 兩端對齊 */
+        align-items: center;
+        /* 垂直居中 */
+        padding: 0.75rem 1.25rem;
+        /* 內邊距 */
+        min-height: 3.5rem;
+        /* 最小高度 */
+    }
+
+    /* 標題內容區域樣式 */
+    .header-content {
+        flex: 1;
+        /* 彈性佔用空間 */
+        text-align: center;
+        /* 文字居中 */
+        display: flex;
+        /* Flex布局 */
+        flex-direction: column;
+        /* 垂直排列 */
+        justify-content: center;
+        /* 垂直居中 */
+    }
+
+    /* 標題按鈕區域樣式 */
+    .header-actions {
+        flex-shrink: 0;
+        /* 防止按鈕區域被壓縮 */
+        margin-left: 1.5rem;
+        /* 左側間距 */
+    }
+
+    /* 內容卡片樣式 */
+    .content-card {
+        background: white;
+        /* 白色背景 */
+        border-radius: 1rem;
+        /* 圓角 */
+        box-shadow: var(--card-shadow);
+        /* 陰影 */
+        border: 1px solid var(--border-color);
+        /* 邊框 */
+    }
+
+    /* 按鈕基本樣式 */
+    .n-button {
+        border-radius: 0.375rem;
+        /* 圓角 */
+        font-weight: 500;
+        /* 字重 */
+        transition: all 0.3s ease;
+        /* 過渡動畫 */
+        padding: 0.5rem 1rem;
+        /* 內邊距 */
+        height: 2.25rem;
+        /* 高度 */
+        font-size: 0.875rem;
+        /* 字體大小 */
+    }
+
+    /* 按鈕懸停效果 */
+    .n-button:hover {
+        transform: translateY(-1px);
+        /* 上浮效果 */
+        box-shadow: var(--card-shadow);
+        /* 懸停陰影 */
+    }
+
+    /* 主要按鈕樣式 */
+    .n-button--primary-type {
+        background: var(--primary-gradient);
+        /* 主要按鈕漸變背景 */
+    }
+
+    /* 數據表格樣式 */
+    .n-data-table {
+        border-radius: 0.75rem;
+        /* 表格圓角 */
+        overflow: hidden;
+        /* 隱藏溢出 */
+    }
+
+    /* 表格標題樣式 */
+    .n-data-table .n-data-table-th {
+        background: #f8fafc;
+        /* 表頭背景色 */
+        font-weight: 700;
+        /* 加重字重 */
+        color: #1e293b;
+        /* 文字顏色 */
+        padding: 1rem 1.25rem;
+        /* 內邊距 */
+        border-bottom: 2px solid #e2e8f0;
+        /* 底部邊框 */
+        text-align: center;
+        /* 文字置中 */
+        font-size: 0.95rem;
+        /* 稍微加大字體 */
+        text-transform: none;
+        /* 取消文字轉換 */
+        white-space: nowrap;
+        /* 防止文字換行 */
+        letter-spacing: 0.025em;
+        /* 增加字間距 */
+    }
+
+    /* 確保表格內容也置中 */
+    .n-data-table .n-data-table-td {
+        text-align: center;
+        /* 單元格文字置中 */
+        padding: 1rem;
+        /* 單元格內邊距 */
+        border-bottom: 1px solid #f1f5f9;
+        /* 底部邊框 */
+        vertical-align: middle;
+        /* 垂直居中 */
+    }
+
+    /* 表格行懸停效果 */
+    .n-data-table .n-data-table-tr:hover {
+        background-color: #f8fafc;
+        /* 懸停背景色 */
+        transition: background-color 0.2s ease;
+        /* 過渡動畫 */
+    }
+
+    /* 頁面標題文字樣式 */
+    .page-title {
+        font-size: 1.25rem;
+        /* 字體大小 */
+        font-weight: 600;
+        /* 字重 */
+        color: #1e293b;
+        /* 文字顏色 */
+        margin-bottom: 0.25rem;
+        /* 底部間距 */
+        letter-spacing: -0.025em;
+        /* 字間距 */
+        line-height: 1.2;
+        /* 行高 */
+    }
+
+    /* 頁面描述文字樣式 */
+    .page-description {
+        color: #64748b;
+        /* 文字顏色 */
+        font-size: 0.875rem;
+        /* 字體大小 */
+        max-width: 600px;
+        /* 最大寬度 */
+        margin: 0 auto;
+        /* 水平居中 */
+        line-height: 1.4;
+        /* 行高 */
+    }
+
+    /* 操作按鈕組樣式 */
+    .action-button-group {
+        display: flex;
+        /* Flex布局 */
+        gap: 0.75rem;
+        /* 按鈕間距 */
+    }
+
+    /* 分頁器樣式 */
+    .n-pagination {
+        margin-top: 1.5rem;
+        /* 上方間距 */
+        padding: 1rem;
+        /* 內邊距 */
+        background: #f8fafc;
+        /* 背景色 */
+        border-top: 1px solid #f1f5f9;
+        /* 頂部邊框 */
+    }
+
+    /* 狀態標籤樣式 */
+    .status-badge {
+        padding: 0.375rem 0.75rem;
+        /* 內邊距 */
+        border-radius: 9999px;
+        /* 圓角 */
+        font-size: 0.875rem;
+        /* 字體大小 */
+        font-weight: 500;
+        /* 字重 */
+        display: inline-flex;
+        /* 行內Flex */
+        align-items: center;
+        /* 垂直居中 */
+    }
+
+    /* 圖標樣式 */
+    .table-icon {
+        width: 1.5rem;
+        /* 寬度 */
+        height: 1.5rem;
+        /* 高度 */
+        display: inline-flex;
+        /* 行內Flex */
+        align-items: center;
+        /* 垂直居中 */
+        justify-content: center;
+        /* 水平居中 */
+        border-radius: 0.375rem;
+        /* 圓角 */
+        margin-right: 0.5rem;
+        /* 右側間距 */
+    }
+
+    /* 位置圖標樣式 */
+    .location-icon {
+        background: #dbeafe;
+        /* 背景色 */
+        color: #3b82f6;
+        /* 圖標顏色 */
+    }
+
+    /* 日期圖標樣式 */
+    .date-icon {
+        background: #dcfce7;
+        /* 背景色 */
+        color: #10b981;
+        /* 圖標顏色 */
+    }
+
+    /* 票價圖標樣式 */
+    .ticket-icon {
+        background: #fef3c7;
+        /* 背景色 */
+        color: #f59e0b;
+        /* 圖標顏色 */
+    }
+
+    /* 響應式設計 */
+    @media (max-width: 768px) {
+
+        /* 移動端頂部區域樣式 */
+        .n-layout-header {
+            padding: 0.75rem 1rem 0.5rem;
+            /* 調整內邊距 */
+        }
+
+        /* 移動端標題容器樣式 */
+        .header-container {
+            padding: 0.5rem 1rem;
+            /* 調整內邊距 */
+            flex-direction: column;
+            /* 垂直排列 */
+            gap: 0.5rem;
+            /* 元素間距 */
+            min-height: auto;
+            /* 自適應高度 */
+        }
+
+        /* 移動端按鈕區域樣式 */
+        .header-actions {
+            margin-left: 0;
+            /* 移除左側間距 */
+            width: 100%;
+            /* 全寬 */
+        }
+
+        /* 移動端標題文字樣式 */
+        .page-title {
+            font-size: 1.125rem;
+            /* 調整字體大小 */
+            margin-bottom: 0.125rem;
+            /* 調整底部間距 */
+        }
+
+        /* 移動端描述文字樣式 */
+        .page-description {
+            font-size: 0.75rem;
+            /* 調整字體大小 */
+        }
+
+        /* 移動端按鈕樣式 */
+        .n-button {
+            width: 100%;
+            /* 全寬按鈕 */
+            height: 2rem;
+            /* 調整高度 */
+            font-size: 0.875rem;
+            /* 調整字體大小 */
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -17,25 +363,57 @@
     <!-- Vue 應用將在這裡渲染 -->
 </div>
 
-<!-- 引入 Vue 和相關依賴 -->
+<!-- 引入相關依賴 -->
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://unpkg.com/naive-ui@2.34.4/dist/index.js"></script>
 
 <script>
-    const { createApp, ref, onMounted } = Vue;
+    const { createApp, ref, onMounted, h, watch } = Vue;
+    const { NButton, NSpace, NCard, NDataTable, NIcon, NLayout, NLayoutHeader, NLayoutContent, NGrid, NGridItem } = naive;
 
     const app = createApp({
+        components: {
+            NButton, NSpace, NCard, NDataTable, NIcon, NLayout, NLayoutHeader, NLayoutContent, NGrid, NGridItem
+        },
         setup() {
             const activities = ref([]);
             const loading = ref(false);
             const error = ref(null);
+            const pagination = ref({
+                page: 1,
+                pageSize: 10,
+                showSizePicker: true,
+                pageSizes: [10, 50, 100, 500, 1000],
+                onChange: (page) => {
+                    pagination.value.page = page;
+                },
+                onUpdatePageSize: (pageSize) => {
+                    pagination.value.pageSize = pageSize;
+                    pagination.value.page = 1;
+                }
+            });
 
-            // 獲取活動列表
+            const handleCreateClick = () => {
+                try {
+                    window.location.href = '/admin-dashboard/entertainment/activities/create/';
+                } catch (error) {
+                    console.error('Navigation error:', error);
+                }
+            };
+
+            // 修改獲取活動列表函數以支援分頁
             const fetchActivities = async () => {
                 try {
                     loading.value = true;
-                    const response = await axios.get('/admin-dashboard/entertainment/activities/list/');
+                    const response = await axios.get('/admin-dashboard/entertainment/activities/list/', {
+                        params: {
+                            page: pagination.value.page,
+                            page_size: pagination.value.pageSize
+                        }
+                    });
                     activities.value = response.data.data;
+                    pagination.value.itemCount = response.data.total; // 假設後端返回總數
                 } catch (err) {
                     error.value = '獲取數據失敗';
                     console.error('Error:', err);
@@ -43,6 +421,11 @@
                     loading.value = false;
                 }
             };
+
+            // 監聽分頁變化
+            watch(() => [pagination.value.page, pagination.value.pageSize], () => {
+                fetchActivities();
+            });
 
             // 刪除活動
             const deleteActivity = async (id) => {
@@ -66,83 +449,135 @@
                 fetchActivities();
             });
 
+            const columns = [
+                {
+                    title: 'ID',
+                    key: 'id',
+                    width: 50,
+                    sorter: 'default',
+                    defaultSortOrder: 'ascend',
+                    render(row) {
+                        return h('span', { class: 'text-gray-500 font-mono' }, `#${row.id}`);
+                    }
+                },
+                {
+                    title: '活動名稱',
+                    key: 'activity_name',
+                    width: 350,
+                    sorter: 'default',
+                    render(row) {
+                        return h('span', { class: 'font-medium' }, row.activity_name);
+                    }
+                },
+                {
+                    title: '活動地點',
+                    key: 'location',
+                    width: 150,
+                    sorter: 'default',
+                    render(row) {
+                        return h('div', { class: 'text-gray-600' }, [
+                            h('i', { class: 'fas fa-map-marker-alt mr-2' }),
+                            row.location || '未指定地點'
+                        ]);
+                    }
+                },
+                {
+                    title: '活動日期',
+                    key: 'date',
+                    width: 150,
+                    sorter: (row1, row2) => new Date(row1.start_date) - new Date(row2.start_date),
+                    render(row) {
+                        return h('div', { class: 'text-gray-600' }, [
+                            h('i', { class: 'far fa-calendar-alt mr-2' }),
+                            `${row.start_date || ''} ~ ${row.end_date || ''}`
+                        ]);
+                    }
+                },
+                {
+                    title: '票價',
+                    key: 'ticket_price',
+                    width: 50,
+                    sorter: 'default',
+                    render(row) {
+                        return h('div', { class: 'text-gray-600' }, [
+                            h('i', { class: 'fas fa-ticket-alt mr-2' }),
+                            row.ticket_price ? `NT$ ${row.ticket_price}` : '免費'
+                        ]);
+                    }
+                },
+                {
+                    title: '操作',
+                    key: 'actions',
+                    width: 120,
+                    render(row) {
+                        return h(NSpace, null, {
+                            default: () => [
+                                h(NButton, {
+                                    type: 'primary',
+                                    size: 'small',
+                                    onClick: () => window.location.href = `/admin-dashboard/entertainment/activities/${row.id}/`
+                                }, { default: () => '✏️ 編輯' }),
+                                h(NButton, {
+                                    type: 'error',
+                                    size: 'small',
+                                    onClick: () => deleteActivity(row.id)
+                                }, { default: () => '🗑️ 刪除' })
+                            ]
+                        });
+                    }
+                }
+            ];
+
             return {
                 activities,
                 loading,
                 error,
-                deleteActivity
+                deleteActivity,
+                columns,
+                pagination,
+                handleCreateClick,
             };
         },
         template: `
-        <div class="p-6">
-            <!-- 頂部區域 -->
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">{{ page_title }}</h1>
-                    <p class="text-gray-500">{{ page_description }}</p>
-                </div>
-                <a href="/admin-dashboard/entertainment/activities/create/"
-                   class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                    新增活動
-                </a>
-            </div>
-
-            <!-- 錯誤提示 -->
-            <div v-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                [[ error ]]
-            </div>
-
-            <!-- 載入中提示 -->
-            <div v-if="loading" class="text-center py-4">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            </div>
-
-            <!-- 活動列表表格 -->
-            <div v-else class="overflow-x-auto">
-                <table class="min-w-full bg-white">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">活動名稱</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">主辦單位</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">活動日期</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">地點</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        <tr v-for="activity in activities" :key="activity.id" class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-medium text-gray-900">[[ activity.activity_name ]]</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">[[ activity.organizer ]]</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">
-                                    [[ activity.start_date ]] ~ [[ activity.end_date ]]
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">[[ activity.location ]]</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <a :href="'/admin-dashboard/entertainment/activities/' + activity.id + '/'"
-                                   class="text-blue-600 hover:text-blue-900 mr-4">編輯</a>
-                                <button @click="deleteActivity(activity.id)"
-                                        class="text-red-600 hover:text-red-900">刪除</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `
+            <n-layout>
+                <n-layout-header style="padding: 15px 15px 0px 15px">
+                    <n-card>
+                        <n-grid :cols="2">
+                            <n-grid-item>
+                                <h1 style="font-size: 24px; margin: 0">{{ page_title }}</h1>
+                                <p style="margin: 8px 0 0; color: #666">{{ page_description }}</p>
+                            </n-grid-item>
+                            <n-grid-item style="text-align: right">
+                                <n-button type="primary" @click="handleCreateClick">
+                                    <template #icon>➕</template>
+                                    新增活動
+                                </n-button>
+                            </div>
+                        </div>
+                    </n-card>
+                </n-layout-header>
+                <n-layout-content style="padding: 15px">
+                    <n-card v-if="error" type="error" class="mb-4">
+                        {{ error }}
+                    </n-card>
+                    <n-card class="content-card">
+                        <n-data-table
+                            :columns="columns"
+                            :data="activities"
+                            :loading="loading"
+                            :bordered="false"
+                            :single-line="false"
+                            :pagination="pagination"
+                            class="custom-table"
+                            :default-sort="{ columnKey: 'id', order: 'ascend' }"
+                        />
+                    </n-card>
+                </n-layout-content>
+            </n-layout>
+        `
     });
 
-    // 修改 Vue 的分隔符，避免與 Django 模板衝突
     app.config.compilerOptions.delimiters = ['[[', ']]'];
-
-    // 掛載 Vue 應用
     app.mount('#app');
 </script>
 {% endblock %}
