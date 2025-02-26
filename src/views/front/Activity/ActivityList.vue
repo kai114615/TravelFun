@@ -1,6 +1,6 @@
 <script>
 import axios from 'axios';
-import { NButton, NCard, NIcon, NPagination } from 'naive-ui';
+import { NButton, NCard, NIcon, NPagination, NSelect } from 'naive-ui';
 import { CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
 export default {
@@ -10,6 +10,7 @@ export default {
     NButton,
     NPagination,
     NIcon,
+    NSelect,
     LocationOutline,
     CalendarOutline,
     TicketOutline,
@@ -83,6 +84,17 @@ export default {
       currentImageIndexes: {}, // 改用 localStorage 來持久化儲存
       topPagination: true, // 控制上方分頁的顯示
       pageSizeOptions: [12, 24, 36, 48], // 將頁面大小選項提取為變數
+      selectedStatus: '', // 新增：用於儲存選擇的活動狀態
+      statusOptions: [
+        { label: '全部活動', value: '' },
+        { label: '只限今日', value: '只限今日' },
+        { label: '即將結束', value: '即將結束' },
+        { label: '進行中', value: '進行中' },
+        { label: '即將開始', value: '即將開始' },
+        { label: '未開始', value: '未開始' },
+        { label: '已結束', value: '已結束' },
+        { label: '未知', value: '未知' },
+      ],
     };
   },
   computed: {
@@ -125,6 +137,12 @@ export default {
       handler(newVal) {
         /* eslint-disable no-console */
         console.log('每頁顯示數量改變為:', newVal);
+      },
+      immediate: false,
+    },
+    selectedStatus: {
+      handler() {
+        this.handleSearch();
       },
       immediate: false,
     },
@@ -319,9 +337,10 @@ export default {
     handleSearch() {
       const query = this.searchQuery.trim();
       const searchDate = this.searchDate ? new Date(this.searchDate) : null;
+      const status = this.selectedStatus;
 
-      if (!query && !searchDate) {
-        this.activities = [...this.allActivities]; // 已排序的活動列表
+      if (!query && !searchDate && !status) {
+        this.activities = [...this.allActivities];
       }
       else {
         const filteredActivities = this.allActivities.filter((activity) => {
@@ -334,10 +353,12 @@ export default {
             || (new Date(activity.start_date) <= searchDate
               && new Date(activity.end_date) >= searchDate);
 
-          return matchesQuery && matchesDate;
+          const matchesStatus = !status || this.getStatusText(activity) === status;
+
+          return matchesQuery && matchesDate && matchesStatus;
         });
 
-        this.activities = filteredActivities; // 保持原有排序
+        this.activities = filteredActivities;
       }
 
       if (this.currentPage !== 1)
@@ -545,17 +566,30 @@ export default {
           >
         </div>
 
+        <!-- 新增：活動分類選單 -->
+        <div class="relative">
+          <NSelect
+            v-model:value="selectedStatus" :options="statusOptions" placeholder="選擇活動狀態"
+            class="w-full md:w-48 status-select" :consistent-menu-width="false" size="large"
+          >
+            <template #prefix>
+              <NIcon class="text-gray-400">
+                <i class="fas fa-filter" />
+              </NIcon>
+            </template>
+          </NSelect>
+        </div>
+
         <!-- 搜尋按鈕 -->
         <NButton
-          type="primary" class="py-3 px-6 rounded-lg transition-all duration-200 hover:shadow-lg"
-          @click="handleSearch"
+          type="primary"
+          class="search-button py-3 px-8 rounded-lg transition-all duration-200 hover:shadow-lg flex items-center gap-2"
+          size="large" @click="handleSearch"
         >
-          <template #icon>
-            <NIcon>
-              <i class="fas fa-search" />
-            </NIcon>
-          </template>
-          搜尋活動
+          <NIcon>
+            <i class="fas fa-search" />
+          </NIcon>
+          <span>搜尋活動</span>
         </NButton>
       </div>
     </div>
@@ -913,5 +947,85 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .n-pagination :deep(.n-base-selection) {
   @apply bg-white border border-gray-200;
+}
+
+/* 活動分類選單樣式 */
+.status-select :deep(.n-base-selection) {
+  background-color: #f8f9fa;
+  border-color: #e2e8f0;
+  transition: all 0.2s ease;
+  height: 48px;
+  /* 確保與其他輸入框高度一致 */
+}
+
+.status-select :deep(.n-base-selection:hover) {
+  background-color: white;
+  border-color: #93c5fd;
+}
+
+.status-select :deep(.n-base-selection-label) {
+  height: 48px;
+  line-height: 48px;
+  padding-left: 36px;
+  /* 為圖標留出空間 */
+}
+
+.status-select :deep(.n-base-selection-prefix) {
+  margin-left: 12px;
+  color: #6b7280;
+}
+
+.status-select :deep(.n-base-selection-placeholder) {
+  color: #9ca3af;
+}
+
+/* 下拉選單樣式 */
+.status-select :deep(.n-select-menu) {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+}
+
+.status-select :deep(.n-select-option) {
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.status-select :deep(.n-select-option:hover) {
+  background-color: #f0f9ff;
+}
+
+/* 搜尋按鈕樣式 */
+.search-button {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: none;
+  height: 48px;
+  /* 確保與其他輸入框高度一致 */
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.search-button:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.search-button:active {
+  transform: translateY(0);
+}
+
+/* 確保在移動設備上的響應式設計 */
+@media (max-width: 768px) {
+  .status-select {
+    width: 100%;
+  }
+
+  .search-button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>
