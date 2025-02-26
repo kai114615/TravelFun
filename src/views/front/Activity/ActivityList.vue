@@ -82,6 +82,7 @@ export default {
       ],
       currentImageIndexes: {}, // 改用 localStorage 來持久化儲存
       topPagination: true, // 控制上方分頁的顯示
+      pageSizeOptions: [12, 24, 36, 48], // 將頁面大小選項提取為變數
     };
   },
   computed: {
@@ -120,6 +121,12 @@ export default {
       },
       immediate: false,
     },
+    itemsPerPage: {
+      handler(newVal) {
+        console.log('每頁顯示數量改變為:', newVal);
+      },
+      immediate: false,
+    },
   },
   mounted() {
     this.fetchActivities();
@@ -128,6 +135,14 @@ export default {
       .toISOString().split('T')[0];
     this.maxDate = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
       .toISOString().split('T')[0];
+
+    // 從 localStorage 讀取之前保存的設置
+    const savedPageSize = localStorage.getItem('preferredPageSize');
+    if (savedPageSize) {
+      const size = Number.parseInt(savedPageSize);
+      if (this.pageSizeOptions.includes(size))
+        this.itemsPerPage = size;
+    }
   },
   methods: {
     async fetchActivities() {
@@ -379,21 +394,71 @@ export default {
     setImage(activityId, index) {
       this.currentImageIndexes[activityId] = index;
     },
+
+    handlePageSizeChange(pageSize) {
+      // 保存到 localStorage
+      localStorage.setItem('preferredPageSize', pageSize);
+
+      this.itemsPerPage = pageSize;
+      // 確保當前頁碼有效
+      const maxPage = Math.ceil(this.activities.length / this.itemsPerPage);
+      if (this.currentPage > maxPage)
+        this.currentPage = maxPage;
+
+      // 強制更新兩個分頁組件
+      this.$nextTick(() => {
+        // 觸發重新渲染
+        this.$forceUpdate();
+      });
+
+      // 滾動到頁面頂部
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
   },
 };
 </script>
 
 <template>
   <div class="activity-list">
-    <div class="search-container">
-      <div class="search-bar">
-        <input v-model="searchQuery" type="text" placeholder="搜尋活動名稱、地點..." class="search-input">
-        <div class="date-picker-container">
-          <input v-model="searchDate" type="date" class="date-input" :min="minDate" :max="maxDate">
+    <div class="search-container bg-white rounded-lg shadow-md p-6 mb-8">
+      <div class="flex flex-col md:flex-row gap-4">
+        <!-- 搜尋輸入框 -->
+        <div class="flex-1 relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fas fa-search text-gray-400" />
+          </div>
+          <input
+            v-model="searchQuery" type="text" placeholder="搜尋活動名稱、地點..."
+            class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 hover:bg-white"
+          >
         </div>
-        <button class="search-button" @click="handleSearch">
-          <i class="fas fa-search" />
-        </button>
+
+        <!-- 日期選擇器 -->
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <NIcon class="text-gray-400">
+              <CalendarOutline />
+            </NIcon>
+          </div>
+          <input
+            v-model="searchDate" type="date"
+            class="w-full md:w-48 pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 hover:bg-white"
+            :min="minDate" :max="maxDate"
+          >
+        </div>
+
+        <!-- 搜尋按鈕 -->
+        <NButton
+          type="primary" class="py-3 px-6 rounded-lg transition-all duration-200 hover:shadow-lg"
+          @click="handleSearch"
+        >
+          <template #icon>
+            <NIcon>
+              <i class="fas fa-search" />
+            </NIcon>
+          </template>
+          搜尋活動
+        </NButton>
       </div>
     </div>
 
@@ -414,11 +479,12 @@ export default {
     </template>
 
     <template v-else>
-      <!-- 添加上方分頁 -->
+      <!-- 上方分頁 -->
       <div class="flex justify-center mb-8">
         <NPagination
-          v-model:page="currentPage" :page-count="totalPages" :page-sizes="[12, 24, 36, 48]" show-size-picker
-          @update:page="changePage"
+          v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
+          :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker @update:page="changePage"
+          @update:page-size="handlePageSizeChange"
         />
       </div>
 
@@ -500,11 +566,12 @@ export default {
         </template>
       </div>
 
-      <!-- 保留原有的下方分頁 -->
+      <!-- 下方分頁 -->
       <div class="flex justify-center mt-8 mb-12">
         <NPagination
-          v-model:page="currentPage" :page-count="totalPages" :page-sizes="[12, 24, 36, 48]" show-size-picker
-          @update:page="changePage"
+          v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
+          :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker @update:page="changePage"
+          @update:page-size="handlePageSizeChange"
         />
       </div>
     </template>
@@ -519,64 +586,70 @@ export default {
   padding: 0 1rem;
 }
 
-/* 搜尋區塊樣式 */
+/* 搜尋區塊的新樣式 */
 .search-container {
-  margin-bottom: 2rem;
+  background: linear-gradient(to right, #ffffff, #f8f9fa);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.search-bar {
-  width: 100%;
-  max-width: 800px;
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  overflow: hidden;
-  gap: 15px;
-}
-
-.search-input {
-  flex: 1;
-  padding: 10px 15px;
-  border: none;
+/* 輸入框焦點效果 */
+input:focus {
   outline: none;
-  font-size: 14px;
-  color: #495057;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-.search-button {
-  padding: 10px 20px;
-  background: #007bff;
-  color: white;
-  border: none;
+/* 日期選擇器自定義樣式 */
+input[type="date"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
-.search-button:hover {
-  background: #0056b3;
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background: transparent;
+  bottom: 0;
+  color: transparent;
+  cursor: pointer;
+  height: auto;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
 }
 
-/* 日期選擇器樣式 */
-.date-picker-container {
-  min-width: 150px;
+/* 搜尋按鈕懸停效果 */
+.n-button:hover {
+  transform: translateY(-1px);
 }
 
-.date-input {
-  padding: 10px 15px;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #495057;
-  background-color: #fff;
-  outline: none;
-  transition: border-color 0.2s;
+/* 響應式調整 */
+@media (max-width: 768px) {
+  .search-container {
+    padding: 1rem;
+  }
+
+  input[type="date"] {
+    width: 100%;
+  }
 }
 
-.date-input:focus {
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+/* 添加漸變背景效果 */
+.search-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.search-container:hover::before {
+  opacity: 1;
 }
 
 /* 載入狀態樣式 */
@@ -723,5 +796,14 @@ export default {
 
 .n-pagination :deep(.n-pagination-item:hover:not(.n-pagination-item--active)) {
   @apply bg-gray-100;
+}
+
+/* 確保分頁選擇器的樣式一致 */
+.n-pagination :deep(.n-pagination-size-picker) {
+  @apply min-w-[80px];
+}
+
+.n-pagination :deep(.n-base-selection) {
+  @apply bg-white border border-gray-200;
 }
 </style>
