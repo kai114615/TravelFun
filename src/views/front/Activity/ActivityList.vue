@@ -190,32 +190,101 @@ export default {
 
     sortActivities(activities) {
       const now = new Date();
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
 
-      // 將活動分類
-      const categorizedActivities = activities.reduce((acc, activity) => {
+      const threeDays = 3 * 24 * 60 * 60 * 1000;
+
+      // 初始化分類容器
+      const categorizedActivities = {
+        todayOnly: [], // (1) 只限今日
+        endingSoon: [], // (2) 即將結束
+        ongoing: [], // (3) 進行中
+        upcoming: [], // (4) 即將開始
+        notStarted: [], // (5) 未開始
+        ended: [], // (6) 已結束
+        unknown: [], // (7) 未知
+      };
+
+      // 按照指定順序進行分類
+      activities.forEach((activity) => {
+        // 如果沒有日期，歸類為未知
+        if (!activity.start_date || !activity.end_date) {
+          categorizedActivities.unknown.push({
+            ...activity,
+            sortTime: 0,
+          });
+          return;
+        }
+
         const startDate = new Date(activity.start_date);
         const endDate = new Date(activity.end_date);
+        const startDiff = startDate.getTime() - now.getTime();
+        const endDiff = endDate.getTime() - now.getTime();
+        const isSameDay = startDate.toDateString() === endDate.toDateString();
 
-        if (now < startDate)
-          acc.upcoming.push({ ...activity, timeDistance: startDate - now });
-        else if (now > endDate)
-          acc.ended.push({ ...activity, timeDistance: endDate - now });
-        else
-          acc.ongoing.push({ ...activity, timeDistance: startDate - now });
+        // 按照指定順序進行分類判斷
+        if (endDate < now) {
+          // (6) 已結束
+          categorizedActivities.ended.push({
+            ...activity,
+            sortTime: endDate.getTime(),
+          });
+        }
+        else if (isSameDay && startDate.toDateString() === now.toDateString()) {
+          // (1) 只限今日
+          categorizedActivities.todayOnly.push({
+            ...activity,
+            sortTime: startDate.getTime(),
+          });
+        }
+        else if (endDiff <= threeDays && endDiff > 0) {
+          // (2) 即將結束
+          categorizedActivities.endingSoon.push({
+            ...activity,
+            sortTime: endDiff,
+          });
+        }
+        else if (now >= startDate && startDiff <= -threeDays) {
+          // (3) 進行中
+          categorizedActivities.ongoing.push({
+            ...activity,
+            sortTime: startDate.getTime(),
+          });
+        }
+        else if (startDiff > 0 && startDiff <= threeDays) {
+          // (4) 即將開始
+          categorizedActivities.upcoming.push({
+            ...activity,
+            sortTime: startDiff,
+          });
+        }
+        else if (startDiff > threeDays) {
+          // (5) 未開始
+          categorizedActivities.notStarted.push({
+            ...activity,
+            sortTime: startDiff,
+          });
+        }
+      });
 
-        return acc;
-      }, { upcoming: [], ongoing: [], ended: [] });
+      // 對各類別進行排序
+      categorizedActivities.todayOnly.sort((a, b) => a.sortTime - b.sortTime); // 按開始時間升序
+      categorizedActivities.endingSoon.sort((a, b) => a.sortTime - b.sortTime); // 越快結束越前面
+      categorizedActivities.ongoing.sort((a, b) => b.sortTime - a.sortTime); // 按開始時間降序
+      categorizedActivities.upcoming.sort((a, b) => a.sortTime - b.sortTime); // 越快開始越前面
+      categorizedActivities.notStarted.sort((a, b) => a.sortTime - b.sortTime); // 按開始時間升序
+      categorizedActivities.ended.sort((a, b) => b.sortTime - a.sortTime); // 最近結束的在前面
 
-      // 排序每個類別
-      categorizedActivities.upcoming.sort((a, b) => a.timeDistance - b.timeDistance);
-      categorizedActivities.ongoing.sort((a, b) => a.timeDistance - b.timeDistance);
-      categorizedActivities.ended.sort((a, b) => b.timeDistance - a.timeDistance);
-
-      // 合併所有活動：即將開始 -> 進行中 -> 已結束
+      // 按照指定順序合併所有活動
       return [
-        ...categorizedActivities.upcoming,
-        ...categorizedActivities.ongoing,
-        ...categorizedActivities.ended,
+        ...categorizedActivities.todayOnly, // (1)
+        ...categorizedActivities.endingSoon, // (2)
+        ...categorizedActivities.ongoing, // (3)
+        ...categorizedActivities.upcoming, // (4)
+        ...categorizedActivities.notStarted, // (5)
+        ...categorizedActivities.ended, // (6)
+        ...categorizedActivities.unknown, // (7)
       ];
     },
 
@@ -319,48 +388,49 @@ export default {
     },
 
     getStatusText(activity) {
-      // 如果沒有開始或結束日期，返回未知狀態
       if (!activity.start_date || !activity.end_date)
         return '未知';
 
-      // 獲取今天的日期（不含時間）
-      const today = new Date();
+      const now = new Date();
+      const today = new Date(now);
       today.setHours(0, 0, 0, 0);
 
-      // 獲取3天後的日期
-      const threeDaysLater = new Date(today);
-      threeDaysLater.setDate(today.getDate() + 3);
+      const threeDays = 3 * 24 * 60 * 60 * 1000;
 
       const startDate = new Date(activity.start_date);
-      startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(activity.end_date);
-      endDate.setHours(23, 59, 59, 999);
+      const startDiff = startDate.getTime() - now.getTime();
+      const endDiff = endDate.getTime() - now.getTime();
 
-      // 如果開始日期在今天到3天內，則為"即將開始"
-      if (startDate > today && startDate <= threeDaysLater)
-        return '即將開始';
+      // 檢查是否為當日活動
+      const isSameDay = startDate.toDateString() === endDate.toDateString();
 
-      // 如果今天在活動期間內（包含開始日和結束日），則為"進行中"
-      if (today >= startDate && today <= endDate)
-        return '進行中';
-
-      // 如果結束日期在今天之前，則為"已結束"
-      if (endDate < today)
+      if (endDate < now)
         return '已結束';
-
-      // 開始日期在3天後
-      if (startDate > threeDaysLater)
+      if (isSameDay && startDate.toDateString() === now.toDateString())
+        return '只限今日';
+      if (endDiff <= threeDays && endDiff > 0)
+        return '即將結束';
+      if (now >= startDate && startDiff <= -threeDays)
+        return '進行中';
+      if (startDiff > 0 && startDiff <= threeDays)
+        return '即將開始';
+      if (startDiff > threeDays)
         return '未開始';
 
-      return '進行中';
+      return '未知';
     },
 
     getStatusClass(activity) {
       const status = this.getStatusText(activity);
       return {
-        'status-upcoming': status === '即將開始',
-        'status-ongoing': status === '進行中',
-        'status-ended': status === '已結束',
+        'bg-orange-500/80 animate-pulse-soft': status === '即將結束',
+        'bg-red-500/80 animate-pulse-soft': status === '只限今日',
+        'bg-green-500/80 animate-pulse-soft': status === '進行中',
+        'bg-yellow-500/80': status === '即將開始',
+        'bg-gray-700/80': status === '未開始',
+        'bg-gray-400/80': status === '已結束',
+        'bg-amber-900/80': status === '未知',
       };
     },
 
@@ -504,15 +574,7 @@ export default {
               <!-- 活動狀態標籤 -->
               <div
                 class="absolute top-3 right-3 px-4 py-1.5 min-w-[80px] text-center rounded-md text-sm font-medium text-white transition-transform duration-300"
-                :class="[
-                  {
-                    'bg-yellow-500/80': getStatusText(activity) === '即將開始',
-                    'bg-green-500/80 animate-pulse-soft': getStatusText(activity) === '進行中',
-                    'bg-gray-400/80': getStatusText(activity) === '已結束',
-                    'bg-amber-900/80': getStatusText(activity) === '未知',
-                    'bg-gray-700/80': getStatusText(activity) === '未開始',
-                  },
-                ]"
+                :class="getStatusClass(activity)"
               >
                 {{ getStatusText(activity) }}
               </div>
