@@ -14,6 +14,9 @@ from .serializers import TravelSerializers,TravelClassSerializers,TaiwanSerializ
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+import heapq
+import math
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 
 # Create your views here.
 from django.core.paginator import Paginator
@@ -422,7 +425,7 @@ class CountryViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]  # 允許公開訪問
 
 class TravelViewSet(viewsets.ModelViewSet):
-    queryset = Travel.objects.all()
+    queryset = Travel.objects.all().order_by('travel_id') 
     serializer_class = TravelSerializers
     permission_classes = [AllowAny]  # 允許公開訪問
 
@@ -516,3 +519,223 @@ def api_test(request):
         'active_menu': 'travel'  # 設置active_menu為travel
     })
 
+# Haversine公式，計算兩個經緯度點之間的距離
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371  # 地球半徑，單位：公里
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    
+    a = math.sin(delta_phi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c  # 返回距離，單位：公里
+
+def find_nearest_neighbor(points, start_point, distances):
+    """使用最近鄰居算法找出一條路徑"""
+    current = start_point
+    unvisited = set(points) - {start_point}
+    path = [current]
+    total_distance = 0
+    
+    while unvisited:
+        next_point = min(unvisited, key=lambda x: distances[(current, x)])
+        total_distance += distances[(current, next_point)]
+        current = next_point
+        unvisited.remove(current)
+        path.append(current)
+    
+    return path, total_distance
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def find_path(request):
+    """
+    尋找最佳路徑的API endpoint
+    支持 GET 和 POST 請求，允許未認證訪問
+    
+    POST 請求格式:
+    {
+        "path": [
+            [latitude1, longitude1],
+            [latitude2, longitude2],
+            ...
+        ],
+        "start_point": [latitude, longitude],  # 可選
+        "end_point": [latitude, longitude]     # 可選
+    }
+    """
+    try:
+        if request.method == 'GET':
+            # 返回API使用說明
+            return Response({
+                'message': '請使用 POST 請求並提供以下格式的數據',
+                'format': {
+                    'path': [
+                        [25.0330, 121.5654],
+                        [25.0335, 121.5660],
+                        [25.0340, 121.5665],
+                        [25.0359, 121.5678]
+                    ],
+                    'start_point': [25.0330, 121.5654],  # 可選
+                    'end_point': [25.0359, 121.5678]     # 可選
+                },
+                '說明': '提供一個路徑點列表，可選起點和終點，系統會計算出最佳遊覽順序'
+            })
+        
+        # 驗證請求數據
+        if not request.data:
+            return Response({
+                'error': '請求數據不能為空'
+            }, status=400)
+            
+        if 'path' not in request.data:
+            return Response({
+                'error': '請求數據必須包含 "path" 欄位'
+            }, status=400)
+            
+        path_points = request.data['path']
+        start_point = request.data.get('start_point')
+        end_point = request.data.get('end_point')
+        
+        # 驗證路徑點
+        if not isinstance(path_points, list):
+            return Response({
+                'error': 'path 必須是一個列表'
+            }, status=400)
+            
+        if len(path_points) < 2:
+            return Response({
+                'error': '至少需要提供兩個路徑點'
+            }, status=400)
+            
+        # 驗證每個點的格式並轉換為元組
+        validated_points = []
+        for point in path_points:
+            if not isinstance(point, list) or len(point) != 2:
+                return Response({
+                    'error': '每個路徑點必須是包含兩個數值的列表 [緯度, 經度]'
+                }, status=400)
+            try:
+                lat, lon = float(point[0]), float(point[1])
+                if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                    return Response({
+                        'error': f'無效的經緯度值: [{lat}, {lon}]'
+                    }, status=400)
+                validated_points.append((lat, lon))  # 轉換為元組
+            except (ValueError, TypeError):
+                return Response({
+                    'error': '路徑點的經緯度必須是數值'
+                }, status=400)
+        
+        # 驗證起點和終點（如果有提供）
+        start_index = None
+        end_index = None
+        
+        if start_point:
+            try:
+                start_lat, start_lon = float(start_point[0]), float(start_point[1])
+                if not (-90 <= start_lat <= 90) or not (-180 <= start_lon <= 180):
+                    return Response({
+                        'error': f'無效的起點經緯度值: [{start_lat}, {start_lon}]'
+                    }, status=400)
+                # 找到最接近起點的位置
+                start_index = min(range(len(validated_points)), 
+                                key=lambda i: haversine(start_lat, start_lon, 
+                                                      validated_points[i][0], 
+                                                      validated_points[i][1]))
+            except (ValueError, TypeError, IndexError):
+                return Response({
+                    'error': '起點格式無效'
+                }, status=400)
+                
+        if end_point:
+            try:
+                end_lat, end_lon = float(end_point[0]), float(end_point[1])
+                if not (-90 <= end_lat <= 90) or not (-180 <= end_lon <= 180):
+                    return Response({
+                        'error': f'無效的終點經緯度值: [{end_lat}, {end_lon}]'
+                    }, status=400)
+                # 找到最接近終點的位置
+                end_index = min(range(len(validated_points)), 
+                              key=lambda i: haversine(end_lat, end_lon, 
+                                                    validated_points[i][0], 
+                                                    validated_points[i][1]))
+            except (ValueError, TypeError, IndexError):
+                return Response({
+                    'error': '終點格式無效'
+                }, status=400)
+        
+        # 計算所有點之間的距離矩陣
+        n = len(validated_points)
+        distances = [[0] * n for _ in range(n)]
+        for i in range(n):
+            for j in range(n):
+                if i != j:
+                    distances[i][j] = haversine(
+                        validated_points[i][0], validated_points[i][1],
+                        validated_points[j][0], validated_points[j][1]
+                    )
+        
+        # 使用最近鄰居算法找出最佳路徑
+        def find_best_path():
+            best_distance = float('inf')
+            best_path = None
+            
+            # 確定起點範圍
+            start_points = [start_index] if start_index is not None else range(n)
+            
+            # 嘗試每個可能的起點
+            for start in start_points:
+                unvisited = set(range(n))
+                current = start
+                path = [current]
+                total_distance = 0
+                unvisited.remove(current)
+                
+                # 如果有指定終點，確保它是最後訪問的
+                if end_index is not None:
+                    unvisited.remove(end_index)
+                
+                # 不斷找最近的下一個點
+                while unvisited:
+                    next_point = min(unvisited, key=lambda x: distances[current][x])
+                    total_distance += distances[current][next_point]
+                    current = next_point
+                    path.append(current)
+                    unvisited.remove(current)
+                
+                # 如果有指定終點，將其加入路徑末尾
+                if end_index is not None:
+                    total_distance += distances[current][end_index]
+                    path.append(end_index)
+                
+                # 如果這條路徑更短，就更新最佳路徑
+                if total_distance < best_distance:
+                    best_distance = total_distance
+                    best_path = path
+        
+            return best_path, best_distance
+        
+        # 計算最佳路徑
+        best_path_indices, total_distance = find_best_path()
+        
+        if best_path_indices:
+            # 將索引轉換回實際的路徑點
+            optimal_path = [validated_points[i] for i in best_path_indices]
+            
+            return Response({
+                'success': True,
+                'path': [list(point) for point in optimal_path],  # 轉回列表以便 JSON 序列化
+                'total_distance': round(total_distance, 2),  # 四捨五入到小數點後兩位
+                'unit': 'kilometers'
+            })
+        else:
+            return Response({
+                'error': '無法找到有效路徑'
+            }, status=404)
+            
+    except Exception as e:
+        return Response({
+            'error': f'處理請求時發生錯誤: {str(e)}'
+        }, status=500)

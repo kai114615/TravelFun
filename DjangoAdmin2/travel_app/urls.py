@@ -14,6 +14,7 @@ router.register('query', views.QueryViewSet, basename='query')
 
 app_name='travel'
 urlpatterns = [
+    path('api/find-path/', views.find_path, name='find_path'),
     path('api/', include(router.urls)),
     path('', views.travel_main, name='travel'),
     path('register/', views.register, name='register'),
@@ -42,6 +43,3 @@ urlpatterns = [
     
 
 ]
-
-
-

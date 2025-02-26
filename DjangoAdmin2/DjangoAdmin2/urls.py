@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework_simplejwt.views import (
+from rest_framework_simplejwt.views import (  # type: ignore
     TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
@@ -23,10 +23,10 @@ urlpatterns = [
     path('', include('myapp.urls')),  # 包含 myapp 的所有 URLs
     path('restaurant/', include('restaurant_system.urls')),
     path('shop/', include('shopping_system.urls')),
-    path('travel/', include('travel_app.urls')),
+    path('travel/', include('travel_app.urls', namespace='travel')),
     path('theme/', include('theme_entertainment.urls')),
     path('', include('forum_system.urls')),
-    path('admin-dashboard/travel_app/', include('travel_app.urls')),
+    path('admin-dashboard/travel_app/', include('travel_app.urls', namespace='another_travel_app')),
     path('api/health-check/', health_check, name='health_check'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
