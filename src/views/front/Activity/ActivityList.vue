@@ -123,6 +123,7 @@ export default {
     },
     itemsPerPage: {
       handler(newVal) {
+        /* eslint-disable no-console */
         console.log('每頁顯示數量改變為:', newVal);
       },
       immediate: false,
@@ -208,8 +209,11 @@ export default {
 
       // 按照指定順序進行分類
       activities.forEach((activity) => {
-        // 如果沒有日期，歸類為未知
-        if (!activity.start_date || !activity.end_date) {
+        // 檢查日期是否完整
+        if (!activity.start_date || !activity.end_date
+          || activity.start_date === 'null' || activity.end_date === 'null'
+          || activity.start_date === '' || activity.end_date === '') {
+          // (7) 未知
           categorizedActivities.unknown.push({
             ...activity,
             sortTime: 0,
@@ -217,64 +221,88 @@ export default {
           return;
         }
 
-        const startDate = new Date(activity.start_date);
-        const endDate = new Date(activity.end_date);
-        const startDiff = startDate.getTime() - now.getTime();
-        const endDiff = endDate.getTime() - now.getTime();
-        const isSameDay = startDate.toDateString() === endDate.toDateString();
+        try {
+          const startDate = new Date(activity.start_date);
+          const endDate = new Date(activity.end_date);
 
-        // 按照指定順序進行分類判斷
-        if (endDate < now) {
-          // (6) 已結束
-          categorizedActivities.ended.push({
-            ...activity,
-            sortTime: endDate.getTime(),
-          });
+          // 檢查日期是否有效
+          if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+            categorizedActivities.unknown.push({
+              ...activity,
+              sortTime: 0,
+            });
+            return;
+          }
+
+          const startDiff = startDate.getTime() - now.getTime();
+          const endDiff = endDate.getTime() - now.getTime();
+          const isSameDay = startDate.toDateString() === endDate.toDateString();
+
+          // 按照指定順序進行分類判斷
+          if (endDate < now) {
+            // (6) 已結束
+            categorizedActivities.ended.push({
+              ...activity,
+              sortTime: endDate.getTime(),
+            });
+          }
+          else if (isSameDay && startDate.toDateString() === now.toDateString()) {
+            // (1) 只限今日
+            categorizedActivities.todayOnly.push({
+              ...activity,
+              sortTime: startDate.getTime(),
+            });
+          }
+          else if (endDiff <= threeDays && endDiff > 0) {
+            // (2) 即將結束
+            categorizedActivities.endingSoon.push({
+              ...activity,
+              sortTime: endDiff,
+            });
+          }
+          else if (now >= startDate && startDiff <= -threeDays) {
+            // (3) 進行中
+            categorizedActivities.ongoing.push({
+              ...activity,
+              sortTime: startDate.getTime(),
+            });
+          }
+          else if (startDiff > 0 && startDiff <= threeDays) {
+            // (4) 即將開始
+            categorizedActivities.upcoming.push({
+              ...activity,
+              sortTime: startDiff,
+            });
+          }
+          else if (startDiff > threeDays) {
+            // (5) 未開始
+            categorizedActivities.notStarted.push({
+              ...activity,
+              sortTime: startDiff,
+            });
+          }
         }
-        else if (isSameDay && startDate.toDateString() === now.toDateString()) {
-          // (1) 只限今日
-          categorizedActivities.todayOnly.push({
+        catch (error) {
+          // 如果日期解析出錯，歸類為未知
+          console.error('Date parsing error:', error);
+          categorizedActivities.unknown.push({
             ...activity,
-            sortTime: startDate.getTime(),
-          });
-        }
-        else if (endDiff <= threeDays && endDiff > 0) {
-          // (2) 即將結束
-          categorizedActivities.endingSoon.push({
-            ...activity,
-            sortTime: endDiff,
-          });
-        }
-        else if (now >= startDate && startDiff <= -threeDays) {
-          // (3) 進行中
-          categorizedActivities.ongoing.push({
-            ...activity,
-            sortTime: startDate.getTime(),
-          });
-        }
-        else if (startDiff > 0 && startDiff <= threeDays) {
-          // (4) 即將開始
-          categorizedActivities.upcoming.push({
-            ...activity,
-            sortTime: startDiff,
-          });
-        }
-        else if (startDiff > threeDays) {
-          // (5) 未開始
-          categorizedActivities.notStarted.push({
-            ...activity,
-            sortTime: startDiff,
+            sortTime: 0,
           });
         }
       });
 
       // 對各類別進行排序
-      categorizedActivities.todayOnly.sort((a, b) => a.sortTime - b.sortTime); // 按開始時間升序
-      categorizedActivities.endingSoon.sort((a, b) => a.sortTime - b.sortTime); // 越快結束越前面
-      categorizedActivities.ongoing.sort((a, b) => b.sortTime - a.sortTime); // 按開始時間降序
-      categorizedActivities.upcoming.sort((a, b) => a.sortTime - b.sortTime); // 越快開始越前面
-      categorizedActivities.notStarted.sort((a, b) => a.sortTime - b.sortTime); // 按開始時間升序
-      categorizedActivities.ended.sort((a, b) => b.sortTime - a.sortTime); // 最近結束的在前面
+      categorizedActivities.todayOnly.sort((a, b) => a.sortTime - b.sortTime);
+      categorizedActivities.endingSoon.sort((a, b) => a.sortTime - b.sortTime);
+      categorizedActivities.ongoing.sort((a, b) => b.sortTime - a.sortTime);
+      categorizedActivities.upcoming.sort((a, b) => a.sortTime - b.sortTime);
+      categorizedActivities.notStarted.sort((a, b) => a.sortTime - b.sortTime);
+      categorizedActivities.ended.sort((a, b) => b.sortTime - a.sortTime);
+      // 未知類別按照活動名稱排序
+      categorizedActivities.unknown.sort((a, b) =>
+        (a.activity_name || '').localeCompare(b.activity_name || '', 'zh-TW'),
+      );
 
       // 按照指定順序合併所有活動
       return [
@@ -425,12 +453,12 @@ export default {
       const status = this.getStatusText(activity);
       return {
         'bg-orange-500/80 animate-pulse-soft': status === '即將結束',
-        'bg-red-500/80 animate-pulse-soft': status === '只限今日',
-        'bg-green-500/80 animate-pulse-soft': status === '進行中',
+        'bg-red-500/80 animate-pulse-urgent': status === '只限今日',
+        'bg-green-500/80': status === '進行中',
         'bg-yellow-500/80': status === '即將開始',
         'bg-gray-700/80': status === '未開始',
         'bg-gray-400/80': status === '已結束',
-        'bg-amber-900/80': status === '未知',
+        'bg-purple-400/80': status === '未知',
       };
     },
 
@@ -838,8 +866,26 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+/* 新增一個專門用於"只限今日"的快速跳動動畫 */
+@keyframes pulse-urgent {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+}
+
 .animate-pulse-soft {
   animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* 新增一個用於"只限今日"的動畫類別 */
+.animate-pulse-urgent {
+  animation: pulse-urgent 1s ease-in-out infinite;
 }
 
 /* 添加分頁相關樣式 */
