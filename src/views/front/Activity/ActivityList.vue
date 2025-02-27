@@ -1,104 +1,138 @@
-<script>
+<script lang="ts">
 import axios from 'axios';
+import { defineComponent } from 'vue';
 import { NButton, NCard, NIcon, NPagination, NSelect } from 'naive-ui';
 import { CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
-// 導出預設圖片陣列
+// 定義活動介面
+interface Activity {
+  id: number
+  uid: string
+  activity_name: string
+  description: string
+  location: string
+  start_date: string
+  end_date: string
+  ticket_price: string
+  image_url: string | string[]
+  sortTime?: number
+}
+
+// 定義分類活動介面
+interface CategorizedActivities {
+  todayOnly: Activity[]
+  endingSoon: Activity[]
+  ongoing: Activity[]
+  upcoming: Activity[]
+  notStarted: Activity[]
+  ended: Activity[]
+  unknown: Activity[]
+}
+
+// 定義錯誤型別
+type ErrorType = string | null;
+
+// 匯出預設活動圖片陣列
 export const defaultActivityImages = [
-  // 露營 Camping
+  // 露營活動
   'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&auto=format&fit=crop&q=80',
-  // 攀岩 Climbing
+  // 攀岩活動
   'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&auto=format&fit=crop&q=80',
-  // 衝浪 Surfing
+  // 衝浪活動
   'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&auto=format&fit=crop&q=80',
-  // 健行 Hiking
+  // 健行活動
   'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80',
-  // 單車 Cycling
+  // 單車活動
   'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&auto=format&fit=crop&q=80',
-  // 游泳 Swimming
+  // 游泳活動
   'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&auto=format&fit=crop&q=80',
-  // 瑜珈 Yoga
+  // 瑜珈活動
   'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&auto=format&fit=crop&q=80',
-  // 跑步 Running
+  // 路跑活動
   'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&auto=format&fit=crop&q=80',
-  // 滑板 Skateboarding
+  // 滑板活動
   'https://images.unsplash.com/photo-1520045892732-304bc3ac5d8e?w=800&auto=format&fit=crop&q=80',
-  // 籃球 Basketball
+  // 籃球活動
   'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80',
-  // 網球 Tennis
+  // 網球活動
   'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80',
-  // 高爾夫 Golf
+  // 高爾夫活動
   'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&auto=format&fit=crop&q=80',
-  // 舞蹈 Dancing
+  // 舞蹈活動
   'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&auto=format&fit=crop&q=80',
-  // 攝影 Photography
+  // 攝影活動
   'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80',
-  // 繪畫 Painting
+  // 繪畫活動
   'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&auto=format&fit=crop&q=80',
-  // 烹飪 Cooking
+  // 烹飪活動
   'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&auto=format&fit=crop&q=80',
-  // 園藝 Gardening
+  // 園藝活動
   'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop&q=80',
-  // 手工藝 Crafting
+  // 手作活動
   'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=800&auto=format&fit=crop&q=80',
-  // 音樂 Music
+  // 音樂活動
   'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&auto=format&fit=crop&q=80',
-  // 冥想 Meditation
+  // 靜心活動
   'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&auto=format&fit=crop&q=80',
-  // 寵物 Pets
+  // 寵物活動
   'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800&auto=format&fit=crop&q=80',
-  // 閱讀 Reading
+  // 閱讀活動
   'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&auto=format&fit=crop&q=80',
-  // 遊戲 Gaming
+  // 電競活動
   'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&auto=format&fit=crop&q=80',
-  // 旅行 Traveling
+  // 旅遊活動
   'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&auto=format&fit=crop&q=80',
-  // 露營車 RV Camping
+  // 露營車活動
   'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&auto=format&fit=crop&q=80',
 ];
 
-export default {
+// 常數定義
+const STATUS_OPTIONS = [
+  { label: '全部活動', value: '' },
+  { label: '只限今日', value: '只限今日' },
+  { label: '即將結束', value: '即將結束' },
+  { label: '進行中', value: '進行中' },
+  { label: '即將開始', value: '即將開始' },
+  { label: '未開始', value: '未開始' },
+  { label: '已結束', value: '已結束' },
+  { label: '未知', value: '未知' },
+];
+
+const PAGE_SIZE_OPTIONS = [12, 24, 36, 48];
+
+export default defineComponent({
   name: 'ActivityList',
   components: {
-    NCard,
-    NButton,
-    NPagination,
-    NIcon,
-    NSelect,
-    LocationOutline,
-    CalendarOutline,
-    TicketOutline,
+    NCard, // 卡片容器元件
+    NButton, // 按鈕元件
+    NPagination, // 分頁元件
+    NIcon, // 圖示元件
+    NSelect, // 下拉選單元件
+    LocationOutline, // 地點圖示
+    CalendarOutline, // 行事曆圖示
+    TicketOutline, // 票券圖示
   },
   data() {
     return {
-      activities: [],
-      allActivities: [], // 儲存所有活動的原始資料
-      loading: false,
-      error: null,
-      searchQuery: '', // 新增搜尋查詢字串
-      baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000',
-      currentPage: 1,
-      itemsPerPage: 12,
-      maxDisplayPages: 5,
-      searchDate: '',
-      minDate: '',
-      maxDate: '',
-      defaultImages: defaultActivityImages, // 使用導出的預設圖片
-      hasMultipleImages: {}, // 標記每個活動是否有多張圖片
-      currentImageIndexes: {}, // 儲存每個活動的當前圖片索引
+      activities: [] as Activity[], // 活動清單
+      allActivities: [] as Activity[], // 儲存所有活動的原始資料
+      loading: false, // 讀取狀態
+      error: null as ErrorType, // 錯誤訊息
+      searchQuery: '', // 搜尋關鍵字
+      baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000', // API 基礎網址
+      currentPage: 1, // 目前頁碼
+      itemsPerPage: 12, // 每頁顯示筆數
+      maxDisplayPages: 5, // 最大顯示頁數
+      searchDate: '', // 搜尋日期
+      minDate: '', // 最小日期
+      maxDate: '', // 最大日期
+      defaultImages: defaultActivityImages, // 使用匯出的預設圖片
+      hasMultipleImages: {} as Record<number, boolean>, // 標記每個活動是否有多張圖片
+      currentImageIndexes: {} as Record<number, number>, // 儲存每個活動目前的圖片索引
       topPagination: true, // 控制上方分頁的顯示
-      pageSizeOptions: [12, 24, 36, 48], // 將頁面大小選項提取為變數
-      selectedStatus: '', // 新增：用於儲存選擇的活動狀態
-      statusOptions: [
-        { label: '全部活動', value: '' },
-        { label: '只限今日', value: '只限今日' },
-        { label: '即將結束', value: '即將結束' },
-        { label: '進行中', value: '進行中' },
-        { label: '即將開始', value: '即將開始' },
-        { label: '未開始', value: '未開始' },
-        { label: '已結束', value: '已結束' },
-        { label: '未知', value: '未知' },
-      ],
+      pageSizeOptions: PAGE_SIZE_OPTIONS, // 頁面大小選項
+      selectedStatus: '', // 選擇的活動狀態
+      statusOptions: STATUS_OPTIONS, // 活動狀態選項
     };
   },
   computed: {
@@ -152,66 +186,80 @@ export default {
     },
   },
   mounted() {
-    this.fetchActivities();
-    const today = new Date();
-    this.minDate = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
-      .toISOString().split('T')[0];
-    this.maxDate = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
-      .toISOString().split('T')[0];
-
-    // 從 localStorage 讀取之前保存的設置
-    const savedPageSize = localStorage.getItem('preferredPageSize');
-    if (savedPageSize) {
-      const size = Number.parseInt(savedPageSize);
-      if (this.pageSizeOptions.includes(size))
-        this.itemsPerPage = size;
-    }
+    this.initializeComponent();
   },
   methods: {
+    initializeComponent() {
+      this.fetchActivities();
+      this.loadSavedPageSize();
+    },
+
+    loadSavedPageSize() {
+      const savedPageSize = localStorage.getItem('preferredPageSize');
+      if (savedPageSize) {
+        const size = Number.parseInt(savedPageSize);
+        if (this.pageSizeOptions.includes(size))
+          this.itemsPerPage = size;
+      }
+    },
+
+    getMinDate() {
+      const today = new Date();
+      return new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
+        .toISOString().split('T')[0];
+    },
+
+    getMaxDate() {
+      const today = new Date();
+      return new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
+        .toISOString().split('T')[0];
+    },
+
     async fetchActivities() {
       this.loading = true;
       this.error = null;
 
       try {
-        // 首先嘗試使用本地 JSON 檔案
-        const localData = await import('@/assets/theme_entertainment/events_data.json');
-        if (Array.isArray(localData.default)) {
-          this.allActivities = this.sortActivities(localData.default);
-          this.activities = [...this.allActivities];
-          console.log('使用本地數據');
-        }
+        const data = await this.fetchActivityData();
+        this.processActivityData(data);
       }
-      catch (localError) {
-        console.error('Local data error:', localError);
-
-        // 如果本地數據載入失敗，嘗試從 API 獲取
-        try {
-          const response = await axios.get('/theme_entertainment/activities/api/list/');
-          const data = response.data;
-
-          if (Array.isArray(data)) {
-            this.allActivities = this.sortActivities(data);
-            this.activities = [...this.allActivities];
-          }
-          else if (data.status === 'success' && Array.isArray(data.data)) {
-            this.allActivities = this.sortActivities(data.data);
-            this.activities = [...this.allActivities];
-          }
-          else {
-            throw new Error('API 返回的數據格式無效');
-          }
-        }
-        catch (apiError) {
-          console.error('API Error:', apiError);
-          this.error = '無法載入活動資料，請稍後再試';
-        }
+      catch (error) {
+        console.error('Error fetching activities:', error);
+        this.error = '無法載入活動資料，請稍後再試';
       }
       finally {
         this.loading = false;
       }
     },
 
-    sortActivities(activities) {
+    async fetchActivityData() {
+      try {
+        const localData = await import('@/assets/theme_entertainment/events_data.json');
+        return localData.default;
+      }
+      catch (localError) {
+        console.error('Local data error:', localError);
+        const response = await axios.get('/theme_entertainment/activities/api/list/');
+        return response.data;
+      }
+    },
+
+    processActivityData(data: any) {
+      let activities: Activity[];
+      if (Array.isArray(data))
+        activities = data;
+
+      else if (data.status === 'success' && Array.isArray(data.data))
+        activities = data.data;
+
+      else
+        throw new Error('API 返回的數據格式無效');
+
+      this.allActivities = this.sortActivities(activities);
+      this.activities = [...this.allActivities];
+    },
+
+    sortActivities(activities: Activity[]) {
       const now = new Date();
       const today = new Date(now);
       today.setHours(0, 0, 0, 0);
@@ -219,7 +267,7 @@ export default {
       const threeDays = 3 * 24 * 60 * 60 * 1000;
 
       // 初始化分類容器
-      const categorizedActivities = {
+      const categorizedActivities: CategorizedActivities = {
         todayOnly: [], // (1) 只限今日
         endingSoon: [], // (2) 即將結束
         ongoing: [], // (3) 進行中
@@ -315,12 +363,12 @@ export default {
       });
 
       // 對各類別進行排序
-      categorizedActivities.todayOnly.sort((a, b) => a.sortTime - b.sortTime);
-      categorizedActivities.endingSoon.sort((a, b) => a.sortTime - b.sortTime);
-      categorizedActivities.ongoing.sort((a, b) => b.sortTime - a.sortTime);
-      categorizedActivities.upcoming.sort((a, b) => a.sortTime - b.sortTime);
-      categorizedActivities.notStarted.sort((a, b) => a.sortTime - b.sortTime);
-      categorizedActivities.ended.sort((a, b) => b.sortTime - a.sortTime);
+      categorizedActivities.todayOnly.sort((a, b) => (a.sortTime ?? 0) - (b.sortTime ?? 0));
+      categorizedActivities.endingSoon.sort((a, b) => (a.sortTime ?? 0) - (b.sortTime ?? 0));
+      categorizedActivities.ongoing.sort((a, b) => (b.sortTime ?? 0) - (a.sortTime ?? 0));
+      categorizedActivities.upcoming.sort((a, b) => (a.sortTime ?? 0) - (b.sortTime ?? 0));
+      categorizedActivities.notStarted.sort((a, b) => (a.sortTime ?? 0) - (b.sortTime ?? 0));
+      categorizedActivities.ended.sort((a, b) => (b.sortTime ?? 0) - (a.sortTime ?? 0));
       // 未知類別按照活動名稱排序
       categorizedActivities.unknown.sort((a, b) =>
         (a.activity_name || '').localeCompare(b.activity_name || '', 'zh-TW'),
@@ -369,7 +417,7 @@ export default {
         this.currentPage = 1;
     },
 
-    formatDate(dateString) {
+    formatDate(dateString: string | null): string {
       if (!dateString)
         return '時間未定';
       return new Date(dateString).toLocaleDateString('zh-TW', {
@@ -379,7 +427,7 @@ export default {
       });
     },
 
-    getImageUrl(activity) {
+    getImageUrl(activity: Activity): string {
       if (!activity)
         return '';
 
@@ -410,7 +458,7 @@ export default {
       hash = Math.abs(hash);
 
       // 計算當前頁面上已使用的預設圖片索引
-      const usedIndexes = new Set();
+      const usedIndexes = new Set<number>();
       this.paginatedActivities.forEach((a) => {
         if (a.id !== activity.id && !this.getActivityImageUrls(a).length) {
           const aHash = this.calculateHash(a);
@@ -427,7 +475,7 @@ export default {
     },
 
     // 新增：計算活動的雜湊值
-    calculateHash(activity) {
+    calculateHash(activity: Activity) {
       const idString = String(activity.id || '') + String(activity.activity_name || '');
       let hash = 0;
       for (let i = 0; i < idString.length; i++) {
@@ -439,11 +487,14 @@ export default {
 
     getRandomUniqueImageIndex() {
       // 從 localStorage 獲取所有已使用的索引
-      const usedIndexes = new Set();
+      const usedIndexes = new Set<number>();
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key.startsWith('activity_image_'))
-          usedIndexes.add(Number.parseInt(localStorage.getItem(key)));
+        if (key && key.startsWith('activity_image_')) {
+          const value = localStorage.getItem(key);
+          if (value)
+            usedIndexes.add(Number.parseInt(value));
+        }
       }
 
       // 獲取可用的索引
@@ -464,20 +515,23 @@ export default {
       return availableIndexes[Math.floor(Math.random() * availableIndexes.length)];
     },
 
-    handleImageError(e) {
+    handleImageError(e: Event) {
+      const target = e.target as HTMLImageElement;
+      const activityId = target.dataset.activityId;
       const activity = this.paginatedActivities.find(
-        a => a.id === e.target.dataset.activityId,
+        (a: Activity) => a.id === Number(activityId),
       );
+
       if (activity) {
         const storageKey = `activity_image_${activity.id}`;
         const newIndex = this.getRandomUniqueImageIndex();
-        localStorage.setItem(storageKey, newIndex);
-        e.target.src = this.defaultImages[newIndex];
+        localStorage.setItem(storageKey, String(newIndex));
+        target.src = this.defaultImages[newIndex];
       }
-      e.target.onerror = null;
+      target.onerror = null;
     },
 
-    getStatusText(activity) {
+    getStatusText(activity: Activity): string {
       if (!activity.start_date || !activity.end_date)
         return '未知';
 
@@ -511,7 +565,7 @@ export default {
       return '未知';
     },
 
-    getStatusClass(activity) {
+    getStatusClass(activity: Activity): Record<string, boolean> {
       const status = this.getStatusText(activity);
       return {
         'bg-orange-500/80 animate-pulse-soft': status === '即將結束',
@@ -524,21 +578,21 @@ export default {
       };
     },
 
-    changePage(page) {
+    changePage(page: number) {
       if (page >= 1 && page <= this.totalPages) {
         this.currentPage = page;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     },
 
-    viewDetails(activity) {
+    viewDetails(activity: Activity) {
       this.$router.push({
         name: 'ActivityDetail',
         params: { id: activity.uid },
       });
     },
 
-    prevImage(activity, event) {
+    prevImage(activity: Activity, event?: Event) {
       if (event)
         event.stopPropagation();
 
@@ -552,7 +606,7 @@ export default {
       }
     },
 
-    nextImage(activity, event) {
+    nextImage(activity: Activity, event?: Event) {
       if (event)
         event.stopPropagation();
 
@@ -566,12 +620,12 @@ export default {
       }
     },
 
-    getActivityImageUrls(activity) {
+    getActivityImageUrls(activity: Activity): string[] {
       if (!activity?.image_url)
         return [];
 
       try {
-        let imageUrls = [];
+        let imageUrls: string[] = [];
         if (typeof activity.image_url === 'string') {
           try {
             imageUrls = JSON.parse(activity.image_url);
@@ -590,8 +644,8 @@ export default {
         }
 
         return imageUrls
-          .filter(url => url && url.trim())
-          .map(url => url.trim());
+          .filter((url: string) => url && url.trim())
+          .map((url: string) => url.trim());
       }
       catch (e) {
         console.error('取得圖片 URL 列表錯誤:', e);
@@ -599,10 +653,8 @@ export default {
       }
     },
 
-    handlePageSizeChange(pageSize) {
-      // 保存到 localStorage
-      localStorage.setItem('preferredPageSize', pageSize);
-
+    handlePageSizeChange(pageSize: number) {
+      localStorage.setItem('preferredPageSize', String(pageSize));
       this.itemsPerPage = pageSize;
       // 確保當前頁碼有效
       const maxPage = Math.ceil(this.activities.length / this.itemsPerPage);
@@ -619,7 +671,7 @@ export default {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
   },
-};
+});
 </script>
 
 <template>
@@ -835,6 +887,23 @@ export default {
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
+/* 搜索容器漸變效果 */
+.search-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.search-container:hover::before {
+  opacity: 1;
+}
+
 /* 輸入框焦點效果 */
 input:focus {
   outline: none;
@@ -849,6 +918,7 @@ input[type="date"] {
   cursor: pointer;
 }
 
+/* 日期選擇器圖標樣式 */
 input[type="date"]::-webkit-calendar-picker-indicator {
   background: transparent;
   bottom: 0;
@@ -867,34 +937,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transform: translateY(-1px);
 }
 
-/* 響應式調整 */
-@media (max-width: 768px) {
-  .search-container {
-    padding: 1rem;
-  }
-
-  input[type="date"] {
-    width: 100%;
-  }
-}
-
-/* 添加漸變背景效果 */
-.search-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.search-container:hover::before {
-  opacity: 1;
-}
-
 /* 載入狀態樣式 */
 .loading-state {
   text-align: center;
@@ -902,6 +944,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #6c757d;
 }
 
+/* 載入動畫 */
 .loading-spinner {
   border: 3px solid #f3f3f3;
   border-top: 3px solid #007bff;
@@ -919,6 +962,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #dc3545;
 }
 
+/* 重試按鈕樣式 */
 .retry-button {
   margin-top: 12px;
   padding: 6px 12px;
@@ -934,13 +978,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background-color: #c82333;
 }
 
-/* 輪播樣式 */
+/* 輪播容器樣式 */
 .carousel {
   position: relative;
   height: 100%;
   width: 100%;
 }
 
+/* 輪播圖片樣式 */
 .carousel img {
   width: 100%;
   height: 100%;
@@ -948,6 +993,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: opacity 0.3s ease;
 }
 
+/* 輪播控制區域樣式 */
 .carousel-controls {
   position: absolute;
   top: 0;
@@ -962,28 +1008,28 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: opacity 0.3s ease;
 }
 
+/* 輪播控制區域懸停效果 */
 .carousel:hover .carousel-controls {
   opacity: 1;
 }
 
-.carousel-btn {
+/* 輪播按鈕基礎樣式 */
+.carousel-button {
   background-color: rgba(0, 0, 0, 0.5);
   color: white;
-  border: none;
+  padding: 8px;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
 }
 
-.carousel-btn:hover {
+/* 輪播按鈕懸停效果 */
+.carousel-button:hover {
   background-color: rgba(0, 0, 0, 0.7);
+  transform: scale(1.1);
 }
 
+/* 輪播指示器容器 */
 .carousel-indicators {
   position: absolute;
   bottom: 10px;
@@ -993,7 +1039,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   gap: 6px;
 }
 
-.indicator {
+/* 輪播指示器基礎樣式 */
+.carousel-indicator {
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -1002,11 +1049,124 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: all 0.3s ease;
 }
 
-.indicator.active {
+/* 輪播指示器啟動狀態 */
+.carousel-indicator.active {
   background-color: white;
   transform: scale(1.2);
 }
 
+/* 分頁組件樣式 */
+.n-pagination {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  padding: 0.5rem;
+}
+
+/* 分頁項目樣式 */
+.n-pagination :deep(.n-pagination-item) {
+  min-width: 32px;
+  height: 32px;
+  line-height: 32px;
+  margin: 0 4px;
+}
+
+/* 分頁目前項目樣式 */
+.n-pagination :deep(.n-pagination-item--active) {
+  background-color: #3b82f6;
+  color: white;
+}
+
+/* 分頁項目懸停效果 */
+.n-pagination :deep(.n-pagination-item:hover:not(.n-pagination-item--active)) {
+  background-color: #f3f4f6;
+}
+
+/* 分頁選擇器樣式 */
+.n-pagination :deep(.n-pagination-size-picker) {
+  min-width: 80px;
+}
+
+/* 分頁選擇器基礎樣式 */
+.n-pagination :deep(.n-base-selection) {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+}
+
+/* 活動狀態選擇器樣式 */
+.status-select :deep(.n-base-selection) {
+  background-color: #f8f9fa;
+  border-color: #e2e8f0;
+  transition: all 0.2s ease;
+  height: 48px;
+}
+
+/* 狀態選擇器懸停效果 */
+.status-select :deep(.n-base-selection:hover) {
+  background-color: white;
+  border-color: #93c5fd;
+}
+
+/* 狀態選擇器標籤樣式 */
+.status-select :deep(.n-base-selection-label) {
+  height: 48px;
+  line-height: 48px;
+  padding-left: 36px;
+}
+
+/* 狀態選擇器前綴樣式 */
+.status-select :deep(.n-base-selection-prefix) {
+  margin-left: 12px;
+  color: #6b7280;
+}
+
+/* 狀態選擇器佔位符樣式 */
+.status-select :deep(.n-base-selection-placeholder) {
+  color: #9ca3af;
+}
+
+/* 狀態選擇器下拉菜單樣式 */
+.status-select :deep(.n-select-menu) {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+}
+
+/* 狀態選擇器選項樣式 */
+.status-select :deep(.n-select-option) {
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+/* 狀態選擇器選項懸停效果 */
+.status-select :deep(.n-select-option:hover) {
+  background-color: #f0f9ff;
+}
+
+/* 搜索按鈕樣式 */
+.search-button {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: none;
+  height: 48px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* 搜索按鈕懸停效果 */
+.search-button:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+/* 搜索按鈕點擊效果 */
+.search-button:active {
+  transform: translateY(0);
+}
+
+/* 動畫效果定義 */
 @keyframes pulse-soft {
 
   0%,
@@ -1019,7 +1179,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
-/* 新增一個專門用於"只限今日"的快速跳動動畫 */
 @keyframes pulse-urgent {
 
   0%,
@@ -1032,141 +1191,44 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
+/* 動畫類名定義 */
 .animate-pulse-soft {
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
-/* 新增一個用於"只限今日"的動畫類別 */
 .animate-pulse-urgent {
   animation: pulse-urgent 1s ease-in-out infinite;
 }
 
-/* 添加分頁相關樣式 */
-.n-pagination {
-  @apply bg-white rounded-lg shadow-sm p-2;
-}
-
-/* 確保上下分頁的一致性 */
-.n-pagination :deep(.n-pagination-item) {
-  @apply min-w-[32px] h-8 leading-8 mx-1;
-}
-
-.n-pagination :deep(.n-pagination-item--active) {
-  @apply bg-blue-500 text-white;
-}
-
-.n-pagination :deep(.n-pagination-item:hover:not(.n-pagination-item--active)) {
-  @apply bg-gray-100;
-}
-
-/* 確保分頁選擇器的樣式一致 */
-.n-pagination :deep(.n-pagination-size-picker) {
-  @apply min-w-[80px];
-}
-
-.n-pagination :deep(.n-base-selection) {
-  @apply bg-white border border-gray-200;
-}
-
-/* 活動分類選單樣式 */
-.status-select :deep(.n-base-selection) {
-  background-color: #f8f9fa;
-  border-color: #e2e8f0;
-  transition: all 0.2s ease;
-  height: 48px;
-  /* 確保與其他輸入框高度一致 */
-}
-
-.status-select :deep(.n-base-selection:hover) {
-  background-color: white;
-  border-color: #93c5fd;
-}
-
-.status-select :deep(.n-base-selection-label) {
-  height: 48px;
-  line-height: 48px;
-  padding-left: 36px;
-  /* 為圖標留出空間 */
-}
-
-.status-select :deep(.n-base-selection-prefix) {
-  margin-left: 12px;
-  color: #6b7280;
-}
-
-.status-select :deep(.n-base-selection-placeholder) {
-  color: #9ca3af;
-}
-
-/* 下拉選單樣式 */
-.status-select :deep(.n-select-menu) {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 4px;
-}
-
-.status-select :deep(.n-select-option) {
-  padding: 8px 12px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.status-select :deep(.n-select-option:hover) {
-  background-color: #f0f9ff;
-}
-
-/* 搜尋按鈕樣式 */
-.search-button {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border: none;
-  height: 48px;
-  /* 確保與其他輸入框高度一致 */
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-.search-button:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-}
-
-.search-button:active {
-  transform: translateY(0);
-}
-
-/* 確保在移動設備上的響應式設計 */
+/* 響應式設計 */
 @media (max-width: 768px) {
+
+  /* 搜索容器響應式調整 */
+  .search-container {
+    padding: 1rem;
+  }
+
+  /* 日期選擇器響應式調整 */
+  input[type="date"] {
+    width: 100%;
+  }
+
+  /* 狀態選擇器響應式調整 */
   .status-select {
     width: 100%;
   }
 
+  /* 搜索按鈕響應式調整 */
   .search-button {
     width: 100%;
     justify-content: center;
   }
 }
 
-/* 輪播按鈕樣式 */
-.carousel-button {
-  @apply bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors cursor-pointer;
-}
-
-/* 確保按鈕在觸控設備上可見 */
+/* 觸控設備適配 */
 @media (hover: none) {
   .carousel-controls {
     opacity: 1 !important;
   }
-}
-
-/* 添加按鈕懸停效果 */
-.carousel-button:hover {
-  transform: scale(1.1);
-}
-
-/* 指示器樣式 */
-.carousel-indicator {
-  @apply w-2 h-2 rounded-full transition-all cursor-pointer;
 }
 </style>
