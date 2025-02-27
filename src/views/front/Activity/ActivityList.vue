@@ -3,6 +3,60 @@ import axios from 'axios';
 import { NButton, NCard, NIcon, NPagination, NSelect } from 'naive-ui';
 import { CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
+// 導出預設圖片陣列
+export const defaultActivityImages = [
+  // 露營 Camping
+  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&auto=format&fit=crop&q=80',
+  // 攀岩 Climbing
+  'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&auto=format&fit=crop&q=80',
+  // 衝浪 Surfing
+  'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&auto=format&fit=crop&q=80',
+  // 健行 Hiking
+  'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80',
+  // 單車 Cycling
+  'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&auto=format&fit=crop&q=80',
+  // 游泳 Swimming
+  'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&auto=format&fit=crop&q=80',
+  // 瑜珈 Yoga
+  'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&auto=format&fit=crop&q=80',
+  // 跑步 Running
+  'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&auto=format&fit=crop&q=80',
+  // 滑板 Skateboarding
+  'https://images.unsplash.com/photo-1520045892732-304bc3ac5d8e?w=800&auto=format&fit=crop&q=80',
+  // 籃球 Basketball
+  'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80',
+  // 網球 Tennis
+  'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80',
+  // 高爾夫 Golf
+  'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&auto=format&fit=crop&q=80',
+  // 舞蹈 Dancing
+  'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&auto=format&fit=crop&q=80',
+  // 攝影 Photography
+  'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80',
+  // 繪畫 Painting
+  'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&auto=format&fit=crop&q=80',
+  // 烹飪 Cooking
+  'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&auto=format&fit=crop&q=80',
+  // 園藝 Gardening
+  'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop&q=80',
+  // 手工藝 Crafting
+  'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=800&auto=format&fit=crop&q=80',
+  // 音樂 Music
+  'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&auto=format&fit=crop&q=80',
+  // 冥想 Meditation
+  'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&auto=format&fit=crop&q=80',
+  // 寵物 Pets
+  'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800&auto=format&fit=crop&q=80',
+  // 閱讀 Reading
+  'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&auto=format&fit=crop&q=80',
+  // 遊戲 Gaming
+  'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&auto=format&fit=crop&q=80',
+  // 旅行 Traveling
+  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&auto=format&fit=crop&q=80',
+  // 露營車 RV Camping
+  'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&auto=format&fit=crop&q=80',
+];
+
 export default {
   name: 'ActivityList',
   components: {
@@ -29,59 +83,9 @@ export default {
       searchDate: '',
       minDate: '',
       maxDate: '',
-      defaultImages: [
-        // 露營 Camping
-        'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&auto=format&fit=crop&q=80',
-        // 攀岩 Climbing
-        'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&auto=format&fit=crop&q=80',
-        // 衝浪 Surfing
-        'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&auto=format&fit=crop&q=80',
-        // 健行 Hiking
-        'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80',
-        // 單車 Cycling
-        'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&auto=format&fit=crop&q=80',
-        // 游泳 Swimming
-        'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&auto=format&fit=crop&q=80',
-        // 瑜珈 Yoga
-        'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&auto=format&fit=crop&q=80',
-        // 跑步 Running
-        'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&auto=format&fit=crop&q=80',
-        // 滑板 Skateboarding
-        'https://images.unsplash.com/photo-1520045892732-304bc3ac5d8e?w=800&auto=format&fit=crop&q=80',
-        // 籃球 Basketball
-        'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80',
-        // 網球 Tennis
-        'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80',
-        // 高爾夫 Golf
-        'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&auto=format&fit=crop&q=80',
-        // 舞蹈 Dancing
-        'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&auto=format&fit=crop&q=80',
-        // 攝影 Photography
-        'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80',
-        // 繪畫 Painting
-        'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&auto=format&fit=crop&q=80',
-        // 烹飪 Cooking
-        'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&auto=format&fit=crop&q=80',
-        // 園藝 Gardening
-        'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop&q=80',
-        // 手工藝 Crafting
-        'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=800&auto=format&fit=crop&q=80',
-        // 音樂 Music
-        'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&auto=format&fit=crop&q=80',
-        // 冥想 Meditation
-        'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&auto=format&fit=crop&q=80',
-        // 寵物 Pets
-        'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800&auto=format&fit=crop&q=80',
-        // 閱讀 Reading
-        'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&auto=format&fit=crop&q=80',
-        // 遊戲 Gaming
-        'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&auto=format&fit=crop&q=80',
-        // 旅行 Traveling
-        'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&auto=format&fit=crop&q=80',
-        // 露營車 RV Camping
-        'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&auto=format&fit=crop&q=80',
-      ],
-      currentImageIndexes: {}, // 改用 localStorage 來持久化儲存
+      defaultImages: defaultActivityImages, // 使用導出的預設圖片
+      hasMultipleImages: {}, // 標記每個活動是否有多張圖片
+      currentImageIndexes: {}, // 儲存每個活動的當前圖片索引
       topPagination: true, // 控制上方分頁的顯示
       pageSizeOptions: [12, 24, 36, 48], // 將頁面大小選項提取為變數
       selectedStatus: '', // 新增：用於儲存選擇的活動狀態
@@ -376,24 +380,61 @@ export default {
     },
 
     getImageUrl(activity) {
-      // 如果活動有自己的圖片，優先使用
-      if (Array.isArray(activity.image_url) && activity.image_url.length > 0)
-        return activity.image_url[0];
+      if (!activity)
+        return '';
 
-      if (activity.image_url)
-        return activity.image_url;
+      const imageUrls = this.getActivityImageUrls(activity);
 
-      // 使用 localStorage 來保存圖片分配
-      const storageKey = `activity_image_${activity.id}`;
-      let imageIndex = localStorage.getItem(storageKey);
+      // 如果活動有自己的圖片
+      if (imageUrls.length > 0) {
+        // 更新是否有多張圖片的狀態
+        this.hasMultipleImages[activity.id] = imageUrls.length > 1;
 
-      // 如果沒有儲存過，分配新的圖片索引
-      if (imageIndex === null) {
-        imageIndex = this.getRandomUniqueImageIndex();
-        localStorage.setItem(storageKey, imageIndex);
+        // 確保當前圖片索引存在且有效
+        if (typeof this.currentImageIndexes[activity.id] === 'undefined')
+          this.currentImageIndexes[activity.id] = 0;
+
+        // 返回當前索引的圖片
+        const currentIndex = this.currentImageIndexes[activity.id];
+        return imageUrls[currentIndex % imageUrls.length];
       }
 
-      return this.defaultImages[Number.parseInt(imageIndex)];
+      // 如果沒有圖片，使用活動ID生成固定的預設圖片索引
+      const idString = String(activity.id || '') + String(activity.activity_name || '');
+      let hash = 0;
+      for (let i = 0; i < idString.length; i++) {
+        hash = ((hash << 5) - hash) + idString.charCodeAt(i);
+        hash = hash & hash;
+      }
+      // 確保hash值為正數
+      hash = Math.abs(hash);
+
+      // 計算當前頁面上已使用的預設圖片索引
+      const usedIndexes = new Set();
+      this.paginatedActivities.forEach((a) => {
+        if (a.id !== activity.id && !this.getActivityImageUrls(a).length) {
+          const aHash = this.calculateHash(a);
+          usedIndexes.add(aHash % this.defaultImages.length);
+        }
+      });
+
+      // 如果當前計算出的索引已被使用，則尋找下一個可用的索引
+      let defaultIndex = hash % this.defaultImages.length;
+      while (usedIndexes.has(defaultIndex))
+        defaultIndex = (defaultIndex + 1) % this.defaultImages.length;
+
+      return this.defaultImages[defaultIndex];
+    },
+
+    // 新增：計算活動的雜湊值
+    calculateHash(activity) {
+      const idString = String(activity.id || '') + String(activity.activity_name || '');
+      let hash = 0;
+      for (let i = 0; i < idString.length; i++) {
+        hash = ((hash << 5) - hash) + idString.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return Math.abs(hash);
     },
 
     getRandomUniqueImageIndex() {
@@ -497,21 +538,65 @@ export default {
       });
     },
 
-    // 輪播控制方法
-    prevImage(activityId) {
-      const images = this.activities.find(a => a.id === activityId).image_url;
-      const currentIndex = this.currentImageIndexes[activityId] || 0;
-      this.currentImageIndexes[activityId] = (currentIndex - 1 + images.length) % images.length;
+    prevImage(activity, event) {
+      if (event)
+        event.stopPropagation();
+
+      const imageUrls = this.getActivityImageUrls(activity);
+      if (imageUrls.length > 1) {
+        if (typeof this.currentImageIndexes[activity.id] === 'undefined')
+          this.currentImageIndexes[activity.id] = 0;
+
+        const currentIndex = this.currentImageIndexes[activity.id];
+        this.currentImageIndexes[activity.id] = (currentIndex - 1 + imageUrls.length) % imageUrls.length;
+      }
     },
 
-    nextImage(activityId) {
-      const images = this.activities.find(a => a.id === activityId).image_url;
-      const currentIndex = this.currentImageIndexes[activityId] || 0;
-      this.currentImageIndexes[activityId] = (currentIndex + 1) % images.length;
+    nextImage(activity, event) {
+      if (event)
+        event.stopPropagation();
+
+      const imageUrls = this.getActivityImageUrls(activity);
+      if (imageUrls.length > 1) {
+        if (typeof this.currentImageIndexes[activity.id] === 'undefined')
+          this.currentImageIndexes[activity.id] = 0;
+
+        const currentIndex = this.currentImageIndexes[activity.id];
+        this.currentImageIndexes[activity.id] = (currentIndex + 1) % imageUrls.length;
+      }
     },
 
-    setImage(activityId, index) {
-      this.currentImageIndexes[activityId] = index;
+    getActivityImageUrls(activity) {
+      if (!activity?.image_url)
+        return [];
+
+      try {
+        let imageUrls = [];
+        if (typeof activity.image_url === 'string') {
+          try {
+            imageUrls = JSON.parse(activity.image_url);
+          }
+          catch {
+            if (activity.image_url.includes('|'))
+              imageUrls = activity.image_url.split('|');
+            else if (activity.image_url.includes(','))
+              imageUrls = activity.image_url.split(',');
+            else
+              imageUrls = [activity.image_url];
+          }
+        }
+        else if (Array.isArray(activity.image_url)) {
+          imageUrls = activity.image_url;
+        }
+
+        return imageUrls
+          .filter(url => url && url.trim())
+          .map(url => url.trim());
+      }
+      catch (e) {
+        console.error('取得圖片 URL 列表錯誤:', e);
+        return [];
+      }
     },
 
     handlePageSizeChange(pageSize) {
@@ -628,11 +713,45 @@ export default {
             style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
           >
             <!-- 圖片容器 -->
-            <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg">
+            <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg" @click.stop>
               <img
-                :src="getImageUrl(activity)" :alt="activity.activity_name" :data-activity-id="activity.id"
-                class="w-full h-full object-cover" @error="handleImageError"
+                :src="getImageUrl(activity)" :alt="activity.activity_name"
+                class="w-full h-full object-cover transition-opacity duration-300" @error="handleImageError"
               >
+
+              <!-- 輪播控制按鈕 - 只在多張圖片時顯示 -->
+              <div
+                v-if="hasMultipleImages[activity.id]"
+                class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-opacity duration-300"
+                @click.stop
+              >
+                <button
+                  class="carousel-button transform hover:scale-110 transition-transform"
+                  @click.stop="prevImage(activity, $event)"
+                >
+                  <i class="fas fa-chevron-left" />
+                </button>
+                <button
+                  class="carousel-button transform hover:scale-110 transition-transform"
+                  @click.stop="nextImage(activity, $event)"
+                >
+                  <i class="fas fa-chevron-right" />
+                </button>
+              </div>
+
+              <!-- 圖片指示器 - 只在多張圖片時顯示 -->
+              <div
+                v-if="hasMultipleImages[activity.id]"
+                class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10" @click.stop
+              >
+                <button
+                  v-for="(_, index) in getActivityImageUrls(activity)" :key="index"
+                  class="w-2 h-2 rounded-full transition-all duration-300 bg-white/50 hover:bg-white/80" :class="[
+                    index === (currentImageIndexes[activity.id] || 0) ? 'bg-white scale-125' : '',
+                  ]" @click.stop="currentImageIndexes[activity.id] = index"
+                />
+              </div>
+
               <!-- 活動狀態標籤 -->
               <div
                 class="absolute top-3 right-3 px-4 py-1.5 min-w-[80px] text-center rounded-md text-sm font-medium text-white transition-transform duration-300"
@@ -1027,5 +1146,27 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* 輪播按鈕樣式 */
+.carousel-button {
+  @apply bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors cursor-pointer;
+}
+
+/* 確保按鈕在觸控設備上可見 */
+@media (hover: none) {
+  .carousel-controls {
+    opacity: 1 !important;
+  }
+}
+
+/* 添加按鈕懸停效果 */
+.carousel-button:hover {
+  transform: scale(1.1);
+}
+
+/* 指示器樣式 */
+.carousel-indicator {
+  @apply w-2 h-2 rounded-full transition-all cursor-pointer;
 }
 </style>

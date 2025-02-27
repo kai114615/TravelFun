@@ -4,6 +4,8 @@ import { NButton, NCard, NIcon, NSpace } from 'naive-ui';
 import { ArrowBackOutline, CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 import ActivityList from './ActivityList.vue';
 
+import { defaultActivityImages } from './ActivityList.vue'; // 引入預設圖片設定
+
 export default {
   name: 'ActivityDetail',
   components: {
@@ -21,12 +23,10 @@ export default {
       activity: null,
       loading: true,
       error: null,
-      defaultImages: [
-        'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&auto=format&fit=crop&q=80',
-      ],
+      defaultImages: defaultActivityImages,
       currentImageIndex: 0,
+      randomDefaultImageIndex: Math.floor(Math.random() * defaultActivityImages.length), // 隨機選擇一個預設圖片索引
+      hasMultipleImages: false, // 控制是否顯示輪播功能
     };
   },
   async created() {
@@ -70,17 +70,61 @@ export default {
       if (!this.activity)
         return '';
 
-      if (Array.isArray(this.activity.image_url) && this.activity.image_url.length > 0)
-        return this.activity.image_url[this.currentImageIndex];
+      let imageUrls = [];
+      if (this.activity.image_url) {
+        try {
+          // 處理字串形式的 image_url
+          if (typeof this.activity.image_url === 'string') {
+            // 嘗試解析 JSON
+            try {
+              imageUrls = JSON.parse(this.activity.image_url);
+            }
+            catch {
+              // 如果不是 JSON，檢查是否包含分隔符號
+              if (this.activity.image_url.includes('|'))
+                imageUrls = this.activity.image_url.split('|');
+              else if (this.activity.image_url.includes(','))
+                imageUrls = this.activity.image_url.split(',');
+              else
+                imageUrls = [this.activity.image_url];
+            }
+          }
+          // 處理陣列形式的 image_url
+          else if (Array.isArray(this.activity.image_url)) {
+            imageUrls = this.activity.image_url;
+          }
 
-      if (typeof this.activity.image_url === 'string' && this.activity.image_url)
-        return this.activity.image_url;
+          // 過濾空值和清理 URL
+          imageUrls = imageUrls
+            .filter(url => url && url.trim())
+            .map(url => url.trim());
+        }
+        catch (e) {
+          console.error('圖片 URL 處理錯誤:', e);
+          imageUrls = [];
+        }
+      }
 
-      return this.defaultImages[this.currentImageIndex % this.defaultImages.length];
+      // 更新是否有多張圖片的狀態
+      this.hasMultipleImages = imageUrls.length > 1;
+
+      // 如果有有效的圖片 URL
+      if (imageUrls.length > 0)
+        return imageUrls[this.currentImageIndex % imageUrls.length];
+
+      // 如果沒有有效的圖片，使用預設圖片
+      return this.defaultImages[this.randomDefaultImageIndex];
     },
     handleImageError(e) {
-      const randomIndex = Math.floor(Math.random() * this.defaultImages.length);
-      e.target.src = this.defaultImages[randomIndex];
+      const activity = this.paginatedActivities.find(
+        a => a.id === e.target.dataset.activityId,
+      );
+      if (activity) {
+        const storageKey = `activity_image_${activity.id}`;
+        const newIndex = this.getRandomUniqueImageIndex();
+        localStorage.setItem(storageKey, newIndex);
+        e.target.src = this.defaultImages[newIndex];
+      }
       e.target.onerror = null;
     },
     prevImage() {
@@ -92,13 +136,47 @@ export default {
       this.currentImageIndex = (this.currentImageIndex + 1) % totalImages;
     },
     getTotalImages() {
-      if (Array.isArray(this.activity?.image_url))
-        return this.activity.image_url.length;
-
-      if (typeof this.activity?.image_url === 'string')
+      if (!this.activity)
         return 1;
 
-      return this.defaultImages.length;
+      const imageUrls = this.getAllImageUrls();
+      return imageUrls.length || 1;
+    },
+    getAllImageUrls() {
+      if (!this.activity)
+        return [];
+
+      let imageUrls = [];
+      if (this.activity.image_url) {
+        try {
+          if (typeof this.activity.image_url === 'string') {
+            try {
+              imageUrls = JSON.parse(this.activity.image_url);
+            }
+            catch {
+              if (this.activity.image_url.includes('|'))
+                imageUrls = this.activity.image_url.split('|');
+              else if (this.activity.image_url.includes(','))
+                imageUrls = this.activity.image_url.split(',');
+              else
+                imageUrls = [this.activity.image_url];
+            }
+          }
+          else if (Array.isArray(this.activity.image_url)) {
+            imageUrls = this.activity.image_url;
+          }
+
+          // 過濾和清理 URL
+          return imageUrls
+            .filter(url => url && url.trim())
+            .map(url => url.trim());
+        }
+        catch (e) {
+          console.error('圖片 URL 列表處理錯誤:', e);
+          return [];
+        }
+      }
+      return [];
     },
   },
 };
@@ -144,8 +222,9 @@ export default {
             @error="handleImageError"
           >
 
-          <!-- 輪播控制按鈕 -->
+          <!-- 輪播控制按鈕 - 只在多張圖片時顯示 -->
           <div
+            v-if="hasMultipleImages"
             class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-opacity"
           >
             <button
@@ -162,8 +241,8 @@ export default {
             </button>
           </div>
 
-          <!-- 圖片指示器 -->
-          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+          <!-- 圖片指示器 - 只在多張圖片時顯示 -->
+          <div v-if="hasMultipleImages" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
             <button
               v-for="index in getTotalImages()" :key="index" class="w-2 h-2 rounded-full transition-all"
               :class="index - 1 === currentImageIndex ? 'bg-white scale-125' : 'bg-white/50'"
@@ -250,6 +329,26 @@ export default {
                 <p v-else class="text-gray-600">
                   未提供
                 </p>
+              </div>
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="font-medium text-gray-900 mb-2">
+                  活動圖片列表
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  <div
+                    v-for="(url, index) in getAllImageUrls()" :key="index"
+                    class="aspect-square relative overflow-hidden rounded-lg cursor-pointer"
+                    @click="currentImageIndex = index"
+                  >
+                    <img
+                      :src="url" :alt="`${activity.activity_name} 圖片 ${index + 1}`"
+                      class="w-full h-full object-cover hover:opacity-75 transition-opacity" @error="handleImageError"
+                    >
+                    <div class="absolute bottom-0 right-0 bg-black/50 text-white px-2 py-1 text-xs">
+                      {{ index + 1 }}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
