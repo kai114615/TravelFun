@@ -2,7 +2,7 @@
 // 匯入所需的套件與工具
 import axios from 'axios';
 import { NButton, NCard, NIcon, NSpace } from 'naive-ui';
-import { ArrowBackOutline, CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
+import { ArrowBackOutline, BusinessOutline, CalendarOutline, ChevronBackOutline, ChevronForwardOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
 import { defaultActivityImages } from './ActivityList.vue'; // 從 ActivityList 匯入預設圖片設定
 
@@ -19,6 +19,9 @@ export default {
     CalendarOutline, // 行事曆圖示
     TicketOutline, // 票券圖示
     ArrowBackOutline, // 返回箭頭圖示
+    BusinessOutline, // 商業圖示
+    ChevronBackOutline,
+    ChevronForwardOutline,
   },
 
   // 元件資料定義
@@ -69,11 +72,15 @@ export default {
     formatDate(dateString) {
       if (!dateString)
         return '時間未定';
-      return new Date(dateString).toLocaleDateString('zh-TW', {
+      const date = new Date(dateString);
+      const formattedDate = date.toLocaleDateString('zh-TW', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${formattedDate} ${hours}:${minutes}`;
     },
 
     // === 導覽相關方法 ===
@@ -210,7 +217,7 @@ export default {
 
 <template>
   <!-- 主容器 -->
-  <div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="max-w-[68rem] mx-auto px-0 py-4">
     <!-- 返回按鈕區域 -->
     <div class="mb-6">
       <NButton class="flex items-center" @click="goBack">
@@ -256,13 +263,17 @@ export default {
           <!-- 輪播控制按鈕 -->
           <div
             v-if="hasMultipleImages"
-            class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-opacity"
+            class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-all duration-300"
           >
-            <button class="carousel-button" @click="prevImage">
-              <i class="fas fa-chevron-left" />
+            <button class="carousel-button opacity-60 hover:opacity-100" @click="prevImage">
+              <NIcon size="20">
+                <ChevronBackOutline />
+              </NIcon>
             </button>
-            <button class="carousel-button" @click="nextImage">
-              <i class="fas fa-chevron-right" />
+            <button class="carousel-button opacity-60 hover:opacity-100" @click="nextImage">
+              <NIcon size="20">
+                <ChevronForwardOutline />
+              </NIcon>
             </button>
           </div>
 
@@ -279,12 +290,13 @@ export default {
         <div class="space-y-6">
           <!-- 標題區域 -->
           <div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            <h1 class="text-5xl font-bold text-gray-900 mb-2">
               {{ activity.activity_name }}
             </h1>
             <div class="flex items-center text-sm text-gray-500">
               <span class="mr-4">ID: {{ activity.id }}</span>
-              <span>建立時間: {{ formatDate(activity.created_at) }}</span>
+              <span class="mr-4">建立時間: {{ formatDate(activity.created_at) }}</span>
+              <span>更新時間: {{ formatDate(activity.updated_at) }}</span>
             </div>
           </div>
 
@@ -292,37 +304,45 @@ export default {
           <NSpace vertical class="bg-gray-50 p-4 rounded-lg">
             <!-- 地點信息 -->
             <div class="flex items-center text-gray-700">
-              <NIcon class="mr-2 text-blue-500">
-                <LocationOutline />
-              </NIcon>
-              <span class="font-medium">活動地點：</span>
-              <span class="ml-2">{{ activity.location || '地點未定' }}</span>
+              <div class="icon-wrapper">
+                <NIcon size="24" class="info-icon">
+                  <LocationOutline />
+                </NIcon>
+              </div>
+              <span class="font-medium text-lg">活動地點：</span>
+              <span class="text-lg">{{ activity.location || '地點未定' }}</span>
             </div>
             <!-- 日期信息 -->
             <div class="flex items-center text-gray-700">
-              <NIcon class="mr-2 text-blue-500">
-                <CalendarOutline />
-              </NIcon>
-              <span class="font-medium">活動日期：</span>
-              <span class="ml-2">
+              <div class="icon-wrapper">
+                <NIcon size="24" class="info-icon">
+                  <CalendarOutline />
+                </NIcon>
+              </div>
+              <span class="font-medium text-lg">活動日期：</span>
+              <span class="text-lg">
                 {{ formatDate(activity.start_date) }} ~ {{ formatDate(activity.end_date) }}
               </span>
             </div>
             <!-- 主辦單位信息 -->
             <div class="flex items-center text-gray-700">
-              <NIcon class="mr-2 text-blue-500">
-                <TicketOutline />
-              </NIcon>
-              <span class="font-medium">主辦單位：</span>
-              <span class="ml-2">{{ activity.organizer || '未提供' }}</span>
+              <div class="icon-wrapper">
+                <NIcon size="24" class="info-icon">
+                  <BusinessOutline />
+                </NIcon>
+              </div>
+              <span class="font-medium text-lg">主辦單位：</span>
+              <span class="text-lg">{{ activity.organizer || '未提供' }}</span>
             </div>
             <!-- 票價信息 -->
             <div class="flex items-center text-gray-700">
-              <NIcon class="mr-2 text-blue-500">
-                <TicketOutline />
-              </NIcon>
-              <span class="font-medium">票價資訊：</span>
-              <span class="ml-2">{{ activity.ticket_price || '免費' }}</span>
+              <div class="icon-wrapper">
+                <NIcon size="24" class="info-icon">
+                  <TicketOutline />
+                </NIcon>
+              </div>
+              <span class="font-medium text-lg">票價資訊：</span>
+              <span class="text-lg">{{ activity.ticket_price || '無資訊' }}</span>
             </div>
           </NSpace>
 
@@ -346,7 +366,7 @@ export default {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <!-- 相關連結區域 -->
               <div class="bg-gray-50 p-4 rounded-lg">
-                <h3 class="font-medium text-gray-900 mb-2">
+                <h3 class="font-medium text-lg text-gray-900 mb-2">
                   相關連結
                 </h3>
                 <a
@@ -362,7 +382,7 @@ export default {
 
               <!-- 活動圖片列表區域 -->
               <div class="bg-gray-50 p-4 rounded-lg">
-                <h3 class="font-medium text-gray-900 mb-2">
+                <h3 class="font-medium text-lg text-gray-900 mb-2">
                   活動圖片列表
                 </h3>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -406,35 +426,46 @@ export default {
 
 /* 輪播按鈕基礎樣式 */
 .carousel-button {
-  background-color: rgba(0, 0, 0, 0.5);
-  /* 半透明背景 */
-  color: white;
-  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.8);
+  color: #1a1a1a;
+  padding: 16px;
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 輪播按鈕懸停效果 */
 .carousel-button:hover {
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(255, 255, 255, 0.95);
   transform: scale(1.1);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* 輪播指示器基礎樣式 */
 .carousel-indicator {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background-color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  transition: all 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(4px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 0 4px;
 }
 
 /* 輪播指示器啟動狀態 */
 .carousel-indicator.active {
   background-color: white;
   transform: scale(1.2);
+  border-color: white;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 /* 載入動畫關鍵幀定義 */
@@ -450,16 +481,43 @@ export default {
 
 /* 響應式設計調整 */
 @media (max-width: 768px) {
-
-  /* 移動端輪播按鈕大小調整 */
   .carousel-button {
-    padding: 6px;
+    padding: 12px;
   }
 
-  /* 移動端輪播指示器大小調整 */
   .carousel-indicator {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
+    margin: 0 3px;
   }
+}
+
+/* 資訊圖標包裝器 */
+.icon-wrapper {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 12px;
+  margin-right: 12px;
+  transition: all 0.3s ease;
+}
+
+/* 資訊圖標樣式 */
+.info-icon {
+  color: #3b82f6;
+  transition: all 0.3s ease;
+}
+
+/* 圖標容器懸停效果 */
+.icon-wrapper:hover {
+  background: rgba(59, 130, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+.icon-wrapper:hover .info-icon {
+  transform: scale(1.1);
 }
 </style>

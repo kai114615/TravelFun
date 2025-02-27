@@ -2,23 +2,26 @@ import requests
 import json
 from datetime import datetime
 import os
+import csv
+import io
 
 
 def convert_date_format(date_str):
-    """將日期時間字串轉換為標準格式 (YYYY-MM-DD HH:MM:SS)"""
+    # 將日期時間字串轉換為標準格式 (YYYY-MM-DD HH:MM:SS)
     if not date_str:
         return None
 
-    # 定義可能的日期格式
+    # 定義可能的日期格式清單
     date_formats = [
-        '%Y/%m/%d %H:%M:%S',  # 2025/01/31 00:00:00
-        '%Y-%m-%d %H:%M:%S',  # 2025-01-31 00:00:00
-        '%Y/%m/%d',           # 2025/01/31
-        '%Y-%m-%d',           # 2025-01-31
-        '%m/%d/%Y %H:%M:%S',  # 01/31/2025 00:00:00
-        '%m/%d/%Y',           # 01/31/2025
+        '%Y/%m/%d %H:%M:%S',  # 西元年/月/日 時:分:秒
+        '%Y-%m-%d %H:%M:%S',  # 西元年-月-日 時:分:秒
+        '%Y/%m/%d',           # 西元年/月/日
+        '%Y-%m-%d',           # 西元年-月-日
+        '%m/%d/%Y %H:%M:%S',  # 月/日/西元年 時:分:秒
+        '%m/%d/%Y',           # 月/日/西元年
     ]
 
+    # 嘗試各種日期格式進行轉換
     for date_format in date_formats:
         try:
             dt = datetime.strptime(date_str, date_format)
@@ -31,20 +34,19 @@ def convert_date_format(date_str):
 
 
 def fetch_taipei_events():
-    """
-    從台北市政府開放資料平台獲取活動資訊
-    """
+    # 從台北市政府開放資料平台獲取活動資訊
     url = "https://www.gov.taipei/OpenData.aspx?SN=DD102593FDB1A032"
 
     try:
+        # 發送 API 請求
         response = requests.get(url)
         response.raise_for_status()
 
         try:
-            # 先嘗試直接解析
+            # 先嘗試直接解析 JSON
             events = response.json()
         except json.JSONDecodeError:
-            # 如果失敗，使用 utf-8-sig 重新解碼
+            # 若 JSON 解析失敗，使用 utf-8-sig 重新解碼
             content = response.content.decode('utf-8-sig')
             events = json.loads(content)
 
@@ -72,24 +74,25 @@ def fetch_taipei_events():
             "offset": 0
         }
 
+        # 處理每筆活動資料
         for event in events:
             try:
                 # 轉換日期格式
                 start_date = convert_date_format(event.get("活動開始時間", ""))
                 end_date = convert_date_format(event.get("活動結束時間", ""))
 
-                # 確保所有欄位都是字串或 None
+                # 格式化單筆活動資料
                 formatted_event = {
                     "uid": str(event.get("DataSN", "")),
                     "title": str(event.get("title", "")),
                     "description": str(event.get("內容", "")),
-                    # "organizer": str(event.get("主辦單位", "")),
+                    # 優先使用主辦單位，若為空則使用發布單位
                     "organizer": str(event.get('主辦單位', '') if event.get('主辦單位', '').strip() else event.get('發布單位', '') or event.get('發布單位(科室)', '')),
                     "address": str(event.get("活動地址", "")),
                     "startDate": start_date,
                     "endDate": end_date,
                     "location": str(event.get("地點", "")),
-                    "latitude": None,
+                    "latitude": None,  # 台北市活動資料無經緯度資訊
                     "longitude": None,
                     "price": str(event.get("費用", "")),
                     "url": str(event.get("Source", "")),
@@ -101,13 +104,12 @@ def fetch_taipei_events():
                 continue
 
         return formatted_data
-        # return events
 
     except requests.exceptions.RequestException as e:
         print(f"獲取資料時發生錯誤: {e}")
         return {"result": []}
     except json.JSONDecodeError as e:
-        print(f"解析JSON資料時發生錯誤: {e}")
+        print(f"解析 JSON 資料時發生錯誤: {e}")
         return {"result": []}
     except Exception as e:
         print(f"發生未預期的錯誤: {e}")

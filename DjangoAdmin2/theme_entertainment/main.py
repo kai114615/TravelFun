@@ -6,9 +6,8 @@ from datetime import datetime
 import mysql.connector
 import json
 from typing import Dict, Any, Optional
-# from django.core.cache import cache
 
-# 設定專案根目錄
+# 設定專案根目錄路徑
 current_dir = os.path.dirname(os.path.abspath(__file__))
 django_root = os.path.dirname(current_dir)  # DjangoAdmin2 目錄
 project_dir = os.path.dirname(django_root)  # TravelFun 專案根目錄
@@ -24,7 +23,7 @@ if django_root not in sys.path:
 # 設定 Django 設定模組
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
 
-# 初始化 Django
+# 初始化 Django 框架
 try:
     django.setup()
 except Exception as e:
@@ -32,46 +31,39 @@ except Exception as e:
     print(f"目前的 Python 路徑: {sys.path}")
     sys.exit(1)
 
-# 全域設定
+# 全域設定參數
 CONFIG = {
     'paths': {
         'json': os.path.join(project_dir, 'src', 'assets', 'theme_entertainment', 'events_data.json'),
-        # SQL 檔案放在 theme_entertainment/sql 目錄下
-        'sql': os.path.join(current_dir, 'events_data.sql')
+        'sql': os.path.join(current_dir, 'events_data.sql')  # SQL 檔案存放路徑
     },
     'db': {
-        'host': os.environ.get('DB_HOST', 'localhost'),
-        'user': os.environ.get('DB_USER', 'root'),
-        'password': os.environ.get('DB_PASSWORD', 'P@ssw0rd'),
-        'database': 'fun'
+        'host': os.environ.get('DB_HOST', 'localhost'),  # 資料庫主機位址
+        'user': os.environ.get('DB_USER', 'root'),      # 資料庫使用者名稱
+        'password': os.environ.get('DB_PASSWORD', 'P@ssw0rd'),  # 資料庫密碼
+        'database': 'fun'  # 資料庫名稱
     }
 }
 
-# 導入相關模組
+# 匯入相關模組
 try:
-    from culture_api import CultureAPI
-    from tfam_api import TaipeiOpenDataAPI
-    from taipei_api import fetch_taipei_events as taipei_events
-    from newtaipei_api import fetch_newtaipei_events as newtaipei_events
-    from json_to_sql import convert_json_to_sql
+    from culture_api import CultureAPI  # 文化部 API
+    from tfam_api import TaipeiOpenDataAPI  # 北美館 API
+    from taipei_api import fetch_taipei_events as taipei_events  # 台北市政府 API
+    from newtaipei_api import fetch_newtaipei_events as newtaipei_events  # 新北市政府 API
+    from json_to_sql import convert_json_to_sql  # JSON 轉 SQL 工具
 except ImportError as e:
-    print(f"模組導入錯誤: {e}")
+    print(f"模組匯入錯誤: {e}")
     print(f"目前的 Python 路徑: {sys.path}")
     sys.exit(1)
-
 
 def init_database() -> None:
     """初始化資料庫和資料表"""
     try:
-        # 由於已經有 models.py 定義好資料庫模型，
-        # 這裡只需要執行 Django migrations 即可
         from django.core.management import execute_from_command_line
 
-        # 執行 makemigrations
-        execute_from_command_line(
-            ['manage.py', 'makemigrations', 'theme_entertainment'])
-
-        # 執行 migrate
+        # 執行資料庫遷移指令
+        execute_from_command_line(['manage.py', 'makemigrations', 'theme_entertainment'])
         execute_from_command_line(['manage.py', 'migrate'])
 
         print("資料庫初始化成功！")
@@ -79,30 +71,29 @@ def init_database() -> None:
         print(f"資料庫初始化失敗：{str(e)}")
         raise
 
-
 def connect_to_mysql() -> mysql.connector.connection.MySQLConnection:
-    """建立MySQL資料庫連接"""
+    """建立 MySQL 資料庫連線"""
     return mysql.connector.connect(**CONFIG['db'])
 
-
 def parse_date(date_str: str) -> str:
-    """解析各種可能的日期格式，並轉換為 MySQL 可接受的格式 (YYYY-MM-DD)"""
+    """解析各種日期格式，並轉換為 MySQL 可接受的格式 (西元年-月-日)"""
     if not date_str:
         return None
 
     try:
-        # 移除可能的時間部分
+        # 移除時間部分
         if ' ' in date_str:
             date_str = date_str.split(' ')[0]
 
-        # 嘗試不同的日期格式
+        # 支援的日期格式清單
         date_formats = [
-            '%Y/%m/%d',  # YYYY/MM/DD
-            '%m/%d/%Y',  # MM/DD/YYYY
-            '%Y-%m-%d',  # YYYY-MM-DD
-            '%Y.%m.%d',  # YYYY.MM.DD
+            '%Y/%m/%d',  # 西元年/月/日
+            '%m/%d/%Y',  # 月/日/西元年
+            '%Y-%m-%d',  # 西元年-月-日
+            '%Y.%m.%d',  # 西元年.月.日
         ]
 
+        # 嘗試解析不同格式
         for date_format in date_formats:
             try:
                 parsed_date = datetime.strptime(date_str, date_format)
@@ -110,7 +101,7 @@ def parse_date(date_str: str) -> str:
             except ValueError:
                 continue
 
-        # 如果是時間戳記格式
+        # 處理時間戳記格式
         try:
             timestamp = float(date_str)
             dt = datetime.fromtimestamp(timestamp)
@@ -125,9 +116,8 @@ def parse_date(date_str: str) -> str:
         print(f"日期解析錯誤 '{date_str}': {str(e)}")
         return None
 
-
 def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.MySQLConnection) -> None:
-    """將資料儲存到MySQL資料庫"""
+    """將資料儲存至 MySQL 資料庫"""
     if not data:
         return
 
@@ -135,7 +125,7 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
     try:
         cursor = connection.cursor(buffered=True)
 
-        # 修改插入語句以匹配 events_data.json 的欄位
+        # 資料表欄位對應的插入語法
         insert_sql = """
         INSERT INTO theme_events (
             uid, activity_name, description, organizer, address,
@@ -160,14 +150,13 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
             image_url = VALUES(image_url)
         """
 
-        # 處理每筆資料
+        # 處理每筆活動資料
         events = data if isinstance(data, list) else data.get('result', [])
         for event in events:
             event_data = {
                 'uid': event.get('uid', ''),
                 'activity_name': event.get('activity_name', ''),
                 'description': event.get('description', ''),
-                # 直接獲取 organizer，不需要特別處理 list
                 'organizer': event.get('organizer', ''),
                 'address': event.get('address', ''),
                 'start_date': parse_date(event.get('start_date')) if event.get('start_date') else None,
@@ -181,7 +170,7 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
             }
 
             try:
-                # 執行SQL插入
+                # 執行資料庫插入
                 cursor.execute(insert_sql, event_data)
                 connection.commit()
             except mysql.connector.Error as err:
@@ -198,45 +187,24 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
         if cursor:
             cursor.close()
 
-
 def process_image_url(image_url: Any) -> list:
-    """
-    處理圖片URL，統一轉換為列表格式
-
-    Args:
-        image_url: 輸入的圖片URL（可能是字串或列表）
-
-    Returns:
-        list: 處理後的圖片URL列表
-    """
+    """處理圖片網址，統一轉換為列表格式"""
     if isinstance(image_url, str):
         return [image_url] if image_url and image_url != "無資料" else []
     elif isinstance(image_url, list):
         return image_url
     return []
 
-
 def process_event_fields(event: Dict[str, Any], is_new_event: bool, existing_event: Optional[Dict[str, Any]], current_time: str) -> Dict[str, Any]:
-    """
-    處理事件欄位，根據是否為新事件進行不同處理
-
-    Args:
-        event: 原始事件資料
-        is_new_event: 是否為新事件
-        existing_event: 現有事件資料（如果有）
-        current_time: 當前時間
-
-    Returns:
-        Dict[str, Any]: 處理後的事件資料
-    """
-    # 處理不同的日期欄位名稱
+    """處理活動欄位資料，根據是否為新活動進行不同處理"""
+    # 處理日期欄位
     start_time = event.get('start_time') or event.get('startDate')
     end_time = event.get('end_time') or event.get('endDate')
 
-    # 處理圖片 URL
+    # 處理圖片網址
     image_url = process_image_url(event.get('imageUrl', []))
 
-    # 準備新的事件資料
+    # 準備新活動資料
     new_event = {
         'uid': event.get('uid', ''),
         'activity_name': event.get('title', ''),
@@ -254,22 +222,22 @@ def process_event_fields(event: Dict[str, Any], is_new_event: bool, existing_eve
     }
 
     if is_new_event:
-        # 新事件處理
+        # 新活動處理
         new_event['created_at'] = current_time
         new_event['updated_at'] = current_time
 
-        # 處理空值
+        # 處理空值欄位
         for field in ['activity_name', 'description', 'organizer', 'address',
                      'start_date', 'end_date', 'location', 'latitude', 'longitude',
                      'ticket_price', 'source_url']:
             if not new_event.get(field) or new_event[field] == 'None':
                 new_event[field] = "無資料"
     else:
-        # 舊事件處理
+        # 既有活動處理
         new_event['created_at'] = existing_event.get('created_at')
         has_changes = False
 
-        # 處理各欄位
+        # 檢查欄位變更
         for field in ['activity_name', 'description', 'organizer', 'address',
                      'start_date', 'end_date', 'location', 'latitude', 'longitude',
                      'ticket_price', 'source_url']:
@@ -293,45 +261,37 @@ def process_event_fields(event: Dict[str, Any], is_new_event: bool, existing_eve
 
     return new_event
 
-
 def save_events_to_json(events_data):
-    """
-    將活動資料轉換成JSON格式並儲存，包含更新機制
-
-    Args:
-        events_data: 要儲存的活動資料
-    """
+    """將活動資料轉換成 JSON 格式並儲存"""
     try:
         formatted_events = []
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         json_path = CONFIG['paths']['json']
 
-        # 確保目標目錄存在
+        # 建立目標目錄
         os.makedirs(os.path.dirname(json_path), exist_ok=True)
 
-        # 載入現有資料
+        # 載入既有資料
         existing_events = {}
         if os.path.exists(json_path):
             try:
                 with open(json_path, 'r', encoding='utf-8') as f:
                     old_events = json.load(f)
-                    existing_events = {
-                        event.get('uid'): event for event in old_events}
+                    existing_events = {event.get('uid'): event for event in old_events}
             except (json.JSONDecodeError, FileNotFoundError):
-                print("無法讀取舊的 events_data.json 或檔案格式錯誤")
+                print("無法讀取既有的 events_data.json 或檔案格式錯誤")
 
-        # 處理每個事件
+        # 處理每個活動
         for event in events_data:
             event_uid = event.get('uid', '')
             existing_event = existing_events.get(event_uid)
             is_new_event = not existing_event
 
-            # 處理事件欄位
-            new_event = process_event_fields(
-                event, is_new_event, existing_event, current_time)
+            # 處理活動欄位
+            new_event = process_event_fields(event, is_new_event, existing_event, current_time)
             formatted_events.append(new_event)
 
-        # 寫入檔案
+        # 寫入 JSON 檔案
         print(f"JSON 檔案路徑: {json_path}")
         print(f"處理的活動數量: {len(formatted_events)}")
 
@@ -342,27 +302,24 @@ def save_events_to_json(events_data):
     except Exception as e:
         print(f"錯誤: 儲存 JSON 檔案失敗 - {str(e)}")
 
-
 def check_events_data_exists() -> bool:
-    """檢查 events_data.json 是否存在"""
+    """檢查 events_data.json 檔案是否存在"""
     return os.path.exists(CONFIG['paths']['json'])
 
-
 def load_existing_events() -> Dict[str, Any]:
-    """載入現有的 events_data.json"""
+    """載入既有的 events_data.json 檔案"""
     try:
         with open(CONFIG['paths']['json'], 'r', encoding='utf-8') as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return []
 
-
 def update_events_data(existing_events: list, new_events: list) -> list:
-    """更新活動資料，使用 uid 作為唯一識別"""
-    # 建立現有活動的 uid 索引
+    """更新活動資料，使用 uid 作為唯一識別碼"""
+    # 建立既有活動的 uid 索引
     existing_uids = {event['uid']: event for event in existing_events}
 
-    # 更新或添加新活動
+    # 更新或新增活動
     for new_event in new_events:
         uid = new_event.get('uid')
         if uid:
@@ -370,10 +327,9 @@ def update_events_data(existing_events: list, new_events: list) -> list:
 
     return list(existing_uids.values())
 
-
 def clean_sql_command(command: str) -> str:
-    """清理 SQL 命令中的特殊字符"""
-    # 替換常見的 HTML 實體
+    """清理 SQL 指令中的特殊字元"""
+    # 替換 HTML 實體
     replacements = {
         '&nbsp;': ' ',
         '&amp;': '&',
@@ -387,11 +343,10 @@ def clean_sql_command(command: str) -> str:
     for entity, char in replacements.items():
         result = result.replace(entity, char)
 
-    # 移除多餘的空白字符
+    # 移除多餘空白
     result = ' '.join(result.split())
 
     return result
-
 
 def import_sql_to_database(connection: mysql.connector.connection.MySQLConnection, sql_file_path: str) -> None:
     """將 SQL 檔案匯入資料庫"""
@@ -402,21 +357,18 @@ def import_sql_to_database(connection: mysql.connector.connection.MySQLConnectio
         with open(sql_file_path, 'r', encoding='utf-8') as file:
             sql_content = file.read()
 
-        # 分割並清理每個 SQL 命令
+        # 分割並清理 SQL 指令
         sql_commands = sql_content.split(';')
 
-        # 執行每個 SQL 命令
+        # 執行每個 SQL 指令
         for command in sql_commands:
             if command.strip():
                 try:
-                    # 清理 SQL 命令
                     cleaned_command = clean_sql_command(command)
                     if cleaned_command:
                         cursor.execute(cleaned_command)
                         connection.commit()
                 except mysql.connector.Error as err:
-                    # print(f"執行 SQL 命令時發生錯誤: {err}")
-                    # print(f"問題的 SQL 命令: {cleaned_command}")
                     connection.rollback()
 
         print(f"成功匯入 SQL 檔案: {sql_file_path}")
@@ -428,81 +380,71 @@ def import_sql_to_database(connection: mysql.connector.connection.MySQLConnectio
         if cursor:
             cursor.close()
 
-
 def main():
-    print(
-        f"\n=== 開始執行資料獲取程序 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+    """主程式進入點"""
+    print(f"\n=== 開始執行資料獲取程序 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
 
-    all_events = []  # 用來收集所有活動資料
+    all_events = []  # 儲存所有活動資料
 
     try:
-        # 檢查是否存在 events_data.json
+        # 檢查既有資料
         if check_events_data_exists():
-            print("發現現有活動資料，開始載入...")
+            print("發現既有活動資料，開始載入...")
             existing_events = load_existing_events()
-            print(f"已載入 {len(existing_events)} 筆現有活動資料\n")
+            print(f"已載入 {len(existing_events)} 筆既有活動資料\n")
             all_events = existing_events
 
-        # 無論是否有現有資料，都執行 API 更新
+        # 從各 API 獲取最新資料
         print("開始從各 API 獲取最新資料...")
 
-        # 1. 執行文化部展演資訊 API
+        # 1. 文化部展演資訊
         print("1. 正在獲取文化部展演資訊...")
         culture_api = CultureAPI()
         culture_events = culture_api.get_events()
-        all_events = update_events_data(
-            all_events, culture_events.get('result', []))
+        all_events = update_events_data(all_events, culture_events.get('result', []))
         print("文化部展演資訊獲取完成！\n")
 
         integrated_events = culture_api.get_integrated_events()
-        all_events = update_events_data(
-            all_events, integrated_events.get('result', []))
+        all_events = update_events_data(all_events, integrated_events.get('result', []))
         print("文化部整合綜藝活動獲取完成！\n")
 
         festival_events = culture_api.get_festival_events()
-        all_events = update_events_data(
-            all_events, festival_events.get('result', []))
+        all_events = update_events_data(all_events, festival_events.get('result', []))
         print("文化部節慶活動獲取完成！\n")
 
-        # 2. 執行台北市立美術館 API
+        # 2. 台北市立美術館資訊
         print("2. 正在獲取台北市立美術館資訊...")
         tfam_api_1 = TaipeiOpenDataAPI()  # 展覽資訊
-        tfam_api_2 = TaipeiOpenDataAPI(
-            "1700a7e6-3d27-47f9-89d9-1811c9f7489c")  # 活動資訊
+        tfam_api_2 = TaipeiOpenDataAPI("1700a7e6-3d27-47f9-89d9-1811c9f7489c")  # 活動資訊
 
         results_1 = tfam_api_1.fetch_data(limit=10)
         if results_1:
-            all_events = update_events_data(
-                all_events, results_1.get('result', []))
+            all_events = update_events_data(all_events, results_1.get('result', []))
 
         results_2 = tfam_api_2.fetch_data(limit=10)
         if results_2:
-            all_events = update_events_data(
-                all_events, results_2.get('result', []))
+            all_events = update_events_data(all_events, results_2.get('result', []))
         print("台北市立美術館資訊獲取完成！\n")
 
-        # 3. 執行台北市政府開放資料 API
+        # 3. 台北市政府活動資訊
         print("3. 正在獲取台北市政府活動資訊...")
         taipei_data = taipei_events()
-        all_events = update_events_data(
-            all_events, taipei_data.get('result', []))
+        all_events = update_events_data(all_events, taipei_data.get('result', []))
         print("台北市政府活動資訊獲取完成！\n")
 
-        # 4. 執行新北市政府開放資料 API
+        # 4. 新北市政府活動資訊
         print("4. 正在獲取新北市政府活動資訊...")
         newtaipei_data = newtaipei_events()
-        all_events = update_events_data(
-            all_events, newtaipei_data.get('result', []))
+        all_events = update_events_data(all_events, newtaipei_data.get('result', []))
         print("新北市政府活動資訊獲取完成！\n")
 
-        # 5. 將更新後的資料儲存為 JSON
+        # 5. 儲存 JSON 資料
         print("\n開始將資料轉換為 JSON...")
         save_events_to_json(all_events)
         print("資料已成功儲存為 JSON！\n")
 
-        # 6. 執行 json_to_sql.py 生成 SQL 檔案
+        # 6. 生成 SQL 檔案
         print("\n開始將 JSON 轉換為 SQL...")
-
         convert_json_to_sql(CONFIG['paths']['json'], CONFIG['paths']['sql'])
         print("成功: SQL 檔案已生成\n")
 
@@ -511,25 +453,16 @@ def main():
         init_database()
         print("資料庫初始化完成！\n")
 
-        # 8. 建立資料庫連接
-        print("\n開始建立資料庫連接...")
+        # 8. 建立資料庫連線
+        print("\n開始建立資料庫連線...")
         connection = connect_to_mysql()
-        print("資料庫連接建立成功！\n")
-
-        # 9. 匯入 SQL 檔案到資料庫
-        # print("\n開始匯入 SQL 檔案到資料庫...")
-        # import_sql_to_database(connection, CONFIG['paths']['sql'])
-        # print("SQL 檔案匯入完成！\n")
-
-        # print(f"\n=== 所有資料處理完成 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
-        # print(f"總共處理了 {len(all_events)} 筆活動資料")
+        print("資料庫連線建立成功！\n")
 
     except Exception as e:
         print(f"\n執行過程中發生錯誤：{str(e)}")
     finally:
         if 'connection' in locals() and connection:
             connection.close()
-
 
 if __name__ == "__main__":
     main()

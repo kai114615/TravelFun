@@ -8,31 +8,32 @@ import time
 
 
 def convert_date_format(date_str: str) -> str:
-    """將日期字串轉換為 MySQL 可接受的格式 (YYYY-MM-DD HH:MM:SS)"""
+    # 將日期字串轉換為標準格式 (YYYY-MM-DD HH:MM:SS)
     if not date_str:
         return None
 
-    # 定義可能的日期格式
+    # 定義可能的日期格式清單
     date_formats = [
-        '%Y/%m/%d %H:%M:%S',  # YYYY/MM/DD HH:MM:SS
-        '%Y-%m-%d %H:%M:%S',  # YYYY-MM-DD HH:MM:SS
-        '%d/%m/%Y %H:%M:%S',  # DD/MM/YYYY HH:MM:SS
-        '%m/%d/%Y %H:%M:%S',  # MM/DD/YYYY HH:MM:SS
-        '%b %d, %Y %I:%M:%S %p',  # Jan 18, 2025 12:00:00 AM
-        '%Y/%m/%d',           # YYYY/MM/DD
-        '%Y-%m-%d',           # YYYY-MM-DD
-        '%d/%m/%Y',           # DD/MM/YYYY
-        '%m/%d/%Y',           # MM/DD/YYYY
-        '%b %d, %Y',          # Jan 18, 2025
+        '%Y/%m/%d %H:%M:%S',  # 西元年/月/日 時:分:秒
+        '%Y-%m-%d %H:%M:%S',  # 西元年-月-日 時:分:秒
+        '%d/%m/%Y %H:%M:%S',  # 日/月/西元年 時:分:秒
+        '%m/%d/%Y %H:%M:%S',  # 月/日/西元年 時:分:秒
+        '%b %d, %Y %I:%M:%S %p',  # 英文月份 日, 西元年 12小時制時:分:秒 AM/PM
+        '%Y/%m/%d',           # 西元年/月/日
+        '%Y-%m-%d',           # 西元年-月-日
+        '%d/%m/%Y',           # 日/月/西元年
+        '%m/%d/%Y',           # 月/日/西元年
+        '%b %d, %Y',          # 英文月份 日, 西元年
     ]
 
-    # 預處理日期字串
+    # 預處理日期字串（移除前後空白）
     date_str = date_str.strip()
 
+    # 嘗試各種日期格式進行轉換
     for date_format in date_formats:
         try:
             date_obj = datetime.strptime(date_str, date_format)
-            # 如果原始格式沒有時間部分，加上 00:00:00
+            # 若原始格式沒有時間部分，則加上 00:00:00
             if len(date_format) <= 10:  # 只有日期部分
                 return date_obj.strftime('%Y-%m-%d 00:00:00')
             return date_obj.strftime('%Y-%m-%d %H:%M:%S')
@@ -44,18 +45,18 @@ def convert_date_format(date_str: str) -> str:
 
 
 def fetch_newtaipei_events():
-    """
-    從新北市政府開放資料平台獲取活動資訊
-    """
+    # 從新北市政府開放資料平台獲取活動資訊
     url = "https://data.ntpc.gov.tw/api/datasets/029e3fc2-1927-4534-8702-da7323be969b/csv"
 
     # 設定請求參數
-    timeout = 30  # 設定30秒超時
-    max_retries = 3
-    retry_delay = 5  # 重試間隔5秒
+    timeout = 30  # 設定 30 秒請求超時
+    max_retries = 3  # 最大重試次數
+    retry_delay = 5  # 重試間隔 5 秒
 
+    # 進行重試機制的請求
     for attempt in range(max_retries):
         try:
+            # 發送 API 請求
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
 
@@ -69,11 +70,12 @@ def fetch_newtaipei_events():
                     csv_reader = csv.DictReader(csv_content)
                     events = []
                     for row in csv_reader:
-                        # 處理 picUrl 欄位，用"、"分割成列表
+                        # 處理圖片網址，用"、"分割成列表
                         pic_urls = []
                         if row.get("picUrl"):
                             pic_urls = [url.strip() for url in row["picUrl"].split("、") if url.strip()]
 
+                        # 格式化單筆活動資料
                         event = {
                             "id": row.get("id", ""),
                             "title": row.get("title", ""),
@@ -115,7 +117,7 @@ def fetch_newtaipei_events():
                 formatted_events.append(formatted_event)
             events = formatted_events
 
-            # 建立固定名稱的輸出目錄
+            # 建立輸出目錄
             output_dir = "newtaipei_api"
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
@@ -139,6 +141,7 @@ def fetch_newtaipei_events():
                 "offset": 0
             }
 
+            # 處理每筆活動資料
             for event in events:
                 formatted_event = {
                     "uid": event["id"],
@@ -149,12 +152,11 @@ def fetch_newtaipei_events():
                     "startDate": convert_date_format(event["活動起始日期"]),
                     "endDate": convert_date_format(event["活動結束日期"]),
                     "location": event["活動場地"],
-                    "latitude": None,  # 新北市的資料沒有經緯度資訊
+                    "latitude": None,  # 新北市活動資料無經緯度資訊
                     "longitude": None,
-                    "price": "",  # 新北市的資料沒有價格資訊
+                    "price": "",  # 新北市活動資料無價格資訊
                     "url": event["相關連結"],
-                    "imageUrl": event["圖片連結"],
-                    # [0] if event["圖片連結"] else ""  # 使用第一張圖片，如果有的話
+                    "imageUrl": event["圖片連結"]
                 }
                 formatted_data["result"].append(formatted_event)
 
@@ -180,7 +182,7 @@ def fetch_newtaipei_events():
             print(f"發生未預期的錯誤: {e}")
             return {"result": [], "error": str(e)}
 
-        # 如果成功獲取數據，跳出重試循環
+        # 如果成功獲取資料，跳出重試循環
         break
 
 
