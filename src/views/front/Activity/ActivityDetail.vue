@@ -1,8 +1,9 @@
 <script>
 // 匯入所需的套件與工具
 import axios from 'axios';
-import { NButton, NCard, NIcon, NSpace } from 'naive-ui';
-import { ArrowBackOutline, BusinessOutline, CalendarOutline, ChevronBackOutline, ChevronForwardOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
+import { NButton, NCard, NSpace } from 'naive-ui';
+
+// import { ArrowBackOutline, BusinessOutline, CalendarOutline, ChevronBackOutline, ChevronForwardOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
 import { defaultActivityImages } from './ActivityList.vue'; // 從 ActivityList 匯入預設圖片設定
 
@@ -12,16 +13,16 @@ export default {
   // 註冊元件
   components: {
     NCard, // 卡片容器元件
-    NIcon, // 圖示元件
+    // NIcon, // 圖示元件
     NButton, // 按鈕元件
     NSpace, // 間距排版元件
-    LocationOutline, // 地點圖示
-    CalendarOutline, // 行事曆圖示
-    TicketOutline, // 票券圖示
-    ArrowBackOutline, // 返回箭頭圖示
-    BusinessOutline, // 商業圖示
-    ChevronBackOutline,
-    ChevronForwardOutline,
+    // LocationOutline, // 地點圖示
+    // CalendarOutline, // 行事曆圖示
+    // TicketOutline, // 票券圖示
+    // ArrowBackOutline, // 返回箭頭圖示
+    // BusinessOutline, // 商業圖示
+    // ChevronBackOutline,
+    // ChevronForwardOutline,
   },
 
   // 元件資料定義
@@ -221,11 +222,7 @@ export default {
     <!-- 返回按鈕區域 -->
     <div class="mb-6">
       <NButton class="flex items-center" @click="goBack">
-        <template #icon>
-          <NIcon>
-            <ArrowBackOutline />
-          </NIcon>
-        </template>
+        <i class="fas fa-arrow-left mr-2" />
         返回活動列表
       </NButton>
     </div>
@@ -266,14 +263,10 @@ export default {
             class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-all duration-300"
           >
             <button class="carousel-button opacity-60 hover:opacity-100" @click="prevImage">
-              <NIcon size="20">
-                <ChevronBackOutline />
-              </NIcon>
+              <i class="fas fa-chevron-left" />
             </button>
             <button class="carousel-button opacity-60 hover:opacity-100" @click="nextImage">
-              <NIcon size="20">
-                <ChevronForwardOutline />
-              </NIcon>
+              <i class="fas fa-chevron-right" />
             </button>
           </div>
 
@@ -305,9 +298,7 @@ export default {
             <!-- 地點信息 -->
             <div class="flex items-center text-gray-700">
               <div class="icon-wrapper">
-                <NIcon size="24" class="info-icon">
-                  <LocationOutline />
-                </NIcon>
+                <i class="fas fa-map-marker-alt text-blue-500 mr-2" />
               </div>
               <span class="font-medium text-lg">活動地點：</span>
               <span class="text-lg">{{ activity.location || '地點未定' }}</span>
@@ -315,9 +306,7 @@ export default {
             <!-- 日期信息 -->
             <div class="flex items-center text-gray-700">
               <div class="icon-wrapper">
-                <NIcon size="24" class="info-icon">
-                  <CalendarOutline />
-                </NIcon>
+                <i class="far fa-calendar text-blue-500 mr-2" />
               </div>
               <span class="font-medium text-lg">活動日期：</span>
               <span class="text-lg">
@@ -327,9 +316,7 @@ export default {
             <!-- 主辦單位信息 -->
             <div class="flex items-center text-gray-700">
               <div class="icon-wrapper">
-                <NIcon size="24" class="info-icon">
-                  <BusinessOutline />
-                </NIcon>
+                <i class="fas fa-building text-blue-500 mr-2" />
               </div>
               <span class="font-medium text-lg">主辦單位：</span>
               <span class="text-lg">{{ activity.organizer || '未提供' }}</span>
@@ -337,9 +324,7 @@ export default {
             <!-- 票價信息 -->
             <div class="flex items-center text-gray-700">
               <div class="icon-wrapper">
-                <NIcon size="24" class="info-icon">
-                  <TicketOutline />
-                </NIcon>
+                <i class="fas fa-ticket-alt text-blue-500 mr-2" />
               </div>
               <span class="font-medium text-lg">票價資訊：</span>
               <span class="text-lg">{{ activity.ticket_price || '無資訊' }}</span>

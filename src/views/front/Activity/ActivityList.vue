@@ -1,8 +1,9 @@
 <script lang="ts">
 import axios from 'axios';
 import { defineComponent } from 'vue';
-import { NButton, NCard, NIcon, NPagination, NSelect } from 'naive-ui';
-import { CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
+import { NButton, NCard, NPagination, NSelect } from 'naive-ui';
+
+// import { CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
 // 定義活動介面
 interface Activity {
@@ -106,11 +107,10 @@ export default defineComponent({
     NCard, // 卡片容器元件
     NButton, // 按鈕元件
     NPagination, // 分頁元件
-    NIcon, // 圖示元件
     NSelect, // 下拉選單元件
-    LocationOutline, // 地點圖示
-    CalendarOutline, // 行事曆圖示
-    TicketOutline, // 票券圖示
+    // LocationOutline, // 地點圖示
+    // CalendarOutline, // 行事曆圖示
+    // TicketOutline, // 票券圖示
   },
   data() {
     return {
@@ -692,9 +692,7 @@ export default defineComponent({
         <!-- 日期選擇器 -->
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <NIcon class="text-gray-400">
-              <CalendarOutline />
-            </NIcon>
+            <i class="far fa-calendar text-gray-400" />
           </div>
           <input
             v-model="searchDate" type="date"
@@ -710,9 +708,7 @@ export default defineComponent({
             class="w-full md:w-48 status-select" :consistent-menu-width="false" size="large"
           >
             <template #prefix>
-              <NIcon class="text-gray-400">
-                <i class="fas fa-filter" />
-              </NIcon>
+              <i class="fas fa-filter text-gray-400" />
             </template>
           </NSelect>
         </div>
@@ -720,12 +716,10 @@ export default defineComponent({
         <!-- 搜尋按鈕 -->
         <NButton
           type="primary"
-          class="search-button py-3 px-8 rounded-lg transition-all duration-200 hover:shadow-lg flex items-center gap-2"
+          class="search-button py-3 px-8 rounded-lg transition-all duration-200 hover:shadow-lg flex items-center justify-center gap-2 w-full md:w-auto"
           size="large" @click="handleSearch"
         >
-          <NIcon>
-            <i class="fas fa-search" />
-          </NIcon>
+          <i class="fas fa-search" />
           <span>搜尋活動</span>
         </NButton>
       </div>
@@ -757,108 +751,115 @@ export default defineComponent({
         />
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
-        <template v-for="activity in paginatedActivities" :key="activity.id">
-          <NCard
-            class="activity-card transform transition-all duration-300 hover:-translate-y-1" :bordered="false"
-            size="medium" :segmented="{ content: true }" :hoverable="true"
-            style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
-          >
-            <!-- 圖片容器 -->
-            <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg" @click.stop>
-              <img
-                :src="getImageUrl(activity)" :alt="activity.activity_name"
-                class="w-full h-full object-cover transition-opacity duration-300" @error="handleImageError"
-              >
-
-              <!-- 輪播控制按鈕 - 只在多張圖片時顯示 -->
-              <div
-                v-if="hasMultipleImages[activity.id]"
-                class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-opacity duration-300"
-                @click.stop
-              >
-                <button
-                  class="carousel-button transform hover:scale-110 transition-transform"
-                  @click.stop="prevImage(activity, $event)"
+      <div class="container mx-auto px-2 sm:px-4 lg:px-0">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <template v-for="activity in paginatedActivities" :key="activity.id">
+            <NCard
+              class="activity-card transform transition-all duration-300 hover:-translate-y-1" :bordered="false"
+              size="medium" :segmented="{ content: true }" :hoverable="true"
+              style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
+            >
+              <!-- 圖片容器 -->
+              <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg" @click.stop>
+                <img
+                  :src="getImageUrl(activity)" :alt="activity.activity_name"
+                  class="w-full h-full object-cover transition-opacity duration-300" @error="handleImageError"
                 >
-                  <i class="fas fa-chevron-left" />
-                </button>
-                <button
-                  class="carousel-button transform hover:scale-110 transition-transform"
-                  @click.stop="nextImage(activity, $event)"
+
+                <!-- 輪播控制按鈕 - 只在多張圖片時顯示 -->
+                <div
+                  v-if="hasMultipleImages[activity.id]"
+                  class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-opacity duration-300"
+                  @click.stop
                 >
-                  <i class="fas fa-chevron-right" />
-                </button>
-              </div>
-
-              <!-- 圖片指示器 - 只在多張圖片時顯示 -->
-              <div
-                v-if="hasMultipleImages[activity.id]"
-                class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10" @click.stop
-              >
-                <button
-                  v-for="(_, index) in getActivityImageUrls(activity)" :key="index"
-                  class="w-2 h-2 rounded-full transition-all duration-300 bg-white/50 hover:bg-white/80" :class="[
-                    index === (currentImageIndexes[activity.id] || 0) ? 'bg-white scale-125' : '',
-                  ]" @click.stop="currentImageIndexes[activity.id] = index"
-                />
-              </div>
-
-              <!-- 活動狀態標籤 -->
-              <div
-                class="absolute top-3 right-3 px-4 py-1.5 min-w-[80px] text-center rounded-md text-sm font-medium text-white transition-transform duration-300"
-                :class="getStatusClass(activity)"
-              >
-                {{ getStatusText(activity) }}
-              </div>
-            </div>
-
-            <!-- 活動內容 -->
-            <div class="p-4">
-              <!-- 活動標題 -->
-              <h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                {{ activity.activity_name }}
-              </h3>
-
-              <!-- 活動資訊 -->
-              <div class="space-y-2 text-sm text-gray-600">
-                <div class="flex items-center">
-                  <NIcon class="mr-2">
-                    <LocationOutline />
-                  </NIcon>
-                  {{ activity.location || '地點未定' }}
+                  <button
+                    class="carousel-button transform hover:scale-110 transition-transform"
+                    @click.stop="prevImage(activity, $event)"
+                  >
+                    <i class="fas fa-chevron-left" />
+                  </button>
+                  <button
+                    class="carousel-button transform hover:scale-110 transition-transform"
+                    @click.stop="nextImage(activity, $event)"
+                  >
+                    <i class="fas fa-chevron-right" />
+                  </button>
                 </div>
-                <div class="flex items-center">
-                  <NIcon class="mr-2">
-                    <CalendarOutline />
-                  </NIcon>
-                  {{ formatDate(activity.start_date) }} ~ {{ formatDate(activity.end_date) }}
+
+                <!-- 圖片指示器 - 只在多張圖片時顯示 -->
+                <div
+                  v-if="hasMultipleImages[activity.id]"
+                  class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10" @click.stop
+                >
+                  <button
+                    v-for="(_, index) in getActivityImageUrls(activity)" :key="index"
+                    class="w-2 h-2 rounded-full transition-all duration-300 bg-white/50 hover:bg-white/80" :class="[
+                      index === (currentImageIndexes[activity.id] || 0) ? 'bg-white scale-125' : '',
+                    ]" @click.stop="currentImageIndexes[activity.id] = index"
+                  />
                 </div>
-                <div class="flex items-center">
-                  <NIcon class="mr-2">
-                    <TicketOutline />
-                  </NIcon>
-                  {{ activity.ticket_price || '免費' }}
+
+                <!-- 活動狀態標籤 -->
+                <div
+                  class="absolute top-3 right-3 px-4 py-1.5 min-w-[80px] text-center rounded-md text-sm font-medium text-white transition-transform duration-300"
+                  :class="getStatusClass(activity)"
+                >
+                  {{ getStatusText(activity) }}
                 </div>
               </div>
 
-              <!-- 活動描述 -->
-              <p class="mt-3 text-sm text-gray-500 line-clamp-2">
-                {{ activity.description }}
-              </p>
+              <!-- 活動內容 -->
+              <div class="p-2">
+                <!-- 活動標題 -->
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 whitespace-nowrap overflow-hidden text-ellipsis">
+                  {{ activity.activity_name }}
+                </h3>
 
-              <!-- 按鈕區域 -->
-              <div class="mt-4 flex justify-end">
-                <NButton
-                  type="primary" size="small" class="hover:shadow-md transition-shadow"
-                  @click="viewDetails(activity)"
-                >
-                  查看詳情
-                </NButton>
+                <!-- 活動資訊 -->
+                <div class="space-y-2 text-sm text-gray-600">
+                  <div class="flex items-center whitespace-nowrap overflow-hidden">
+                    <div class="w-6 flex justify-center flex-shrink-0">
+                      <i class="fas fa-map-marker-alt mr-2" />
+                    </div>
+                    <span class="overflow-hidden text-ellipsis">{{ activity.location || '地點未定' }}</span>
+                  </div>
+                  <div class="flex items-center whitespace-nowrap overflow-hidden">
+                    <div class="w-6 flex justify-center flex-shrink-0">
+                      <i class="far fa-calendar mr-2" />
+                    </div>
+                    <span class="overflow-hidden text-ellipsis">{{ formatDate(activity.start_date) }} ~ {{
+                      formatDate(activity.end_date) }}</span>
+                  </div>
+                  <div class="flex items-center whitespace-nowrap overflow-hidden">
+                    <div class="w-6 flex justify-center flex-shrink-0">
+                      <i class="fas fa-ticket-alt mr-2" />
+                    </div>
+                    <span class="overflow-hidden text-ellipsis">{{ activity.ticket_price === '無資料' ? '免費入場'
+                      : (activity.ticket_price || '免費入場') }}</span>
+                  </div>
+                </div>
+
+                <!-- 分隔線 -->
+                <div class="my-4 border-t border-gray-200" />
+
+                <!-- 活動描述 -->
+                <p class="text-sm text-gray-500 line-clamp-3">
+                  {{ activity.description === '無資料' ? '無活動相關簡介及說明' : (activity.description || '無活動相關簡介及說明') }}
+                </p>
+
+                <!-- 按鈕區域 -->
+                <div class="mt-4 flex justify-end">
+                  <NButton
+                    type="primary" size="small" class="hover:shadow-md transition-shadow"
+                    @click="viewDetails(activity)"
+                  >
+                    查看詳情
+                  </NButton>
+                </div>
               </div>
-            </div>
-          </NCard>
-        </template>
+            </NCard>
+          </template>
+        </div>
       </div>
 
       <!-- 下方分頁 -->
@@ -930,52 +931,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   right: 0;
   top: 0;
   width: auto;
-}
-
-/* 搜尋按鈕懸停效果 */
-.n-button:hover {
-  transform: translateY(-1px);
-}
-
-/* 載入狀態樣式 */
-.loading-state {
-  text-align: center;
-  padding: 30px;
-  color: #6c757d;
-}
-
-/* 載入動畫 */
-.loading-spinner {
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #007bff;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 15px;
-}
-
-/* 錯誤狀態樣式 */
-.error-state {
-  text-align: center;
-  padding: 30px;
-  color: #dc3545;
-}
-
-/* 重試按鈕樣式 */
-.retry-button {
-  margin-top: 12px;
-  padding: 6px 12px;
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.retry-button:hover {
-  background-color: #c82333;
 }
 
 /* 輪播容器樣式 */
@@ -1152,6 +1107,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   height: 48px;
   font-weight: 500;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
 }
 
 /* 搜索按鈕懸停效果 */
@@ -1230,5 +1189,37 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .carousel-controls {
     opacity: 1 !important;
   }
+}
+
+/* 卡片內容區域樣式 */
+:deep(.n-card__content) {
+  padding: 0.75rem 0.75rem;
+  /* 上下 16px，左右 20px */
+  background-color: white;
+  border-radius: 0 0 0.5rem 0.5rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+  :deep(.n-card__content) {
+    padding: 0.75rem 1rem;
+    /* 手機版縮小內邊距 */
+  }
+}
+
+/* 確保內容區域的間距 */
+.card-content>* {
+  margin-bottom: 0.75rem;
+  /* 內容元素間距 */
+}
+
+.card-content>*:last-child {
+  margin-bottom: 0;
+  /* 最後一個元素不要底部間距 */
 }
 </style>
