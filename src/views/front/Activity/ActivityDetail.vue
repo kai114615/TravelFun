@@ -282,52 +282,53 @@ export default {
         <!-- 活動內容區域 -->
         <div class="space-y-6">
           <!-- 標題區域 -->
-          <div>
-            <h1 class="text-5xl font-bold text-gray-900 mb-2">
+          <div class="mb-4">
+            <h1 class="text-5xl font-bold text-gray-900 mb-4 leading-tight">
               {{ activity.activity_name }}
             </h1>
-            <div class="flex items-center text-sm text-gray-500">
-              <span class="mr-4">ID: {{ activity.id }}</span>
-              <span class="mr-4">建立時間: {{ formatDate(activity.created_at) }}</span>
+            <div class="flex items-center text-md text-gray-500 space-x-6">
+              <span>ID: {{ activity.id }}</span>
+              <span>建立時間: {{ formatDate(activity.created_at) }}</span>
               <span>更新時間: {{ formatDate(activity.updated_at) }}</span>
             </div>
           </div>
 
           <!-- 基本資訊區域 -->
-          <NSpace vertical class="bg-gray-50 p-4 rounded-lg">
+          <NSpace vertical class="bg-gray-50 p-6 rounded-lg space-y-2">
             <!-- 地點信息 -->
             <div class="flex items-center text-gray-700">
-              <div class="icon-wrapper">
-                <i class="fas fa-map-marker-alt text-blue-500 mr-2" />
+              <div class="w-12 flex justify-center">
+                <i class="fas fa-map-marker-alt text-xl text-[#0F4BB4]" />
               </div>
-              <span class="font-medium text-lg">活動地點：</span>
-              <span class="text-lg">{{ activity.location || '地點未定' }}</span>
+              <span class="font-bold text-lg ml-1">活動地點：</span>
+              <span class="text-lg ml-3">{{ activity.location || '地點未定' }}</span>
             </div>
             <!-- 日期信息 -->
             <div class="flex items-center text-gray-700">
-              <div class="icon-wrapper">
-                <i class="far fa-calendar text-blue-500 mr-2" />
+              <div class="w-12 flex justify-center">
+                <i class="far fa-calendar text-xl text-[#0F4BB4]" />
               </div>
-              <span class="font-medium text-lg">活動日期：</span>
-              <span class="text-lg">
+              <span class="font-bold text-lg ml-1">活動日期：</span>
+              <span class="text-lg ml-3">
                 {{ formatDate(activity.start_date) }} ~ {{ formatDate(activity.end_date) }}
               </span>
             </div>
             <!-- 主辦單位信息 -->
             <div class="flex items-center text-gray-700">
-              <div class="icon-wrapper">
-                <i class="fas fa-building text-blue-500 mr-2" />
+              <div class="w-12 flex justify-center">
+                <i class="fas fa-building text-xl text-[#0F4BB4]" />
               </div>
-              <span class="font-medium text-lg">主辦單位：</span>
-              <span class="text-lg">{{ activity.organizer || '未提供' }}</span>
+              <span class="font-bold text-lg ml-1">主辦單位：</span>
+              <span class="text-lg ml-3">{{ activity.organizer || '未提供' }}</span>
             </div>
             <!-- 票價信息 -->
             <div class="flex items-center text-gray-700">
-              <div class="icon-wrapper">
-                <i class="fas fa-ticket-alt text-blue-500 mr-2" />
+              <div class="w-12 flex justify-center">
+                <i class="fas fa-ticket-alt text-xl text-[#0F4BB4]" />
               </div>
-              <span class="font-medium text-lg">票價資訊：</span>
-              <span class="text-lg">{{ activity.ticket_price || '無資訊' }}</span>
+              <span class="font-bold text-lg ml-1">票價資訊：</span>
+              <span class="text-lg ml-3">{{ activity.ticket_price === '無資料' ? '無售票資訊' : (activity.ticket_price
+                || '無售票資訊') }}</span>
             </div>
           </NSpace>
 
@@ -337,9 +338,23 @@ export default {
               活動介紹
             </h2>
             <div class="prose max-w-none">
-              <p class="text-gray-600 leading-relaxed">
+              <p class="text-lg text-gray-600 leading-relaxed" style="text-indent: 2em !important;">
                 {{ activity.description }}
               </p>
+            </div>
+          </div>
+
+          <!-- Google Map 地圖顯示 -->
+          <div v-if="activity.latitude && activity.longitude" class="space-y-4">
+            <h2 class="text-xl font-semibold text-gray-900">
+              <span class="text-lg mr-2">在 Google Maps 位置</span>
+              <i class="fas fa-map-marked-alt text-2xl" />
+            </h2>
+            <div class="w-full h-[400px] rounded-lg overflow-hidden">
+              <iframe
+                :src="`https://maps.google.com/maps?q=${activity.latitude},${activity.longitude}&z=15&t=p&output=embed`"
+                class="w-full h-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+              />
             </div>
           </div>
 
@@ -477,32 +492,12 @@ export default {
   }
 }
 
-/* 資訊圖標包裝器 */
+/* 移除舊的 icon-wrapper 相關樣式 */
 .icon-wrapper {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(59, 130, 246, 0.1);
-  border-radius: 12px;
-  margin-right: 12px;
-  transition: all 0.3s ease;
+  display: none;
 }
 
-/* 資訊圖標樣式 */
 .info-icon {
-  color: #3b82f6;
-  transition: all 0.3s ease;
-}
-
-/* 圖標容器懸停效果 */
-.icon-wrapper:hover {
-  background: rgba(59, 130, 246, 0.2);
-  transform: translateY(-1px);
-}
-
-.icon-wrapper:hover .info-icon {
-  transform: scale(1.1);
+  display: none;
 }
 </style>

@@ -1,7 +1,7 @@
 <script lang="ts">
 import axios from 'axios';
 import { defineComponent } from 'vue';
-import { NButton, NCard, NPagination, NSelect } from 'naive-ui';
+import { NButton, NCard, NPagination, NSelect, NTooltip } from 'naive-ui';
 
 // import { CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
@@ -36,55 +36,55 @@ type ErrorType = string | null;
 // 匯出預設活動圖片陣列
 export const defaultActivityImages = [
   // 露營活動
-  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&fm=jpg&fit=crop&q=80',
   // 攀岩活動
-  'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&fm=jpg&fit=crop&q=80',
   // 衝浪活動
-  'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&fm=jpg&fit=crop&q=80',
   // 健行活動
-  'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&fm=jpg&fit=crop&q=80',
   // 單車活動
-  'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1541625602330-2277a0480b5b?w=800&fm=jpg&fit=crop&q=80',
   // 游泳活動
-  'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&fm=jpg&fit=crop&q=80',
   // 瑜珈活動
-  'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&fm=jpg&fit=crop&q=80',
   // 路跑活動
-  'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&fm=jpg&fit=crop&q=80',
   // 滑板活動
-  'https://images.unsplash.com/photo-1520045892732-304bc3ac5d8e?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1520045892732-304bc3ac5d8e?w=800&fm=jpg&fit=crop&q=80',
   // 籃球活動
-  'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&fm=jpg&fit=crop&q=80',
   // 網球活動
-  'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&fm=jpg&fit=crop&q=80',
   // 高爾夫活動
-  'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&fm=jpg&fit=crop&q=80',
   // 舞蹈活動
-  'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&fm=jpg&fit=crop&q=80',
   // 攝影活動
-  'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&fm=jpg&fit=crop&q=80',
   // 繪畫活動
-  'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&fm=jpg&fit=crop&q=100',
   // 烹飪活動
-  'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&fm=jpg&fit=crop&q=80',
   // 園藝活動
-  'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&fm=jpg&fit=crop&q=80',
   // 手作活動
-  'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=800&fm=jpg&fit=crop&q=80',
   // 音樂活動
-  'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&fm=jpg&fit=crop&q=80',
   // 靜心活動
-  'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&fm=jpg&fit=crop&q=80',
   // 寵物活動
-  'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800&fm=jpg&fit=crop&q=80',
   // 閱讀活動
-  'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&fm=jpg&fit=crop&q=80',
   // 電競活動
-  'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&fm=jpg&fit=crop&q=80',
   // 旅遊活動
-  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&fm=jpg&fit=crop&q=80',
   // 露營車活動
-  'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&fm=jpg&fit=crop&q=80',
 ];
 
 // 常數定義
@@ -107,7 +107,9 @@ export default defineComponent({
     NCard, // 卡片容器元件
     NButton, // 按鈕元件
     NPagination, // 分頁元件
+    // NIcon, // 圖示元件
     NSelect, // 下拉選單元件
+    NTooltip,
     // LocationOutline, // 地點圖示
     // CalendarOutline, // 行事曆圖示
     // TicketOutline, // 票券圖示
@@ -681,46 +683,43 @@ export default defineComponent({
         <!-- 搜尋輸入框 -->
         <div class="flex-1 relative">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <i class="fas fa-search text-gray-400" />
+            <i class="fas fa-search text-[#0F4BB4]" />
           </div>
           <input
             v-model="searchQuery" type="text" placeholder="搜尋活動名稱、地點..."
-            class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 hover:bg-white"
+            class="w-full h-[44px] pl-10 pr-4 rounded-lg border border-gray-200 focus:border-[#0F4BB4] focus:ring-2 focus:ring-[#0F4BB4]/20 transition-all duration-200 bg-white text-base font-normal"
           >
         </div>
 
         <!-- 日期選擇器 -->
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <i class="far fa-calendar text-gray-400" />
+            <i class="far fa-calendar text-[#0F4BB4]" />
           </div>
           <input
             v-model="searchDate" type="date"
-            class="w-full md:w-48 pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 hover:bg-white"
+            class="w-full md:w-48 h-[44px] pl-10 pr-4 rounded-lg border border-gray-200 focus:border-[#0F4BB4] focus:ring-2 focus:ring-[#0F4BB4]/20 transition-all duration-200 bg-white text-base font-normal"
             :min="minDate" :max="maxDate"
           >
         </div>
 
-        <!-- 新增：活動分類選單 -->
-        <div class="relative">
+        <!-- 活動分類選單 -->
+        <div class="relative h-[44px]">
           <NSelect
             v-model:value="selectedStatus" :options="statusOptions" placeholder="選擇活動狀態"
-            class="w-full md:w-48 status-select" :consistent-menu-width="false" size="large"
-          >
-            <template #prefix>
-              <i class="fas fa-filter text-gray-400" />
-            </template>
-          </NSelect>
+            class="w-full md:w-48 status-select text-base font-normal" :consistent-menu-width="false"
+          />
+          <i class="fas fa-filter text-[#0F4BB4] absolute left-4 top-1/2 -translate-y-1/2 z-10 text-md" />
         </div>
 
         <!-- 搜尋按鈕 -->
         <NButton
           type="primary"
-          class="search-button py-3 px-8 rounded-lg transition-all duration-200 hover:shadow-lg flex items-center justify-center gap-2 w-full md:w-auto"
-          size="large" @click="handleSearch"
+          class="search-button h-[44px] px-8 rounded-lg transition-all duration-200 hover:shadow-lg flex items-center justify-center gap-3 w-full md:w-auto bg-[#0F4BB4] text-base font-normal"
+          @click="handleSearch"
         >
-          <i class="fas fa-search" />
-          <span>搜尋活動</span>
+          <i class="fas fa-search text-base" />
+          <span class="ml-1">搜尋活動</span>
         </NButton>
       </div>
     </div>
@@ -746,8 +745,8 @@ export default defineComponent({
       <div class="flex justify-center mb-8">
         <NPagination
           v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
-          :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker @update:page="changePage"
-          @update:page-size="handlePageSizeChange"
+          :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker class="pagination-custom"
+          @update:page="changePage" @update:page-size="handlePageSizeChange"
         />
       </div>
 
@@ -760,7 +759,7 @@ export default defineComponent({
               style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
             >
               <!-- 圖片容器 -->
-              <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg" @click.stop>
+              <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg mt-0" @click.stop>
                 <img
                   :src="getImageUrl(activity)" :alt="activity.activity_name"
                   class="w-full h-full object-cover transition-opacity duration-300" @error="handleImageError"
@@ -809,9 +808,22 @@ export default defineComponent({
               </div>
 
               <!-- 活動內容 -->
-              <div class="p-2">
+              <div class="pt-1 px-5 pb-5">
                 <!-- 活動標題 -->
-                <h3 class="text-lg font-semibold text-gray-900 mb-4 whitespace-nowrap overflow-hidden text-ellipsis">
+                <NTooltip v-if="activity.activity_name?.length > 20" trigger="hover" placement="top">
+                  <template #trigger>
+                    <h3
+                      class="text-xl font-semibold text-gray-900 mb-4 whitespace-nowrap overflow-hidden text-ellipsis"
+                    >
+                      {{ activity.activity_name }}
+                    </h3>
+                  </template>
+                  {{ activity.activity_name }}
+                </NTooltip>
+                <h3
+                  v-else
+                  class="text-xl font-semibold text-gray-900 mb-4 whitespace-nowrap overflow-hidden text-ellipsis"
+                >
                   {{ activity.activity_name }}
                 </h3>
 
@@ -821,21 +833,35 @@ export default defineComponent({
                     <div class="w-6 flex justify-center flex-shrink-0">
                       <i class="fas fa-map-marker-alt mr-2" />
                     </div>
-                    <span class="overflow-hidden text-ellipsis">{{ activity.location || '地點未定' }}</span>
+                    <NTooltip v-if="activity.location?.length > 25" trigger="hover" placement="top">
+                      <template #trigger>
+                        <span class="overflow-hidden text-ellipsis">{{ activity.location || '地點未定' }}</span>
+                      </template>
+                      {{ activity.location || '地點未定' }}
+                    </NTooltip>
+                    <span v-else class="overflow-hidden text-ellipsis">{{ activity.location || '地點未定' }}</span>
                   </div>
                   <div class="flex items-center whitespace-nowrap overflow-hidden">
                     <div class="w-6 flex justify-center flex-shrink-0">
                       <i class="far fa-calendar mr-2" />
                     </div>
                     <span class="overflow-hidden text-ellipsis">{{ formatDate(activity.start_date) }} ~ {{
-                      formatDate(activity.end_date) }}</span>
+                      formatDate(activity.end_date)
+                    }}</span>
                   </div>
                   <div class="flex items-center whitespace-nowrap overflow-hidden">
                     <div class="w-6 flex justify-center flex-shrink-0">
                       <i class="fas fa-ticket-alt mr-2" />
                     </div>
-                    <span class="overflow-hidden text-ellipsis">{{ activity.ticket_price === '無資料' ? '免費入場'
-                      : (activity.ticket_price || '免費入場') }}</span>
+                    <NTooltip v-if="(activity.ticket_price || '無售票資訊').length > 25" trigger="hover" placement="top">
+                      <template #trigger>
+                        <span class="overflow-hidden text-ellipsis">{{ activity.ticket_price === '無資料' ? '無售票資訊'
+                          : (activity.ticket_price || '無售票資訊') }}</span>
+                      </template>
+                      {{ activity.ticket_price === '無資料' ? '無售票資訊' : (activity.ticket_price || '無售票資訊') }}
+                    </NTooltip>
+                    <span v-else class="overflow-hidden text-ellipsis">{{ activity.ticket_price === '無資料' ? '無售票資訊'
+                      : (activity.ticket_price || '無售票資訊') }}</span>
                   </div>
                 </div>
 
@@ -850,7 +876,8 @@ export default defineComponent({
                 <!-- 按鈕區域 -->
                 <div class="mt-4 flex justify-end">
                   <NButton
-                    type="primary" size="small" class="hover:shadow-md transition-shadow"
+                    type="success" size="small"
+                    class="hover:shadow-md transition-shadow bg-[#417690] hover:bg-[#205067] text-white font-medium"
                     @click="viewDetails(activity)"
                   >
                     查看詳情
@@ -866,8 +893,8 @@ export default defineComponent({
       <div class="flex justify-center mt-8 mb-12">
         <NPagination
           v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
-          :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker @update:page="changePage"
-          @update:page-size="handlePageSizeChange"
+          :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker class="pagination-custom"
+          @update:page="changePage" @update:page-size="handlePageSizeChange"
         />
       </div>
     </template>
@@ -884,31 +911,14 @@ export default defineComponent({
 
 /* 搜尋區塊的新樣式 */
 .search-container {
-  background: linear-gradient(to right, #ffffff, #f8f9fa);
+  background: #ffffff;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-/* 搜索容器漸變效果 */
-.search-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.search-container:hover::before {
-  opacity: 1;
 }
 
 /* 輸入框焦點效果 */
 input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 2px rgba(15, 75, 180, 0.2);
 }
 
 /* 日期選擇器自定義樣式 */
@@ -1011,7 +1021,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* 分頁組件樣式 */
-.n-pagination {
+.pagination-custom {
   background-color: white;
   border-radius: 0.5rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -1019,110 +1029,109 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* 分頁項目樣式 */
-.n-pagination :deep(.n-pagination-item) {
-  min-width: 32px;
-  height: 32px;
-  line-height: 32px;
+.pagination-custom :deep(.n-pagination-item) {
+  min-width: 36px;
+  height: 36px;
+  line-height: 36px;
   margin: 0 4px;
+  border-radius: 6px;
+  color: #666;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 /* 分頁目前項目樣式 */
-.n-pagination :deep(.n-pagination-item--active) {
-  background-color: #3b82f6;
+.pagination-custom :deep(.n-pagination-item--active) {
+  background-color: #0F4BB4;
   color: white;
+  font-weight: 600;
 }
 
 /* 分頁項目懸停效果 */
-.n-pagination :deep(.n-pagination-item:hover:not(.n-pagination-item--active)) {
-  background-color: #f3f4f6;
+.pagination-custom :deep(.n-pagination-item:hover:not(.n-pagination-item--active)) {
+  background-color: #e9f2ff;
+  color: #0F4BB4;
 }
 
 /* 分頁選擇器樣式 */
-.n-pagination :deep(.n-pagination-size-picker) {
-  min-width: 80px;
+.pagination-custom :deep(.n-pagination-size-picker) {
+  min-width: 110px;
 }
 
 /* 分頁選擇器基礎樣式 */
-.n-pagination :deep(.n-base-selection) {
+.pagination-custom :deep(.n-base-selection) {
   background-color: white;
-  border: 1px solid #e5e7eb;
-}
-
-/* 活動狀態選擇器樣式 */
-.status-select :deep(.n-base-selection) {
-  background-color: #f8f9fa;
-  border-color: #e2e8f0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  height: 36px;
   transition: all 0.2s ease;
-  height: 48px;
 }
 
-/* 狀態選擇器懸停效果 */
-.status-select :deep(.n-base-selection:hover) {
-  background-color: white;
-  border-color: #93c5fd;
+/* 分頁選擇器懸停效果 */
+.pagination-custom :deep(.n-base-selection:hover) {
+  border-color: #0F4BB4;
 }
 
-/* 狀態選擇器標籤樣式 */
-.status-select :deep(.n-base-selection-label) {
-  height: 48px;
-  line-height: 48px;
-  padding-left: 36px;
+/* 分頁選擇器聚焦效果 */
+.pagination-custom :deep(.n-base-selection--active) {
+  border-color: #0F4BB4;
+  box-shadow: 0 0 0 2px rgba(15, 75, 180, 0.2);
 }
 
-/* 狀態選擇器前綴樣式 */
-.status-select :deep(.n-base-selection-prefix) {
-  margin-left: 12px;
-  color: #6b7280;
-}
-
-/* 狀態選擇器佔位符樣式 */
-.status-select :deep(.n-base-selection-placeholder) {
-  color: #9ca3af;
-}
-
-/* 狀態選擇器下拉菜單樣式 */
-.status-select :deep(.n-select-menu) {
+/* 分頁選擇器下拉菜單樣式 */
+.pagination-custom :deep(.n-base-selection-menu) {
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 4px;
 }
 
-/* 狀態選擇器選項樣式 */
-.status-select :deep(.n-select-option) {
+/* 分頁選擇器選項樣式 */
+.pagination-custom :deep(.n-base-select-option) {
   padding: 8px 12px;
   border-radius: 6px;
   transition: all 0.2s ease;
 }
 
-/* 狀態選擇器選項懸停效果 */
-.status-select :deep(.n-select-option:hover) {
-  background-color: #f0f9ff;
+/* 分頁選擇器選項懸停效果 */
+.pagination-custom :deep(.n-base-select-option:hover) {
+  background-color: #e9f2ff;
+  color: #0F4BB4;
 }
 
-/* 搜索按鈕樣式 */
-.search-button {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border: none;
-  height: 48px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 120px;
+/* 分頁按鈕樣式 */
+.pagination-custom :deep(.n-pagination-item.n-pagination-item--button) {
+  background-color: white;
+  border: 1px solid #e2e8f0;
 }
 
-/* 搜索按鈕懸停效果 */
-.search-button:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+/* 分頁按鈕懸停效果 */
+.pagination-custom :deep(.n-pagination-item.n-pagination-item--button:hover:not(:disabled)) {
+  background-color: #e9f2ff;
+  border-color: #0F4BB4;
+  color: #0F4BB4;
 }
 
-/* 搜索按鈕點擊效果 */
-.search-button:active {
-  transform: translateY(0);
+/* 分頁按鈕禁用效果 */
+.pagination-custom :deep(.n-pagination-item.n-pagination-item--button:disabled) {
+  background-color: #f8f9fa;
+  border-color: #e2e8f0;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .pagination-custom :deep(.n-pagination-item) {
+    min-width: 32px;
+    height: 32px;
+    line-height: 32px;
+    margin: 0 2px;
+  }
+
+  .pagination-custom :deep(.n-pagination-size-picker) {
+    min-width: 90px;
+  }
 }
 
 /* 動畫效果定義 */
@@ -1193,21 +1202,37 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* 卡片內容區域樣式 */
 :deep(.n-card__content) {
-  padding: 0.75rem 0.75rem;
-  /* 上下 16px，左右 20px */
+  padding: 0rem 0rem;
+  /* 上下，左右 */
+  margin: 0;
   background-color: white;
   border-radius: 0 0 0.5rem 0.5rem;
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
   transition: all 0.3s ease;
+}
+
+:deep(.n-card) {
+  overflow: hidden;
+}
+
+:deep(.n-card-header) {
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+:deep(.n-card__content:first-child) {
+  padding: 0;
+  margin: 0;
 }
 
 /* 響應式調整 */
 @media (max-width: 768px) {
   :deep(.n-card__content) {
-    padding: 0.75rem 1rem;
+    padding: 0rem 0rem;
     /* 手機版縮小內邊距 */
   }
 }
@@ -1221,5 +1246,82 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .card-content>*:last-child {
   margin-bottom: 0;
   /* 最後一個元素不要底部間距 */
+}
+
+/* Tooltip 相關樣式 */
+:deep(.n-tooltip) {
+  max-width: 300px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+:deep(.n-tooltip-content) {
+  font-size: 14px;
+  padding: 8px 12px;
+}
+
+/* 狀態選擇器樣式 */
+.status-select :deep(.n-base-selection) {
+  height: 44px !important;
+  line-height: 44px;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+  font-size: 1rem !important;
+}
+
+/* 狀態選擇器標籤樣式 */
+.status-select :deep(.n-base-selection-label) {
+  height: 44px;
+  line-height: 44px;
+  padding-left: 36px;
+  font-size: 1rem !important;
+}
+
+/* 狀態選擇器觸發器樣式 */
+.status-select :deep(.n-base-selection-placeholder) {
+  height: 44px;
+  line-height: 44px;
+  padding-left: 36px;
+  font-size: 1rem !important;
+}
+
+/* 狀態選擇器下拉選項樣式 */
+.status-select :deep(.n-base-select-option__content) {
+  font-size: 1rem !important;
+}
+
+/* 搜尋按鈕樣式 */
+.search-button {
+  height: 44px;
+  font-weight: normal;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  font-size: 1rem !important;
+  gap: 0.75rem !important;
+}
+
+.search-button i {
+  font-size: 1rem;
+}
+
+.search-button span {
+  position: relative;
+  top: 1px;
+}
+
+/* 搜尋按鈕懸停效果 */
+.search-button:hover {
+  background: #0d3d91;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 75, 180, 0.2);
+}
+
+/* 搜尋按鈕點擊效果 */
+.search-button:active {
+  transform: translateY(0);
 }
 </style>
