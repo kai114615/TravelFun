@@ -184,7 +184,7 @@ const routes = [
     component: () => import('../views/front/Cart/CartView.vue'),
     meta: {
       title: '購物車',
-    },
+    }
   },
   {
     path: '/checkout',
