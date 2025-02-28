@@ -1,6 +1,7 @@
-import antfu from '@antfu/eslint-config'
+// import antfu from '@antfu/eslint-config'
+const antfu = require('@antfu/eslint-config').default
 
-export default antfu({
+module.exports = antfu({
   // Enable all rules from @antfu/eslint-config
   typescript: true,
   vue: true,
@@ -29,6 +30,7 @@ export default antfu({
     'no-mixed-spaces-and-tabs': 'off',
     'quotes': ['error', 'single'],
     'semi': ['error', 'always'],
+    'style/semi': 'off', // 關閉 style/semi 規則，避免與 semi 規則衝突
     'space-before-function-paren': ['error', 'always'],
   },
 
