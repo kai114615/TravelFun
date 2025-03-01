@@ -303,7 +303,7 @@ export default {
               {{ activity.activity_name }}
             </h1>
             <div class="flex items-center text-md text-gray-500 space-x-6">
-              <span>ID: {{ activity.id }}</span>
+              <!-- <span>ID: {{ activity.id }}</span> -->
               <span>建立時間: {{ formatDate(activity.created_at) }}</span>
               <span>更新時間: {{ formatDate(activity.updated_at) }}</span>
             </div>
