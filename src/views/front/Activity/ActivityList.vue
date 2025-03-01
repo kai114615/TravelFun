@@ -44,7 +44,7 @@ export const defaultActivityImages = [
   // 健行活動
   'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&fm=jpg&fit=crop&q=80',
   // 單車活動
-  'https://images.unsplash.com/photo-1541625602330-2277a0480b5b?w=800&fm=jpg&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1534787238916-9ba6764efd4f?w=800&fm=jpg&fit=crop&q=80',
   // 游泳活動
   'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&fm=jpg&fit=crop&q=80',
   // 瑜珈活動
@@ -435,8 +435,8 @@ export default defineComponent({
 
       const imageUrls = this.getActivityImageUrls(activity);
 
-      // 如果活動有自己的圖片
-      if (imageUrls.length > 0) {
+      // 如果活動有自己的圖片且不是 ["None"]
+      if (imageUrls.length > 0 && !(imageUrls.length === 1 && imageUrls[0] === 'None')) {
         // 更新是否有多張圖片的狀態
         this.hasMultipleImages[activity.id] = imageUrls.length > 1;
 
@@ -449,7 +449,7 @@ export default defineComponent({
         return imageUrls[currentIndex % imageUrls.length];
       }
 
-      // 如果沒有圖片，使用活動ID生成固定的預設圖片索引
+      // 如果沒有圖片或圖片為 ["None"]，使用活動ID生成固定的預設圖片索引
       const idString = String(activity.id || '') + String(activity.activity_name || '');
       let hash = 0;
       for (let i = 0; i < idString.length; i++) {
@@ -845,9 +845,10 @@ export default defineComponent({
                     <div class="w-6 flex justify-center flex-shrink-0">
                       <i class="far fa-calendar mr-2" />
                     </div>
-                    <span class="overflow-hidden text-ellipsis">{{ formatDate(activity.start_date) }} ~ {{
-                      formatDate(activity.end_date)
-                    }}</span>
+                    <span class="overflow-hidden text-ellipsis">{{ (activity.start_date === '無資料' || activity.end_date
+                      === '無資料')
+                      ? '起訖時間無相關資訊'
+                      : `${formatDate(activity.start_date)} ~ ${formatDate(activity.end_date)}` }}</span>
                   </div>
                   <div class="flex items-center whitespace-nowrap overflow-hidden">
                     <div class="w-6 flex justify-center flex-shrink-0">
@@ -869,7 +870,7 @@ export default defineComponent({
                 <div class="my-4 border-t border-gray-200" />
 
                 <!-- 活動描述 -->
-                <p class="text-sm text-gray-500 line-clamp-3">
+                <p class="text-sm text-gray-500 line-clamp-3" style="text-indent: 2em !important;">
                   {{ activity.description === '無資料' ? '無活動相關簡介及說明' : (activity.description || '無活動相關簡介及說明') }}
                 </p>
 

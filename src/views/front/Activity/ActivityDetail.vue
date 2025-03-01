@@ -47,10 +47,26 @@ export default {
   methods: {
     // === 資料取得相關方法 ===
 
-    // 從 API 取得活動詳細資料
+    // 從靜態 JSON 檔案和 API 取得活動詳細資料
     async fetchActivityDetail() {
       try {
         const id = this.$route.params.id;
+
+        // 先嘗試從靜態 JSON 檔案讀取資料
+        try {
+          const staticData = await import('@/assets/theme_entertainment/events_data.json');
+          const foundActivity = staticData.default.find(activity => activity.uid === id);
+
+          if (foundActivity) {
+            this.activity = foundActivity;
+            return;
+          }
+        }
+        catch (staticError) {
+          console.warn('無法從靜態檔案讀取資料:', staticError);
+        }
+
+        // 如果靜態檔案中沒有找到資料，則從 API 獲取
         const response = await axios.get(`/theme_entertainment/activities/api/${id}/`);
 
         if (response.data.status === 'success')
@@ -308,9 +324,10 @@ export default {
               <div class="w-12 flex justify-center">
                 <i class="far fa-calendar text-xl text-[#0F4BB4]" />
               </div>
-              <span class="font-bold text-lg ml-1">活動日期：</span>
+              <span class="font-bold text-lg ml-1">起訖時間：</span>
               <span class="text-lg ml-3">
-                {{ formatDate(activity.start_date) }} ~ {{ formatDate(activity.end_date) }}
+                {{ (activity.start_date === '無資料' || activity.end_date === '無資料') ? '起訖時間無相關資訊'
+                  : `${formatDate(activity.start_date)} ~ ${formatDate(activity.end_date)}` }}
               </span>
             </div>
             <!-- 主辦單位信息 -->
