@@ -58,6 +58,8 @@ CORS_ALLOW_CREDENTIALS = True  # 允許攜帶認證信息
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite 默認端口
     "http://127.0.0.1:5173",
+    "http://localhost:3333",  # 添加新的端口
+    "http://127.0.0.1:3333",
 ]
 CORS_ALLOW_METHODS = [
     'GET',
