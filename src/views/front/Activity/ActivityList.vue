@@ -33,6 +33,13 @@ interface CategorizedActivities {
 // 定義錯誤型別
 type ErrorType = string | null;
 
+// 定義搜尋建議介面
+interface SearchSuggestion {
+  text: string
+  type: 'history' | 'suggestion'
+  count?: number
+}
+
 // 匯出預設活動圖片陣列
 export const defaultActivityImages = [
   // 露營活動
@@ -99,7 +106,7 @@ const STATUS_OPTIONS = [
   { label: '未知', value: '未知' },
 ];
 
-const PAGE_SIZE_OPTIONS = [12, 24, 36, 48];
+const PAGE_SIZE_OPTIONS = [12, 36, 60];
 
 export default defineComponent({
   name: 'ActivityList',
@@ -135,6 +142,12 @@ export default defineComponent({
       pageSizeOptions: PAGE_SIZE_OPTIONS, // 頁面大小選項
       selectedStatus: '', // 選擇的活動狀態
       statusOptions: STATUS_OPTIONS, // 活動狀態選項
+      // 新增搜尋相關的資料
+      showSuggestions: false,
+      searchSuggestions: [] as SearchSuggestion[],
+      searchHistory: [] as string[],
+      maxHistoryItems: 10,
+      isInputFocused: false,
     };
   },
   computed: {
@@ -157,14 +170,68 @@ export default defineComponent({
 
       return Array.from({ length: end - start + 1 }, (_, i) => start + i);
     },
+
+    // 新增搜尋建議的計算屬性
+    filteredSuggestions(): SearchSuggestion[] {
+      const query = this.searchQuery.trim().toLowerCase();
+      if (!query)
+        return this.getRecentSearchHistory();
+
+      const suggestions: SearchSuggestion[] = [];
+
+      // 加入符合的歷史記錄
+      const matchingHistory = this.searchHistory
+        .filter(item => item.toLowerCase().includes(query))
+        .map(item => ({
+          text: item,
+          type: 'history' as const,
+        }));
+      suggestions.push(...matchingHistory);
+
+      // 從活動資料中產生建議
+      const activitySuggestions = new Map<string, number>();
+
+      this.allActivities.forEach((activity) => {
+        const fields = [
+          activity.activity_name,
+          activity.location,
+          activity.description,
+          activity.ticket_price,
+        ];
+
+        fields.forEach((field) => {
+          if (!field)
+            return;
+          const words = field.toLowerCase().split(/\s+/);
+          words.forEach((word) => {
+            if (word.includes(query) && word.length > 1)
+              activitySuggestions.set(word, (activitySuggestions.get(word) || 0) + 1);
+          });
+        });
+      });
+
+      // 將建議轉換為陣列並排序
+      const sortedSuggestions = Array.from(activitySuggestions.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([text, count]) => ({
+          text,
+          type: 'suggestion' as const,
+          count,
+        }));
+
+      suggestions.push(...sortedSuggestions);
+
+      return suggestions.slice(0, 10);
+    },
   },
   watch: {
     searchQuery: {
-      handler(newVal, oldVal) {
-        if (newVal !== oldVal)
-          this.handleSearch();
+      handler(newVal) {
+        if (newVal.trim())
+          this.showSuggestions = true;
       },
-      immediate: false,
+      immediate: true,
     },
     searchDate: {
       handler(newVal, oldVal) {
@@ -189,6 +256,13 @@ export default defineComponent({
   },
   mounted() {
     this.initializeComponent();
+    this.loadSearchHistory();
+    // 添加點擊外部關閉建議的事件監聽器
+    document.addEventListener('click', this.handleClickOutside);
+  },
+  beforeUnmount() {
+    // 移除事件監聽器
+    document.removeEventListener('click', this.handleClickOutside);
   },
   methods: {
     initializeComponent() {
@@ -389,7 +463,10 @@ export default defineComponent({
     },
 
     handleSearch() {
-      const query = this.searchQuery.trim();
+      // 添加到搜尋歷史
+      this.addToSearchHistory(this.searchQuery.trim());
+
+      const query = this.searchQuery.trim().toLowerCase();
       const searchDate = this.searchDate ? new Date(this.searchDate) : null;
       const status = this.selectedStatus;
 
@@ -397,24 +474,43 @@ export default defineComponent({
         this.activities = [...this.allActivities];
       }
       else {
+        // 將搜尋關鍵字分割成陣列
+        const keywords = query.split(/\s+/).filter(keyword => keyword.length > 0);
+
         const filteredActivities = this.allActivities.filter((activity) => {
-          const matchesQuery = !query
-            || activity.activity_name?.toLowerCase().includes(query.toLowerCase())
-            || activity.location?.toLowerCase().includes(query.toLowerCase())
-            || activity.description?.toLowerCase().includes(query.toLowerCase());
+          // 日期篩選
+          const matchesDate = !searchDate || (
+            new Date(activity.start_date) <= searchDate
+            && new Date(activity.end_date) >= searchDate
+          );
 
-          const matchesDate = !searchDate
-            || (new Date(activity.start_date) <= searchDate
-              && new Date(activity.end_date) >= searchDate);
-
+          // 狀態篩選
           const matchesStatus = !status || this.getStatusText(activity) === status;
 
-          return matchesQuery && matchesDate && matchesStatus;
+          // 如果沒有關鍵字，只檢查日期和狀態
+          if (keywords.length === 0)
+            return matchesDate && matchesStatus;
+
+          // 建立搜尋欄位陣列
+          const searchFields = [
+            activity.activity_name,
+            activity.location,
+            activity.description,
+            activity.ticket_price,
+          ].map(field => (field || '').toLowerCase());
+
+          // 檢查是否所有關鍵字都至少匹配一個欄位
+          const matchesKeywords = keywords.every(keyword =>
+            searchFields.some(field => field.includes(keyword)),
+          );
+
+          return matchesKeywords && matchesDate && matchesStatus;
         });
 
         this.activities = filteredActivities;
       }
 
+      // 重置頁碼到第一頁
       if (this.currentPage !== 1)
         this.currentPage = 1;
     },
@@ -672,6 +768,58 @@ export default defineComponent({
       // 滾動到頁面頂部
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
+
+    // 新增搜尋相關方法
+    loadSearchHistory() {
+      const history = localStorage.getItem('searchHistory');
+      if (history)
+        this.searchHistory = JSON.parse(history);
+    },
+
+    saveSearchHistory() {
+      localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory));
+    },
+
+    addToSearchHistory(query: string) {
+      if (!query.trim())
+        return;
+
+      // 移除重複項目
+      this.searchHistory = this.searchHistory.filter(item => item !== query);
+
+      // 添加到開頭
+      this.searchHistory.unshift(query);
+
+      // 限制歷史記錄數量
+      if (this.searchHistory.length > this.maxHistoryItems)
+        this.searchHistory = this.searchHistory.slice(0, this.maxHistoryItems);
+
+      this.saveSearchHistory();
+    },
+
+    getRecentSearchHistory(): SearchSuggestion[] {
+      return this.searchHistory.slice(0, 5).map(text => ({
+        text,
+        type: 'history',
+      }));
+    },
+
+    handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.search-container'))
+        this.showSuggestions = false;
+    },
+
+    handleSuggestionClick(suggestion: SearchSuggestion) {
+      this.searchQuery = suggestion.text;
+      this.showSuggestions = false;
+      this.handleSearch();
+    },
+
+    clearSearchHistory() {
+      this.searchHistory = [];
+      this.saveSearchHistory();
+    },
   },
 });
 </script>
@@ -680,7 +828,7 @@ export default defineComponent({
   <div class="activity-list">
     <div class="search-container bg-white rounded-lg shadow-md p-6 mb-8">
       <div class="flex flex-col md:flex-row gap-4">
-        <!-- 搜尋輸入框 -->
+        <!-- 搜尋輸入框和建議清單 -->
         <div class="flex-1 relative">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <i class="fas fa-search text-[#0F4BB4]" />
@@ -688,7 +836,42 @@ export default defineComponent({
           <input
             v-model="searchQuery" type="text" placeholder="搜尋活動名稱、地點..."
             class="w-full h-[44px] pl-10 pr-4 rounded-lg border border-gray-200 focus:border-[#0F4BB4] focus:ring-2 focus:ring-[#0F4BB4]/20 transition-all duration-200 bg-white text-base font-normal"
+            @focus="showSuggestions = true"
           >
+
+          <!-- 搜尋建議下拉清單 -->
+          <div
+            v-if="showSuggestions && (searchQuery || searchHistory.length > 0)"
+            class="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-[300px] overflow-y-auto"
+          >
+            <div v-if="filteredSuggestions.length > 0">
+              <div
+                v-for="(suggestion, index) in filteredSuggestions" :key="index"
+                class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center justify-between"
+                @click="handleSuggestionClick(suggestion)"
+              >
+                <div class="flex items-center">
+                  <i
+                    :class="suggestion.type === 'history' ? 'fas fa-history' : 'fas fa-search'"
+                    class="text-gray-400 mr-2"
+                  />
+                  <span>{{ suggestion.text }}</span>
+                </div>
+                <span v-if="suggestion.count" class="text-sm text-gray-400">
+                  {{ suggestion.count }}次
+                </span>
+              </div>
+            </div>
+            <div
+              v-if="searchHistory.length > 0"
+              class="px-4 py-2 border-t border-gray-200 flex justify-between items-center"
+            >
+              <span class="text-sm text-gray-500">搜尋歷史</span>
+              <button class="text-sm text-[#0F4BB4] hover:text-[#0d3d91]" @click.stop="clearSearchHistory">
+                清除歷史
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- 日期選擇器 -->
@@ -1324,5 +1507,40 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* 搜尋按鈕點擊效果 */
 .search-button:active {
   transform: translateY(0);
+}
+
+/* 搜尋建議相關樣式 */
+.search-suggestions {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.suggestion-item {
+  transition: all 0.2s ease;
+}
+
+.suggestion-item:hover {
+  background-color: #f3f4f6;
+}
+
+/* 滾動條樣式 */
+.search-suggestions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-suggestions::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.search-suggestions::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.search-suggestions::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 </style>

@@ -356,7 +356,8 @@ export default {
             </h2>
             <div class="prose max-w-none">
               <p class="text-lg text-gray-600 leading-relaxed" style="text-indent: 2em !important;">
-                {{ activity.description }}
+                {{ activity.description === '無資料' ? '無活動相關簡介及說明' : (activity.description
+                  || '無活動相關簡介及說明') }}
               </p>
             </div>
           </div>
