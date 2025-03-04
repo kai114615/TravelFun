@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { NButton, NCard, NDivider, NForm, NFormItem, NIcon, NInput, NUpload, useMessage } from 'naive-ui';
-import { CloudUploadOutlined, RefreshOutlined } from '@vicons/material';
+import { NButton, NCard, NDivider, NForm, NFormItem, NIcon, NInput, useMessage } from 'naive-ui';
+import { RefreshOutlined } from '@vicons/material';
 import { useRouter } from 'vue-router';
 import { apiUserRegister } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
@@ -18,7 +18,6 @@ const formValue = ref({
   email: '',
   password1: '',
   password2: '',
-  avatar: null,
   captcha: ''
 });
 
@@ -70,48 +69,9 @@ const rules = {
 
 async function handleSubmit () {
   try {
-    // 驗證表單
     await formRef.value?.validate();
 
-    // 創建 FormData 對象
-    const formData = new FormData();
-
-    // 添加基本資料
-    formData.append('username', formValue.value.username);
-    formData.append('email', formValue.value.email);
-    formData.append('password1', formValue.value.password1);
-    formData.append('password2', formValue.value.password2);
-    formData.append('full_name', formValue.value.full_name);
-
-    // 如果有頭像，添加到 FormData
-    if (formValue.value.avatar instanceof File) {
-      console.log('正在添加頭像到 FormData:', {
-        fileName: formValue.value.avatar.name,
-        fileType: formValue.value.avatar.type,
-        fileSize: formValue.value.avatar.size
-      });
-
-      // 使用原始文件名添加文件
-      formData.append('avatar', formValue.value.avatar);
-
-      // 輸出 FormData 內容進行調試
-      console.log('FormData 內容:');
-      for (const [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`${key}:`, {
-            name: value.name,
-            type: value.type,
-            size: value.size
-          });
-        } else {
-          console.log(`${key}:`, value);
-        }
-      }
-    } else {
-      console.log('沒有頭像文件需要上傳');
-    }
-
-    // 驗證碼驗證
+    // 驗證表單
     if (formValue.value.captcha.toLowerCase() !== captchaText.value.toLowerCase()) {
       message.error('驗證碼錯誤');
       generateCaptcha();
@@ -122,8 +82,13 @@ async function handleSubmit () {
 
     try {
       // 發送註冊請求
-      const response = await apiUserRegister(formData);
-      console.log('註冊響應:', response.data);
+      const response = await apiUserRegister({
+        username: formValue.value.username,
+        email: formValue.value.email,
+        password1: formValue.value.password1,
+        password2: formValue.value.password2,
+        full_name: formValue.value.full_name
+      });
 
       if (response.data?.success) {
         message.success('註冊成功');
@@ -149,49 +114,6 @@ async function handleSubmit () {
   }
 }
 
-// 修改檔案上傳處理
-function customRequest ({ file }: { file: File }) {
-  console.log('收到文件:', {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    lastModified: file.lastModified
-  });
-
-  return new Promise((resolve, reject) => {
-    // 檢查檔案類型
-    if (!file.type.startsWith('image/')) {
-      message.error('請上傳圖片檔案');
-      reject(new Error('Invalid file type'));
-      return;
-    }
-
-    // 檢查檔案大小 (2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      message.error('圖片大小不能超過 2MB');
-      reject(new Error('File too large'));
-      return;
-    }
-
-    // 創建新的 File 對象，確保文件名和類型正確
-    const newFile = new File([file], file.name, {
-      type: file.type,
-      lastModified: file.lastModified
-    });
-
-    // 保存文件到表單數據
-    formValue.value.avatar = newFile;
-
-    console.log('文件已保存到表單:', {
-      fileName: newFile.name,
-      fileType: newFile.type,
-      fileSize: newFile.size
-    });
-
-    resolve();
-  })
-}
-
 // 驗證碼相關
 const captchaText = ref('');
 const captchaCanvas = ref<HTMLCanvasElement | null>(null);
@@ -199,11 +121,11 @@ const captchaCanvas = ref<HTMLCanvasElement | null>(null);
 function generateCaptcha () {
   const canvas = captchaCanvas.value;
   if (!canvas)
-    return
+    return;
 
   const ctx = canvas.getContext('2d');
   if (!ctx)
-    return
+    return;
 
   // 清空畫布
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -252,7 +174,7 @@ function generateCaptcha () {
 // 在組件掛載後生成驗證碼
 onMounted(() => {
   generateCaptcha();
-})
+});
 </script>
 
 <template>
@@ -340,23 +262,6 @@ onMounted(() => {
               </NButton>
             </div>
           </div>
-        </NFormItem>
-
-        <NFormItem label="頭像">
-          <NUpload
-            accept="image/*"
-            :custom-request="customRequest"
-            :max="1"
-            list-type="image-card"
-            :disabled="loading"
-          >
-            <div class="flex flex-col items-center justify-center">
-              <NIcon size="20">
-                <CloudUploadOutlined />
-              </NIcon>
-              <span class="mt-2">點擊上傳</span>
-            </div>
-          </NUpload>
         </NFormItem>
 
         <div class="flex flex-col gap-4 mt-6">

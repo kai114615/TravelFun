@@ -42,7 +42,7 @@ const getThemeOverrides = computed(() => {
     },
     Card: isAdmin ? adminCardOverrides : {},
   };
-})
+});
 
 onMounted(() => {
   // 檢查是否需要重定向
@@ -66,3 +66,16 @@ onMounted(() => {
     </NLoadingBarProvider>
   </NConfigProvider>
 </template>
+
+<style>
+#app {
+  width: 100%;
+  height: 100vh;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+}
+</style>
