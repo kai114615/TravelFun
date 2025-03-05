@@ -13,10 +13,10 @@ def print_debug_info():
     輸出除錯資訊
     """
     # print(f"目前目錄: {CURRENT_DIR}")
-    print(f"工作區根目錄: {WORKSPACE_ROOT}")
-    print(f"前端靜態資料目錄: {FRONTEND_DATA_DIR}")
+    # print(f"工作區根目錄: {WORKSPACE_ROOT}")
+    # print(f"前端靜態資料目錄: {FRONTEND_DATA_DIR}")
     print(f"taiwan_country_lat_lon.json 路徑: {os.path.join(CURRENT_DIR, 'taiwan_country_lat_lon.json')}")
-    print(f"events_data.json 路徑: {os.path.join(FRONTEND_DATA_DIR, 'events_data.json')}")
+    # print(f"events_data.json 路徑: {os.path.join(FRONTEND_DATA_DIR, 'events_data.json')}")
 
 def load_taiwan_regions():
     """

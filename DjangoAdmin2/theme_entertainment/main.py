@@ -52,6 +52,7 @@ try:
     from taipei_api import fetch_taipei_events as taipei_events  # 台北市政府 API
     from newtaipei_api import fetch_newtaipei_events as newtaipei_events  # 新北市政府 API
     from json_to_sql import convert_json_to_sql  # JSON 轉 SQL 工具
+    from address_mapping import update_events_coordinates  # 地址對應的經緯度
 except ImportError as e:
     print(f"模組匯入錯誤: {e}")
     print(f"目前的 Python 路徑: {sys.path}")
@@ -285,14 +286,14 @@ def save_events_to_json(events_data):
         for event in events_data:
             event_uid = event.get('uid', '')
             existing_event = existing_events.get(event_uid)
-            is_new_event = not existing_event
+            is_new_event = existing_event is None
 
             # 處理活動欄位
             new_event = process_event_fields(event, is_new_event, existing_event, current_time)
             formatted_events.append(new_event)
 
         # 寫入 JSON 檔案
-        print(f"JSON 檔案路徑: {json_path}")
+        # print(f"JSON 檔案路徑: {json_path}")
         print(f"處理的活動數量: {len(formatted_events)}")
 
         with open(json_path, 'w', encoding='utf-8') as f:
@@ -438,23 +439,24 @@ def main():
         all_events = update_events_data(all_events, newtaipei_data.get('result', []))
         print("新北市政府活動資訊獲取完成！\n")
 
-        # 5. 儲存 JSON 資料
-        print("\n開始將資料轉換為 JSON...")
+        # 4.5 儲存原始 JSON 資料
+        print("4.5 開始儲存原始資料...")
         save_events_to_json(all_events)
-        print("資料已成功儲存為 JSON！\n")
+        print("原始資料儲存完成！\n")
 
-        # 6. 生成 SQL 檔案
-        print("\n開始將 JSON 轉換為 SQL...")
-        convert_json_to_sql(CONFIG['paths']['json'], CONFIG['paths']['sql'])
-        print("成功: SQL 檔案已生成\n")
+        # 5. 更新地址對應的經緯度
+        print("5. 正在更新地址對應的經緯度...")
+        result = update_events_coordinates()
+        print(result)
+        print("地址對應更新完成！\n")
 
-        # 7. 初始化資料庫
-        print("\n開始初始化資料庫...")
-        init_database()
-        print("資料庫初始化完成！\n")
+        # 5.5 處理活動欄位並更新時間戳記
+        print("5.5 開始處理活動欄位...")
+        process_and_save_events()
+        print("活動欄位處理完成！\n")
 
-        # 8. 建立資料庫連線
-        print("\n開始建立資料庫連線...")
+        # 6. 建立資料庫連線
+        print("6. 開始建立資料庫連線...")
         connection = connect_to_mysql()
         print("資料庫連線建立成功！\n")
 
