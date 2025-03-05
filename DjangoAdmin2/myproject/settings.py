@@ -56,7 +56,7 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = False  # 關閉允許所有來源
 CORS_ALLOW_CREDENTIALS = True  # 允許攜帶認證信息
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite 默認端口
+    "http://localhost:5173",  # Vite 開發伺服器
     "http://127.0.0.1:5173",
     "http://localhost:3333",  # 添加新的端口
     "http://127.0.0.1:3333",
@@ -216,7 +216,6 @@ CKEDITOR_5_CONFIGS = {
 # REST Framework 設置
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
@@ -226,7 +225,7 @@ REST_FRAMEWORK = {
 
 # JWT 設置
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # 延長 token 有效期
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -236,6 +235,9 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
     'TOKEN_TYPE_CLAIM': 'token_type',
     'JTI_CLAIM': 'jti',
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(days=1),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
 }
 
 # Celery Configuration
@@ -254,3 +256,6 @@ CACHES = {
         'LOCATION': 'redis://127.0.0.1:6379/1',
     }
 }
+
+# Google OAuth2 設定
+GOOGLE_CLIENT_ID = '1063055916047-ic94ldh4ojm4gg18sbcqmenerdc98s2s.apps.googleusercontent.com'

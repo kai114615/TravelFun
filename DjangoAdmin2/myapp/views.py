@@ -23,6 +23,10 @@ from rest_framework.authtoken.models import Token
 from rest_framework_simplejwt.tokens import RefreshToken
 import os
 from .serializers import PostSerializer
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from django.conf import settings
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -1062,4 +1066,144 @@ def profile_update_api(request):
         return Response({
             'success': False,
             'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def google_signin(request):
+    """
+    Google 登入處理視圖
+    """
+    try:
+        # 打印請求數據以進行調試
+        print("收到 Google 登入請求數據:", request.data)
+        
+        # 檢查 email 參數（優先使用前端直接傳來的 email）
+        email = request.data.get('email')
+        name = request.data.get('name')
+        google_id = request.data.get('google_id')
+        google_token = request.data.get('google_token')
+        
+        # 記錄參數存在情況
+        print("參數存在情況:", {
+            "email": bool(email),
+            "name": bool(name),
+            "google_id": bool(google_id),
+            "google_token": bool(google_token)
+        })
+        
+        # 如果沒有 email，則嘗試從 token 獲取
+        if not email and google_token:
+            try:
+                # 確保使用正確的 GOOGLE_CLIENT_ID 設定
+                if not hasattr(settings, 'GOOGLE_CLIENT_ID'):
+                    return Response({
+                        'success': False,
+                        'message': 'GOOGLE_CLIENT_ID 未在 settings.py 中定義'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    
+                print(f"使用 Google Client ID: {settings.GOOGLE_CLIENT_ID}")
+                
+                # 嘗試驗證 token（如果是 ID token）
+                try:
+                    idinfo = id_token.verify_oauth2_token(
+                        google_token, 
+                        requests.Request(), 
+                        settings.GOOGLE_CLIENT_ID
+                    )
+
+                    # 獲取用戶資訊
+                    google_id = google_id or idinfo.get('sub')
+                    email = email or idinfo.get('email')
+                    name = name or idinfo.get('name', '')
+                    
+                    print("從 Token 獲取的信息:", {
+                        "google_id": google_id,
+                        "email": email,
+                        "name": name
+                    })
+                except Exception as token_error:
+                    print("Token 驗證失敗，嘗試從 Google API 獲取用戶信息:", token_error)
+                    
+                    # 如果是 access_token，則使用它獲取用戶信息
+                    try:
+                        headers = {'Authorization': f'Bearer {google_token}'}
+                        resp = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers=headers)
+                        if resp.status_code == 200:
+                            userinfo = resp.json()
+                            google_id = google_id or userinfo.get('sub')
+                            email = email or userinfo.get('email')
+                            name = name or userinfo.get('name', '')
+                            
+                            print("從 Google API 獲取的信息:", {
+                                "google_id": google_id,
+                                "email": email,
+                                "name": name
+                            })
+                    except Exception as api_error:
+                        print("從 Google API 獲取用戶信息失敗:", api_error)
+            except Exception as e:
+                print(f"處理 Google token 時出錯: {str(e)}")
+        
+        # 檢查是否有 email
+        if not email:
+            return Response({
+                'success': False,
+                'message': '未能獲取電子郵件地址，無法登入'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        print(f"最終使用的電子郵件地址: {email}")
+        
+        # 檢查用戶是否已存在
+        try:
+            user = User.objects.get(email=email)
+            print(f"找到現有用戶: {user.username}, ID: {user.id}")
+        except User.DoesNotExist:
+            # 創建新用戶
+            username = f"google_{google_id or uuid.uuid4().hex[:8]}"
+            
+            try:
+                # 檢查用戶名是否已存在
+                User.objects.get(username=username)
+                # 如果存在，添加隨機字串確保唯一性
+                username = f"{username}_{uuid.uuid4().hex[:4]}"
+            except User.DoesNotExist:
+                pass
+                
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+            )
+            
+            # 設置用戶名稱
+            if name:
+                names = name.split(' ', 1)
+                user.first_name = names[0]
+                if len(names) > 1:
+                    user.last_name = names[1]
+            
+            user.save()
+            print(f"創建新用戶: {username}, ID: {user.id}, Email: {email}")
+
+        # 生成 JWT token
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'success': True,
+            'message': 'Google 登入成功',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+            }
+        }, status=status.HTTP_200_OK)
+            
+    except Exception as e:
+        print(f"Google 登入處理發生錯誤: {str(e)}")
+        return Response({
+            'success': False,
+            'message': f'處理 Google 登入時發生錯誤: {str(e)}'
         }, status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,6 @@
 # 登入頁面主視圖
 <script setup lang="ts">
+import { NText } from 'naive-ui';
 import Login from './components/Login.vue';
 </script>
 
@@ -11,7 +12,7 @@ import Login from './components/Login.vue';
       </h1>
       <Login />
       <div class="register-link">
-        <n-text>還不是會員？</n-text>
+        <NText>還不是會員？</NText>
         <router-link to="/register">
           立即註冊
         </router-link>
@@ -41,14 +42,17 @@ import Login from './components/Login.vue';
   background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 60%);
   animation: rotate 30s linear infinite;
   z-index: 1;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 @keyframes rotate {
   from {
-    transform: rotate(0deg) translate(-50%, -50%);
+    transform: translate(-50%, -50%) rotate(0deg);
   }
   to {
-    transform: rotate(360deg) translate(-50%, -50%);
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 
@@ -102,22 +106,25 @@ import Login from './components/Login.vue';
   padding: 16px;
   background: rgba(24, 160, 88, 0.05);
   border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.register-link a {
+.register-link :deep(a) {
   color: #18a058;
   text-decoration: none;
-  margin-left: 8px;
   font-weight: 500;
   position: relative;
   transition: all 0.3s ease;
 }
 
-.register-link a:hover {
+.register-link :deep(a:hover) {
   color: #36ad6a;
 }
 
-.register-link a::after {
+.register-link :deep(a::after) {
   content: '';
   position: absolute;
   bottom: -2px;
@@ -130,7 +137,7 @@ import Login from './components/Login.vue';
   transform-origin: right;
 }
 
-.register-link a:hover::after {
+.register-link :deep(a:hover::after) {
   transform: scaleX(1);
   transform-origin: left;
 }
@@ -139,6 +146,7 @@ import Login from './components/Login.vue';
 @media (max-width: 640px) {
   .login-container {
     padding: 36px 24px;
+    margin: 20px;
   }
 
   .login-title {

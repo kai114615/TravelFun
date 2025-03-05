@@ -45,6 +45,12 @@ function handleClick(target: string) {
   cartRef.value?.closeActive();
 };
 
+// 直接處理登入跳轉
+function goToLogin() {
+  console.log('跳轉到登入頁面');
+  router.push('/login');
+}
+
 async function handleLogout() {
   dialog.warning({
     title: '登出確認',
@@ -115,7 +121,7 @@ onMounted(async () => {
                 </template>
               </ul>
             </div>
-            <div class="flex items-center justify-between lg:w-[256px]">
+            <div class="flex items-center justify-between lg:w-[256px]" style="pointer-events: auto;">
               <div class="hidden place-content-center md:grid">
                 <RouterLink v-if="loginStatus" class="leading-none" :to="{ name: 'WishList' }">
                   <NIcon v-if="favoriteList.length !== 0" size="24" color="#EE5220" class="icon-hover">
@@ -140,7 +146,11 @@ onMounted(async () => {
                 <button
                   type="button"
                   class="hidden w-[144px] items-center justify-center gap-[6px] rounded-[50px] bg-cc-other-8 px-4 py-2 text-sm transition-colors duration-300 hover:bg-cc-accent lg:flex"
-                  @click="navigate"
+                  @click="() => {
+                    console.log('點擊登入按鈕');
+                    console.log('當前路由：', route.fullPath);
+                    navigate();
+                  }"
                 >
                   <NIcon size="24">
                     <PersonOutlineFilled />

@@ -59,7 +59,7 @@ class PostViewSet(viewsets.ModelViewSet):
     """文章視圖集"""
     queryset = Post.objects.filter(is_deleted=False)
     serializer_class = PostSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly]  # 修改權限設置
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -98,30 +98,32 @@ class PostViewSet(viewsets.ModelViewSet):
             'data': serializer.data
         })
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def add_comment(self, request, pk=None):
         """添加評論"""
         post = self.get_object()
         content = request.data.get('content')
         
         if not content:
+            return Response({'error': '評論內容不能為空'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            comment = Comment.objects.create(
+                post=post,
+                author=request.user,
+                content=content
+            )
+            serializer = CommentSerializer(comment)
+            return Response({
+                'status': 'success',
+                'message': '評論發表成功',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
             return Response({
                 'status': 'error',
-                'message': '評論內容不能為空'
-            }, status=400)
-
-        comment = Comment.objects.create(
-            post=post,
-            author=request.user,
-            content=content
-        )
-
-        serializer = CommentSerializer(comment)
-        return Response({
-            'status': 'success',
-            'message': '評論發表成功',
-            'data': serializer.data
-        })
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def retrieve(self, request, *args, **kwargs):
         """獲取文章詳情時增加瀏覽次數"""

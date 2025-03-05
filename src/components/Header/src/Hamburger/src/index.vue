@@ -4,10 +4,12 @@ import {
 } from '@vicons/material';
 import { NCollapse, NCollapseItem, NDrawer, NIcon } from 'naive-ui';
 import { computed, reactive } from 'vue';
-import { onBeforeRouteUpdate } from 'vue-router';
+import { onBeforeRouteUpdate, useRouter } from 'vue-router';
 import { createNavList, handleItemHeaderClick } from '../../navList.ts';
 import HamburgerBtn from './Btn.vue';
 import type { DrawerActive } from '@/types';
+
+const router = useRouter();
 
 defineProps<{
   isMobile: boolean
@@ -32,6 +34,13 @@ function toggleActive() {
 };
 
 const closeActive = () => activate.active = false;
+
+// 直接處理登入跳轉
+function goToLogin() {
+  console.log('跳轉到登入頁面');
+  closeActive();
+  router.push('/login');
+}
 
 onBeforeRouteUpdate(() => {
   closeActive();
@@ -83,10 +92,11 @@ defineExpose({
               登入/註冊
             </div>
           </RouterLink>
-          <RouterLink v-slot="{ navigate }" :to="{ name: 'WishList' }" custom>
-            <div @click="navigate">
-              我的最愛
-            </div>
+          <RouterLink 
+            :to="{ name: 'WishList' }" 
+            class="px-4 py-3 bg-cc-other-7 border-t border-cc-other-1 cursor-pointer hover:text-cc-accent transition-colors duration-300 block"
+          >
+            我的最愛
           </RouterLink>
         </NCollapseItem>
       </NCollapse>
