@@ -328,7 +328,8 @@ export default {
                 <i class="fas fa-building text-xl text-[#0F4BB4]" />
               </div>
               <span class="font-bold text-lg ml-1">主辦單位：</span>
-              <span class="text-lg ml-3">{{ activity.organizer || '未提供' }}</span>
+              <span class="text-lg ml-3">{{ activity.organizer === '無資料' ? '無主辦單位資訊' : (activity.organizer
+                || '無主辦單位資訊') }}</span>
             </div>
             <!-- 地點資訊 -->
             <div class="flex items-center text-gray-700">
@@ -339,8 +340,8 @@ export default {
               <span class="text-lg ml-3">{{ activity.address === '無資料' ? '無地址資訊' : (activity.address
                 || '無地址資訊') }}</span>
               <span class="text-lg ml-3">|</span>
-              <span class="text-lg ml-3">{{ activity.location === '無資料' ? '無地點資訊' : (activity.location
-                || '無地點資訊') }}</span>
+              <span class="text-lg ml-3">{{ activity.location === '無資料' ? '無地標資訊' : (activity.location
+                || '無地標資訊') }}</span>
             </div>
             <!-- 票價資訊 -->
             <div class="flex items-center text-gray-700">
