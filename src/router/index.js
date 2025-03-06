@@ -1,8 +1,9 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import MallView from '../views/front/Mall/MallView.vue';
 import HomeView from '../views/front/Home/HomeView.vue';
-import ThemeEntertainmentView from '@/views/admin/ThemeEntertainmentView.vue';
+import ActivityManagementView from '@/views/front/Activity/ActivityManagementView.vue';
 import ActivityDetail from '@/views/front/Activity/ActivityDetail.vue';
+import ActivityListView from '@/views/front/Activity/ActivityListView.vue';
 
 const routes = [
   {
@@ -146,17 +147,17 @@ const routes = [
   },
   {
     path: '/admin-dashboard/entertainment/activities',
-    name: 'ThemeEntertainmentAdmin',
-    component: ThemeEntertainmentView,
+    name: 'ActivityManagement',
+    component: ActivityManagementView,
     meta: {
       requiresAuth: true,
       title: '主題育樂活動管理',
     },
   },
   {
-    path: '/activities',
+    path: '/activity',
     name: 'ActivityList',
-    component: () => import('../views/front/Activity/ActivityList.vue'),
+    component: ActivityListView,
     meta: {
       title: '主題育樂活動',
     },

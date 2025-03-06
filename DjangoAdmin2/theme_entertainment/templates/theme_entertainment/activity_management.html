@@ -150,6 +150,43 @@
         /* 隱藏溢出 */
     }
 
+    /* 表格欄位調整寬度樣式 */
+    .n-data-table .n-data-table-th {
+        position: relative;
+        /* 相對定位 */
+        user-select: none;
+        /* 防止文字被選中 */
+    }
+
+    .n-data-table .n-data-table-th-resize {
+        position: absolute;
+        /* 絕對定位 */
+        right: 0;
+        /* 靠右對齊 */
+        top: 0;
+        /* 靠上對齊 */
+        bottom: 0;
+        /* 延伸到底部 */
+        width: 4px;
+        /* 調整區域寬度 */
+        cursor: col-resize;
+        /* 調整寬度游標 */
+        background: transparent;
+        /* 透明背景 */
+        transition: background-color 0.2s;
+        /* 過渡動畫 */
+    }
+
+    .n-data-table .n-data-table-th-resize:hover {
+        background: #3b82f6;
+        /* 懸停時顯示藍色 */
+    }
+
+    .n-data-table .n-data-table-th-resize.resizing {
+        background: #3b82f6;
+        /* 調整時顯示藍色 */
+    }
+
     /* 表格標題列樣式 */
     .n-data-table .n-data-table-th {
         background: #f8fafc;
@@ -178,7 +215,7 @@
     .n-data-table .n-data-table-td {
         text-align: center;
         /* 單元格文字置中 */
-        padding: 1rem;
+        padding: 2rem;
         /* 單元格內邊距 */
         border-bottom: 1px solid #f1f5f9;
         /* 底部邊框 */
@@ -487,7 +524,8 @@
                         }
                     }, '編號'),
                     key: 'id',
-                    width: 50,
+                    width: '6.0%',
+                    resizable: true,
                     sorter: 'default',
                     defaultSortOrder: 'ascend',
                     render(row) {
@@ -509,7 +547,8 @@
                         }
                     }, '活動名稱'),
                     key: 'activity_name',
-                    width: 350,
+                    width: '38.0%',
+                    resizable: true,
                     sorter: 'default',
                     render(row) {
                         return h('span', { class: 'font-medium' }, row.activity_name);
@@ -524,7 +563,8 @@
                         }
                     }, '活動地點'),
                     key: 'location',
-                    width: 150,
+                    width: '17.0%',
+                    resizable: true,
                     sorter: 'default',
                     render(row) {
                         return h('div', { class: 'text-gray-600' }, [
@@ -542,7 +582,8 @@
                         }
                     }, '活動起訖'),
                     key: 'date',
-                    width: 150,
+                    width: '17.0%',
+                    resizable: true,
                     sorter: (row1, row2) => new Date(row1.start_date) - new Date(row2.start_date),
                     render(row) {
                         return h('div', { class: 'text-gray-600' }, [
@@ -560,7 +601,8 @@
                         }
                     }, '票價'),
                     key: 'ticket_price',
-                    width: 50,
+                    width: '6.0%',
+                    resizable: true,
                     sorter: 'default',
                     render(row) {
                         return h('div', { class: 'text-gray-600' }, [
@@ -578,7 +620,8 @@
                         }
                     }, '操作'),
                     key: 'actions',
-                    width: 120,
+                    width: '15.0%',
+                    resizable: true,
                     render(row) {
                         return h(NSpace, null, {
                             default: () => [
