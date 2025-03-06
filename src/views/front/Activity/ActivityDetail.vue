@@ -311,15 +311,7 @@ export default {
 
           <!-- 基本資訊區域 -->
           <NSpace vertical class="bg-gray-50 p-6 rounded-lg space-y-2">
-            <!-- 地點信息 -->
-            <div class="flex items-center text-gray-700">
-              <div class="w-12 flex justify-center">
-                <i class="fas fa-map-marker-alt text-xl text-[#0F4BB4]" />
-              </div>
-              <span class="font-bold text-lg ml-1">活動地點：</span>
-              <span class="text-lg ml-3">{{ activity.location || '地點未定' }}</span>
-            </div>
-            <!-- 日期信息 -->
+            <!-- 日期資訊 -->
             <div class="flex items-center text-gray-700">
               <div class="w-12 flex justify-center">
                 <i class="far fa-calendar text-xl text-[#0F4BB4]" />
@@ -330,7 +322,7 @@ export default {
                   : `${formatDate(activity.start_date)} ~ ${formatDate(activity.end_date)}` }}
               </span>
             </div>
-            <!-- 主辦單位信息 -->
+            <!-- 主辦單位資訊 -->
             <div class="flex items-center text-gray-700">
               <div class="w-12 flex justify-center">
                 <i class="fas fa-building text-xl text-[#0F4BB4]" />
@@ -338,7 +330,19 @@ export default {
               <span class="font-bold text-lg ml-1">主辦單位：</span>
               <span class="text-lg ml-3">{{ activity.organizer || '未提供' }}</span>
             </div>
-            <!-- 票價信息 -->
+            <!-- 地點資訊 -->
+            <div class="flex items-center text-gray-700">
+              <div class="w-12 flex justify-center">
+                <i class="fas fa-map-marker-alt text-xl text-[#0F4BB4]" />
+              </div>
+              <span class="font-bold text-lg ml-1">活動地點：</span>
+              <span class="text-lg ml-3">{{ activity.address === '無資料' ? '無地址資訊' : (activity.address
+                || '無地址資訊') }}</span>
+              <span class="text-lg ml-3">|</span>
+              <span class="text-lg ml-3">{{ activity.location === '無資料' ? '無地點資訊' : (activity.location
+                || '無地點資訊') }}</span>
+            </div>
+            <!-- 票價資訊 -->
             <div class="flex items-center text-gray-700">
               <div class="w-12 flex justify-center">
                 <i class="fas fa-ticket-alt text-xl text-[#0F4BB4]" />
@@ -373,6 +377,9 @@ export default {
                 :src="`https://maps.google.com/maps?q=${activity.latitude},${activity.longitude}&z=15&t=p&output=embed`"
                 class="w-full h-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
               />
+            </div>
+            <div>
+              <span class="text-sm text-gray-500">部分地點位置標記係因資料源頭關係而以該活動所在行政區之中心點經、緯度來呈現</span>
             </div>
           </div>
 
