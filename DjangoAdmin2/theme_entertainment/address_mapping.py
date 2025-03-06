@@ -73,13 +73,36 @@ def match_coordinates(address):
                 float(postal_map[postal_code]['latitude'])
             )
 
-    # 嘗試匹配行政區名（前6個字）
-    for district_name in district_map:
-        if address.startswith(district_name):
-            return (
-                float(district_map[district_name]['longitude']),
-                float(district_map[district_name]['latitude'])
-            )
+    # 處理「台」和「臺」的轉換
+    address_variants = [
+        address,
+        address.replace('台', '臺'),
+        address.replace('臺', '台')
+    ]
+
+    # 嘗試匹配行政區名（使用所有地址變體）
+    for variant in address_variants:
+        for district_name in district_map:
+            # 檢查原始地址和轉換後的地址是否匹配
+            if variant.startswith(district_name):
+                return (
+                    float(district_map[district_name]['longitude']),
+                    float(district_map[district_name]['latitude'])
+                )
+
+            # 檢查行政區名的變體
+            district_variants = [
+                district_name,
+                district_name.replace('台', '臺'),
+                district_name.replace('臺', '台')
+            ]
+
+            for district_variant in district_variants:
+                if variant.startswith(district_variant):
+                    return (
+                        float(district_map[district_name]['longitude']),
+                        float(district_map[district_name]['latitude'])
+                    )
 
     return None, None
 
@@ -108,18 +131,16 @@ def update_events_coordinates():
             needs_update = (
                 not event.get('latitude') or
                 not event.get('longitude') or
-                event['latitude'] in ["無資料", "", None] or
-                event['longitude'] in ["無資料", "", None] or
-                event['latitude'] == "0" or
-                event['longitude'] == "0"
+                event['latitude'] in ["無資料", "", None, "0", 0] or
+                event['longitude'] in ["無資料", "", None, "0", 0]
             )
 
             if needs_update and event.get('address') and event['address'] != "無資料":
                 # print(f"處理地址: {event['address']}")
                 longitude, latitude = match_coordinates(event['address'])
                 if longitude is not None and latitude is not None:
-                    event['longitude'] = str(longitude)  # 轉換為字串格式
-                    event['latitude'] = str(latitude)    # 轉換為字串格式
+                    event['longitude'] = float(longitude)  # 使用浮點數格式
+                    event['latitude'] = float(latitude)    # 使用浮點數格式
                     # print(f"更新經緯度: 經度={longitude}, 緯度={latitude}")
                     updated_count += 1
                 else:
@@ -128,7 +149,7 @@ def update_events_coordinates():
                     event['latitude'] = "無資料"
 
         # 儲存更新後的資料
-        with open(events_data_path, 'w', encoding='utf-8') as f:
+        with open(events_data_path, 'w', encoding='utf-8-sig') as f:
             json.dump(events, f, ensure_ascii=False, indent=2)
 
         return f"已更新 {updated_count} 筆資料的經緯度"
