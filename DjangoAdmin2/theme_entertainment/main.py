@@ -52,7 +52,7 @@ try:
     from taipei_api import fetch_taipei_events as taipei_events  # 台北市政府 API
     from newtaipei_api import fetch_newtaipei_events as newtaipei_events  # 新北市政府 API
     from json_to_sql import convert_json_to_sql  # JSON 轉 SQL 工具
-    from address_mapping import update_events_coordinates, match_coordinates  # 地址對應的經緯度
+    from address_mapping import update_events_coordinates, match_coordinates, update_coordinates  # 地址對應的經緯度
 except ImportError as e:
     print(f"模組匯入錯誤: {e}")
     print(f"目前的 Python 路徑: {sys.path}")
@@ -222,25 +222,11 @@ def process_event_fields(event: Dict[str, Any], is_new_event: bool, existing_eve
         'image_url': image_url
     }
 
-    # 檢查是否需要更新經緯度
-    needs_coordinate_update = (
-        not new_event['latitude'] or
-        not new_event['longitude'] or
-        new_event['latitude'] in ["無資料", "", None, "0", 0] or
-        new_event['longitude'] in ["無資料", "", None, "0", 0]
-    )
-
-    # 如果需要更新經緯度且有地址資訊
-    coordinates_updated = False
-    if needs_coordinate_update and new_event['address'] and new_event['address'] != "無資料":
-        longitude, latitude = match_coordinates(new_event['address'])
-        if longitude is not None and latitude is not None:
-            new_event['longitude'] = float(longitude)  # 使用浮點數格式
-            new_event['latitude'] = float(latitude)    # 使用浮點數格式
-            coordinates_updated = True
-        else:
-            new_event['longitude'] = "無資料"
-            new_event['latitude'] = "無資料"
+    # 更新經緯度
+    coordinates_updated, (longitude, latitude) = update_coordinates(new_event)
+    if coordinates_updated:
+        new_event['longitude'] = longitude
+        new_event['latitude'] = latitude
 
     if is_new_event:
         # 新活動處理
@@ -463,23 +449,23 @@ def main():
         all_events = update_events_data(all_events, newtaipei_data.get('result', []))
         print("新北市政府活動資訊獲取完成！\n")
 
-        # 5 儲存原始 JSON 資料
-        print("5 開始儲存原始資料...")
+        # 5. 儲存原始 JSON 資料
+        print("5. 開始儲存 JSON檔 資料...")
         save_events_to_json(all_events)
         print("活動資料處理完成！\n")
 
         # 6. 生成 SQL 檔案
-        print("6 開始將 JSON 轉換為 SQL...")
+        print("6. 開始將 JSON檔 轉換為 SQL...")
         convert_json_to_sql(CONFIG['paths']['json'], CONFIG['paths']['sql'])
         print("成功: SQL 檔案已生成\n")
 
         # 7. 初始化資料庫
-        print("7 開始初始化資料庫...")
+        print("7. 開始初始化資料庫...")
         init_database()
         print("資料庫初始化完成！\n")
 
         # 8. 建立資料庫連線
-        print("8 開始建立資料庫連線...")
+        print("8. 開始建立資料庫連線...")
         connection = connect_to_mysql()
         print("資料庫連線建立成功！\n")
 

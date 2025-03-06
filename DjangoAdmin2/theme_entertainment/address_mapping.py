@@ -48,6 +48,40 @@ def load_taiwan_regions():
 
     return postal_map, district_map
 
+def needs_coordinate_update(latitude, longitude):
+    """
+    檢查經緯度是否需要更新
+
+    Args:
+        latitude: 緯度值
+        longitude: 經度值
+
+    Returns:
+        bool: 是否需要更新
+    """
+    return (
+        not latitude or
+        not longitude or
+        latitude in ["無資料", "", None, "0", 0] or
+        longitude in ["無資料", "", None, "0", 0]
+    )
+
+def update_coordinates(event):
+    """
+    更新單一活動的經緯度
+
+    Args:
+        event (dict): 活動資料
+
+    Returns:
+        tuple: (是否更新, 更新後的經緯度)
+    """
+    if needs_coordinate_update(event.get('latitude'), event.get('longitude')) and event.get('address') and event['address'] != "無資料":
+        longitude, latitude = match_coordinates(event['address'])
+        if longitude is not None and latitude is not None:
+            return True, (float(longitude), float(latitude))
+    return False, ("無資料", "無資料")
+
 def match_coordinates(address):
     """
     比對地址並返回對應的經緯度
@@ -127,26 +161,11 @@ def update_events_coordinates():
         # 更新經緯度
         updated_count = 0
         for event in events:
-            # 檢查經緯度是否需要更新
-            needs_update = (
-                not event.get('latitude') or
-                not event.get('longitude') or
-                event['latitude'] in ["無資料", "", None, "0", 0] or
-                event['longitude'] in ["無資料", "", None, "0", 0]
-            )
-
-            if needs_update and event.get('address') and event['address'] != "無資料":
-                # print(f"處理地址: {event['address']}")
-                longitude, latitude = match_coordinates(event['address'])
-                if longitude is not None and latitude is not None:
-                    event['longitude'] = float(longitude)  # 使用浮點數格式
-                    event['latitude'] = float(latitude)    # 使用浮點數格式
-                    # print(f"更新經緯度: 經度={longitude}, 緯度={latitude}")
-                    updated_count += 1
-                else:
-                    # 如果無法匹配到經緯度，設置為"無資料"
-                    event['longitude'] = "無資料"
-                    event['latitude'] = "無資料"
+            updated, (longitude, latitude) = update_coordinates(event)
+            if updated:
+                event['longitude'] = longitude
+                event['latitude'] = latitude
+                updated_count += 1
 
         # 儲存更新後的資料
         with open(events_data_path, 'w', encoding='utf-8-sig') as f:
