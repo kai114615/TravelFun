@@ -81,14 +81,22 @@ async function handleSubmit () {
     loading.value = true;
 
     try {
+      // 創建 FormData 對象
+      const formData = new FormData();
+      formData.append('username', formValue.value.username);
+      formData.append('email', formValue.value.email);
+      formData.append('password1', formValue.value.password1);
+      formData.append('password2', formValue.value.password2);
+      formData.append('full_name', formValue.value.full_name);
+
+      // 輸出調試信息
+      console.log('準備發送的註冊數據:');
+      for (const [key, value] of formData.entries()) {
+        console.log(`${key}:`, value);
+      }
+
       // 發送註冊請求
-      const response = await apiUserRegister({
-        username: formValue.value.username,
-        email: formValue.value.email,
-        password1: formValue.value.password1,
-        password2: formValue.value.password2,
-        full_name: formValue.value.full_name
-      });
+      const response = await apiUserRegister(formData);
 
       if (response.data?.success) {
         message.success('註冊成功');
