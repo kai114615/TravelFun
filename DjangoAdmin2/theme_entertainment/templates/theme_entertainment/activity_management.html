@@ -601,13 +601,47 @@
                         }
                     }, '票價'),
                     key: 'ticket_price',
-                    width: '6.0%',
+                    width: '8.0%',
                     resizable: true,
-                    sorter: 'default',
+                    sorter: (row1, row2) => {
+                        const price1 = row1.ticket_price === '免費' ? 0 : parseFloat(row1.ticket_price) || 0;
+                        const price2 = row2.ticket_price === '免費' ? 0 : parseFloat(row2.ticket_price) || 0;
+                        return price1 - price2;
+                    },
                     render(row) {
-                        return h('div', { class: 'text-gray-600' }, [
-                            h('i', { class: 'fas fa-ticket-alt mr-2' }),
-                            row.ticket_price ? `NT$ ${row.ticket_price}` : '免費'
+                        // 票價顯示邏輯
+                        const price = row.ticket_price;
+                        let displayText = '';
+                        let priceClass = '';
+
+                        if (!price || price === '0' || price.toLowerCase() === 'free' || price === '免費') {
+                            displayText = '免費';
+                            priceClass = 'text-green-600';
+                        } else {
+                            displayText = `${price}`;
+                            priceClass = 'text-blue-600';
+                        }
+
+                        return h('div', {
+                            class: `flex items-center ${priceClass}`,
+                            style: {
+                                display: 'flex',
+                                alignItems: 'center',
+                                paddingLeft: '0px',
+                                gap: '0px'
+                            }
+                        }, [
+                            h('i', {
+                                class: 'fas fa-ticket-alt',
+                                style: {
+                                    marginRight: '0px'
+                                }
+                            }),
+                            h('span', {
+                                style: {
+                                    fontWeight: '500'
+                                }
+                            }, displayText)
                         ]);
                     }
                 },
