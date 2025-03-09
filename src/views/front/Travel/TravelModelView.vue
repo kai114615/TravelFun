@@ -11,6 +11,9 @@ import Banner from '@/components/Banner.vue';
 import Container from '@/layout/Container.vue';
 import SpotPreviewModal from '@/components/travelComponents/src/SpotPreviewModal.vue';
 
+import { useUserStore } from '@/stores/user';
+import { useMessage } from 'naive-ui';
+
 const query = ref(''); // 用於綁定查詢輸入
 const results = ref([]); // 用於存儲 API 返回的結果
 const spots = ref([]);
@@ -20,6 +23,10 @@ const imageUrl = '/旅遊圖片.png';
 const showPreview = ref(false);
 const selectedSpot = ref(null);
 const selectedTravelId = ref(null);
+
+const userStore = useUserStore();
+const message = useMessage();
+const router = useRouter();
 
 const openPreview = (spot) => {
   selectedSpot.value = spot;
@@ -87,23 +94,36 @@ const spotfilter =()=>{
 
 // 檢查景點是否已加入我的景點
 const isSpotAdded = (spotId) => {
-  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  const key = `mySpots_${userStore.userInfo?.id}`;
+  const mySpots = JSON.parse(localStorage.getItem(key) || '[]');
   return mySpots.some(spot => spot.travel_id === spotId);
 };
 
 // 加入/移除景點
 const addToMySpots = (spot) => {
-  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  if (!userStore.loginStatus) {
+    message.warning('請先登入才能加入景點');
+    router.push({
+      name: 'Login',
+      query: { redirect: router.currentRoute.value.fullPath }
+    });
+    return;
+  }
+
+  const key = `mySpots_${userStore.userInfo?.id}`;
+  const mySpots = JSON.parse(localStorage.getItem(key) || '[]');
   const isAdded = isSpotAdded(spot.travel_id);
   
   if (!isAdded) {
     // 加入景點
     mySpots.push(spot);
-    localStorage.setItem('mySpots', JSON.stringify(mySpots));
+    localStorage.setItem(key, JSON.stringify(mySpots));
+    message.success('已加入景點');
   } else {
     // 移除景點
     const updatedSpots = mySpots.filter(s => s.travel_id !== spot.travel_id);
-    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+    localStorage.setItem(key, JSON.stringify(updatedSpots));
+    message.success('已移除景點');
   }
   
   // 強制更新當前景點的狀態
@@ -155,11 +175,11 @@ const addToMySpots = (spot) => {
               <span>預覽</span>
             </button>
             <button 
-              :class="['add-button', { 'added': isSpotAdded(travel.travel_id) }]"
+              :class="['add-button', { 'added': userStore.loginStatus && isSpotAdded(travel.travel_id) }]"
               @click="addToMySpots(travel)"
             >
-              <i :class="['fas', isSpotAdded(travel.travel_id) ? 'fa-trash' : 'fa-plus']"></i>
-              <span>{{ isSpotAdded(travel.travel_id) ? '移除景點' : '加入景點' }}</span>
+              <i :class="['fas', !userStore.loginStatus ? 'fa-plus' : (isSpotAdded(travel.travel_id) ? 'fa-trash' : 'fa-plus')]"></i>
+              <span>{{ !userStore.loginStatus ? '加入景點' : (isSpotAdded(travel.travel_id) ? '移除景點' : '加入景點') }}</span>
             </button>
             <div class="card-image">
               <img v-if="travel.image1" :src="travel.image1" :alt="travel.travel_name">

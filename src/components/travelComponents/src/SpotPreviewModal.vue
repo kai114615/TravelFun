@@ -1,5 +1,8 @@
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue';
+import { useUserStore } from '@/stores/user';
+import { useMessage } from 'naive-ui';
+import { useRouter } from 'vue-router';
 
 const props = defineProps({
   isOpen: Boolean,
@@ -13,27 +16,44 @@ const spots = ref([]);
 const filteredSpots = ref([]);
 const isSpotAddedState = ref(false); // 新增響應式變數
 
+const userStore = useUserStore();
+const message = useMessage();
+const router = useRouter();
+
 // 當 spot 改變時更新狀態
 watch(() => props.spot, (newSpot) => {
   if (newSpot) {
-    const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+    const key = `mySpots_${userStore.userInfo?.id}`;
+    const mySpots = JSON.parse(localStorage.getItem(key) || '[]');
     isSpotAddedState.value = mySpots.some(s => s.travel_id === newSpot.travel_id);
   }
 }, { immediate: true });
 
 // 加入/移除景點
 const handleAddToSpots = (spot) => {
-  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  if (!userStore.loginStatus) {
+    message.warning('請先登入才能加入景點');
+    router.push({
+      name: 'Login',
+      query: { redirect: router.currentRoute.value.fullPath }
+    });
+    return;
+  }
+
+  const key = `mySpots_${userStore.userInfo?.id}`;
+  const mySpots = JSON.parse(localStorage.getItem(key) || '[]');
   if (!isSpotAddedState.value) {
     // 加入景點
     mySpots.push(spot);
-    localStorage.setItem('mySpots', JSON.stringify(mySpots));
+    localStorage.setItem(key, JSON.stringify(mySpots));
     isSpotAddedState.value = true;
+    message.success('已加入景點');
   } else {
     // 移除景點
     const updatedSpots = mySpots.filter(s => s.travel_id !== spot.travel_id);
-    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+    localStorage.setItem(key, JSON.stringify(updatedSpots));
     isSpotAddedState.value = false;
+    message.success('已移除景點');
   }
   // 觸發自定義事件通知父組件更新
   emit('updateSpots');
@@ -113,11 +133,11 @@ const getClassName = (classId) => {
         <div class="spot-details">
           <div class="modal-actions">
             <button 
-              :class="['add-button', { 'added': isSpotAddedState }]"
+              :class="['add-button', { 'added': userStore.loginStatus && isSpotAddedState }]"
               @click="handleAddToSpots(spot)"
             >
-              <i :class="['fas', isSpotAddedState ? 'fa-trash' : 'fa-plus']"></i>
-              {{ isSpotAddedState ? '移除景點' : '加入景點' }}
+              <i :class="['fas', !userStore.loginStatus ? 'fa-plus' : (isSpotAddedState ? 'fa-trash' : 'fa-plus')]"></i>
+              {{ !userStore.loginStatus ? '加入景點' : (isSpotAddedState ? '移除景點' : '加入景點') }}
             </button>
             <button class="close-button" @click="$emit('close')">關閉</button>
           </div>

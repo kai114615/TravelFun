@@ -99,6 +99,7 @@ const routes = [
     component: () => import('../views/front/Travel/TravelScheduleView.vue'),
     meta: {
       title: '全台熱門景點 - Travel Fun',
+      requiresAuth: true,
     },
   },
   {
@@ -169,7 +170,28 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title || '商城';
-  next();
+
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      });
+    } else {
+      next();
+    }
+  } else if (to.path === '/login') {
+    // 如果用戶已登入且訪問登入頁面，檢查是否有重定向路徑
+    const token = localStorage.getItem('access_token');
+    if (token && to.query.redirect)
+      next(to.query.redirect);
+    else
+      next();
+  } else {
+    next();
+  }
 });
+
 
 export default router;

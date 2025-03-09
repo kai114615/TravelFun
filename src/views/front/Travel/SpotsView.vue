@@ -15,6 +15,9 @@ import { useRoute } from 'vue-router';
 import Banner from '@/components/Banner.vue';
 import Container from '@/layout/Container.vue';
 import SpotPreviewModal from '@/components/travelComponents/src/SpotPreviewModal.vue';
+import { useUserStore } from '@/stores/user';
+import { useMessage } from 'naive-ui';
+import { useRouter } from 'vue-router';
 const Taiwenimg = new URL('@/assets/台灣圖片/台灣風景圖片.png', import.meta.url).href;
 const imageUrl = '/旅遊圖片.png';
 
@@ -100,25 +103,42 @@ const closePreview = () => {
 
 // 檢查景點是否已加入我的景點
 const isSpotAdded = (spotId) => {
-  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  const key = `mySpots_${userStore.userInfo?.id}`;
+  const mySpots = JSON.parse(localStorage.getItem(key) || '[]');
   return mySpots.some(spot => spot.travel_id === spotId);
 };
 
+const userStore = useUserStore();
+const message = useMessage();
+const router = useRouter();
+
 // 加入/移除景點
 const addToMySpots = (spot) => {
-  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  if (!userStore.loginStatus) {
+    message.warning('請先登入才能加入景點');
+    router.push({
+      name: 'Login',
+      query: { redirect: router.currentRoute.value.fullPath }
+    });
+    return;
+  }
+
+  const key = `mySpots_${userStore.userInfo?.id}`;
+  const mySpots = JSON.parse(localStorage.getItem(key) || '[]');
   if (!isSpotAdded(spot.travel_id)) {
     // 加入景點
     mySpots.push(spot);
-    localStorage.setItem('mySpots', JSON.stringify(mySpots));
+    localStorage.setItem(key, JSON.stringify(mySpots));
     // 強制更新組件
     SPOTS.value = { ...SPOTS.value };
+    message.success('已加入景點');
   } else {
     // 移除景點
     const updatedSpots = mySpots.filter(s => s.travel_id !== spot.travel_id);
-    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+    localStorage.setItem(key, JSON.stringify(updatedSpots));
     // 強制更新組件
     SPOTS.value = { ...SPOTS.value };
+    message.success('已移除景點');
   }
 };
 
@@ -184,11 +204,11 @@ const handleSpotsUpdate = () => {
                   <span>預覽</span>
                 </button>
                 <button 
-                  :class="['add-button', { 'added': isSpotAdded(spot.travel_id) }]"
+                  :class="['add-button', { 'added': userStore.loginStatus && isSpotAdded(spot.travel_id) }]"
                   @click="addToMySpots(spot)"
                 >
-                  <i :class="['fas', isSpotAdded(spot.travel_id) ? 'fa-trash' : 'fa-plus']"></i>
-                  <span>{{ isSpotAdded(spot.travel_id) ? '移除景點' : '加入景點' }}</span>
+                  <i :class="['fas', !userStore.loginStatus ? 'fa-plus' : (isSpotAdded(spot.travel_id) ? 'fa-trash' : 'fa-plus')]"></i>
+                  <span>{{ !userStore.loginStatus ? '加入景點' : (isSpotAdded(spot.travel_id) ? '移除景點' : '加入景點') }}</span>
                 </button>
               </div>
               <div class="card-image">

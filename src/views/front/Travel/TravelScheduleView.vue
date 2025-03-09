@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 import Nav from '@/components/travelComponents/src/Nav.vue';
 import Banner from '@/components/Banner.vue';
 import SpotPreviewModal from '@/components/travelComponents/src/SpotPreviewModal.vue';
+import { useUserStore } from '@/stores/user';
 
+const userStore = useUserStore();
 const mySpots = ref([]);
 const showPreview = ref(false);
 const selectedSpot = ref(null);
@@ -123,160 +125,31 @@ const handleDragLeave = (event, isCurrentMonth) => {
   }
 };
 
-// 處理放下景點
-const handleDrop = (year, month, day, event, isCurrentMonth) => {
-  event.preventDefault();
-  event.currentTarget.classList.remove('drag-over');
-  
-  // 如果不是當月日期，則不允許放置
-  if (!isCurrentMonth) {
-    return;
-  }
-  
-  if (!draggedSpot.value) return;
-  
-  const dateKey = `${year}-${month + 1}-${day}`;
-  if (!scheduleData.value[dateKey]) {
-    scheduleData.value[dateKey] = [];
-  }
-  
-  // 檢查是否已經存在
-  const exists = scheduleData.value[dateKey].some(
-    spot => spot.travel_id === draggedSpot.value.travel_id
-  );
-  
-  if (!exists) {
-    scheduleData.value[dateKey].push({
-      ...draggedSpot.value,
-      time: new Date().toISOString()
-    });
-    // 保存到 localStorage
-    localStorage.setItem('travelSchedule', JSON.stringify(scheduleData.value));
-  }
-  
-  draggedSpot.value = null;
+// 修改儲存key的函數
+const getStorageKey = (baseKey) => {
+  const userId = userStore.userInfo?.id;
+  console.log('當前用戶ID:', userId);
+  return userId ? `${baseKey}_${userId}` : baseKey;
 };
 
-// 從行程中移除景點
-const removeFromSchedule = (dateKey, spotId) => {
-  if (scheduleData.value[dateKey]) {
-    scheduleData.value[dateKey] = scheduleData.value[dateKey].filter(
-      spot => spot.travel_id !== spotId
-    );
-    localStorage.setItem('travelSchedule', JSON.stringify(scheduleData.value));
-  }
-};
-
-// 在 script setup 部分更新特殊節日的資料
-const holidays = {
-  '1-1': '元旦',
-  '1-2': '補假',
-  '1-20': '小年夜',
-  '1-21': '除夕',
-  '1-22': '春節',
-  '1-23': '春節',
-  '1-24': '春節',
-  '1-25': '春節',
-  '1-26': '春節',
-  '2-28': '和平紀念日',
-  '3-8': '婦女節',
-  '4-4': '兒童節',
-  '4-5': '清明節',
-  '5-1': '勞動節',
-  '6-3': '端午節',
-  '6-23': '國際奧林匹克日',
-  '8-8': '父親節',
-  '9-28': '教師節',
-  '9-29': '中秋節',
-  '10-10': '國慶日',
-  '10-25': '光復節',
-  '10-31': '萬聖節',
-  '11-12': '國父誕辰紀念日',
-  '12-25': '聖誕節',
-  '12-31': '跨年夜'
-};
-
-// 修改 calendarDays computed 函數
-const calendarDays = computed(() => {
-  const days = [];
-  const daysInMonth = getDaysInMonth(currentYear.value, selectedMonth.value);
-  const firstDay = getFirstDayOfMonth(currentYear.value, selectedMonth.value);
-
-  // 填充當月第一天之前的空白
-  for (let i = 0; i < firstDay; i++) {
-    days.push({
-      day: '',
-      isCurrentMonth: false,
-      events: [],
-      holiday: null
-    });
-  }
-
-  // 添加當前月的天數
-  for (let i = 1; i <= daysInMonth; i++) {
-    const dateKey = `${currentYear.value}-${selectedMonth.value + 1}-${i}`;
-    const holidayKey = `${selectedMonth.value + 1}-${i}`;
-    days.push({
-      day: i,
-      isCurrentMonth: true,
-      events: scheduleData.value[dateKey] || [],
-      holiday: holidays[holidayKey]
-    });
-  }
-
-  // 填充當月最後一天之後的空白
-  const remainingDays = 42 - days.length;
-  for (let i = 0; i < remainingDays; i++) {
-    days.push({
-      day: '',
-      isCurrentMonth: false,
-      events: [],
-      holiday: null
-    });
-  }
-
-  return days;
-});
-
-// 切換月份
-const changeMonth = (delta) => {
-  let newMonth = selectedMonth.value + delta;
-  if (newMonth > 11) {
-    newMonth = 0;
-    currentYear.value++;
-  } else if (newMonth < 0) {
-    newMonth = 11;
-    currentYear.value--;
-  }
-  selectedMonth.value = newMonth;
-};
-
-// 切換年份
-const changeYear = (event) => {
-  currentYear.value = parseInt(event.target.value);
-};
-
-onMounted(() => {
-  loadMySpots();
-  // 從 localStorage 加載行程數據
-  const savedSchedule = localStorage.getItem('travelSchedule');
-  if (savedSchedule) {
-    scheduleData.value = JSON.parse(savedSchedule);
-  }
-});
-
+// 修改載入我的景點函數
 const loadMySpots = () => {
-  const spots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  const key = getStorageKey('mySpots');
+  console.log('載入景點，使用key:', key);
+  const spots = JSON.parse(localStorage.getItem(key) || '[]');
+  console.log('載入的景點數據:', spots);
   mySpots.value = spots;
 };
 
+// 修改移除景點函數
 const removeSpot = (spotId) => {
   const spotToRemove = mySpots.value.find(spot => spot.travel_id === spotId);
   if (spotToRemove && window.confirm(`確定要移除 ${spotToRemove.travel_name} 嗎？`)) {
     // 從我的景點列表中移除
     const spots = mySpots.value.filter(spot => spot.travel_id !== spotId);
     mySpots.value = spots;
-    localStorage.setItem('mySpots', JSON.stringify(spots));
+    const key = getStorageKey('mySpots');
+    localStorage.setItem(key, JSON.stringify(spots));
     
     // 從已選擇的景點中移除
     selectedSpots.value = selectedSpots.value.filter(spot => spot.travel_id !== spotId);
@@ -310,26 +183,28 @@ const closePreview = () => {
   selectedTravelId.value = null;
 };
 
-// 檢查景點是否已加入我的景點
+// 修改檢查景點是否已加入函數
 const isSpotAdded = (spotId) => {
-  const mySpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
-  return mySpots.some(spot => spot.travel_id === spotId);
+  const key = getStorageKey('mySpots');
+  const spots = JSON.parse(localStorage.getItem(key) || '[]');
+  return spots.some(spot => spot.travel_id === spotId);
 };
 
-// 加入/移除景點
+// 修改加入/移除景點函數
 const addToMySpots = (spot) => {
-  const storedSpots = JSON.parse(localStorage.getItem('mySpots') || '[]');
+  const key = getStorageKey('mySpots');
+  const storedSpots = JSON.parse(localStorage.getItem(key) || '[]');
   const isAdded = isSpotAdded(spot.travel_id);
   
   if (!isAdded) {
     // 加入景點
     storedSpots.push(spot);
-    localStorage.setItem('mySpots', JSON.stringify(storedSpots));
+    localStorage.setItem(key, JSON.stringify(storedSpots));
     mySpots.value = storedSpots;
   } else {
     // 移除景點
     const updatedSpots = storedSpots.filter(s => s.travel_id !== spot.travel_id);
-    localStorage.setItem('mySpots', JSON.stringify(updatedSpots));
+    localStorage.setItem(key, JSON.stringify(updatedSpots));
     mySpots.value = updatedSpots;
     
     // 更新當前組別
@@ -566,7 +441,8 @@ const handleEventDrop = (event, year, month, day, dropIndex) => {
   events.splice(dropIndex, 0, movedEvent);
   
   // 保存更新後的數據
-  localStorage.setItem('travelSchedule', JSON.stringify(scheduleData.value));
+  const key = getStorageKey('travelSchedule');
+  localStorage.setItem(key, JSON.stringify(scheduleData.value));
   
   // 清除拖曳狀態
   draggedEvent.value = null;
@@ -579,9 +455,177 @@ const handleEventDrop = (event, year, month, day, dropIndex) => {
   });
 };
 
+// 修改處理放下景點函數
+const handleDrop = (year, month, day, event, isCurrentMonth) => {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-over');
+  
+  // 如果不是當月日期，則不允許放置
+  if (!isCurrentMonth) {
+    return;
+  }
+  
+  if (!draggedSpot.value) return;
+  
+  const dateKey = `${year}-${month + 1}-${day}`;
+  if (!scheduleData.value[dateKey]) {
+    scheduleData.value[dateKey] = [];
+  }
+  
+  // 檢查是否已經存在
+  const exists = scheduleData.value[dateKey].some(
+    spot => spot.travel_id === draggedSpot.value.travel_id
+  );
+  
+  if (!exists) {
+    scheduleData.value[dateKey].push({
+      ...draggedSpot.value,
+      time: new Date().toISOString()
+    });
+    // 保存到 localStorage，使用用戶特定的key
+    const key = getStorageKey('travelSchedule');
+    localStorage.setItem(key, JSON.stringify(scheduleData.value));
+  }
+  
+  draggedSpot.value = null;
+};
+
+// 修改從行程中移除景點函數
+const removeFromSchedule = (dateKey, spotId) => {
+  if (scheduleData.value[dateKey]) {
+    scheduleData.value[dateKey] = scheduleData.value[dateKey].filter(
+      spot => spot.travel_id !== spotId
+    );
+    const key = getStorageKey('travelSchedule');
+    localStorage.setItem(key, JSON.stringify(scheduleData.value));
+  }
+};
+
+// 特殊節日的資料
+const holidays = {
+  '1-1': '元旦',
+  '1-2': '補假',
+  '1-20': '小年夜',
+  '1-21': '除夕',
+  '1-22': '春節',
+  '1-23': '春節',
+  '1-24': '春節',
+  '1-25': '春節',
+  '1-26': '春節',
+  '2-28': '和平紀念日',
+  '3-8': '婦女節',
+  '4-4': '兒童節',
+  '4-5': '清明節',
+  '5-1': '勞動節',
+  '6-3': '端午節',
+  '6-23': '國際奧林匹克日',
+  '8-8': '父親節',
+  '9-28': '教師節',
+  '9-29': '中秋節',
+  '10-10': '國慶日',
+  '10-25': '光復節',
+  '10-31': '萬聖節',
+  '11-12': '國父誕辰紀念日',
+  '12-25': '聖誕節',
+  '12-31': '跨年夜'
+};
+
+// 修改 calendarDays computed 函數
+const calendarDays = computed(() => {
+  const days = [];
+  const daysInMonth = getDaysInMonth(currentYear.value, selectedMonth.value);
+  const firstDay = getFirstDayOfMonth(currentYear.value, selectedMonth.value);
+
+  // 填充當月第一天之前的空白
+  for (let i = 0; i < firstDay; i++) {
+    days.push({
+      day: '',
+      isCurrentMonth: false,
+      events: [],
+      holiday: null
+    });
+  }
+
+  // 添加當前月的天數
+  for (let i = 1; i <= daysInMonth; i++) {
+    const dateKey = `${currentYear.value}-${selectedMonth.value + 1}-${i}`;
+    const holidayKey = `${selectedMonth.value + 1}-${i}`;
+    days.push({
+      day: i,
+      isCurrentMonth: true,
+      events: scheduleData.value[dateKey] || [],
+      holiday: holidays[holidayKey]
+    });
+  }
+
+  // 填充當月最後一天之後的空白
+  const remainingDays = 42 - days.length;
+  for (let i = 0; i < remainingDays; i++) {
+    days.push({
+      day: '',
+      isCurrentMonth: false,
+      events: [],
+      holiday: null
+    });
+  }
+
+  return days;
+});
+
+// 切換月份
+const changeMonth = (delta) => {
+  let newMonth = selectedMonth.value + delta;
+  if (newMonth > 11) {
+    newMonth = 0;
+    currentYear.value++;
+  } else if (newMonth < 0) {
+    newMonth = 11;
+    currentYear.value--;
+  }
+  selectedMonth.value = newMonth;
+};
+
+// 切換年份
+const changeYear = (event) => {
+  currentYear.value = parseInt(event.target.value);
+};
+
 // 在組件卸載時清理
 onUnmounted(() => {
   stopAutoScroll();
+});
+
+onMounted(() => {
+  // 監聽用戶登入狀態變化
+  watch([() => userStore.userInfo, () => userStore.loginStatus], ([newUserInfo, newLoginStatus]) => {
+    console.log('用戶資訊變更:', newUserInfo);
+    console.log('登入狀態變更:', newLoginStatus);
+    
+    // 清除舊資料
+    mySpots.value = [];
+    scheduleData.value = {};
+    selectedSpots.value = [];
+    startPoint.value = null;
+    endPoint.value = null;
+    currentGroup.value = 0;
+    
+    if (newUserInfo && newLoginStatus) {
+      console.log('開始載入用戶數據...');
+      // 載入新用戶的資料
+      loadMySpots();
+      
+      // 從 localStorage 加載行程數據
+      const key = getStorageKey('travelSchedule');
+      console.log('載入行程，使用key:', key);
+      const savedSchedule = localStorage.getItem(key);
+      if (savedSchedule) {
+        console.log('載入的行程數據:', JSON.parse(savedSchedule));
+        scheduleData.value = JSON.parse(savedSchedule);
+      }
+    } else {
+      console.log('用戶未登入或資訊不完整，清除數據');
+    }
+  }, { immediate: true, deep: true });
 });
 </script>
 
@@ -607,7 +651,7 @@ onUnmounted(() => {
           <div v-if="mySpots.length === 0" class="no-spots-hint">
             <i class="fas fa-map-marked-alt"></i>
             <p>您還沒有收藏任何景點</p>
-            <router-link to="/spots" class="browse-button">
+            <router-link to="/travel/spots" class="browse-button">
               瀏覽景點
             </router-link>
           </div>
