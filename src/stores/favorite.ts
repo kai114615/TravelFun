@@ -38,7 +38,7 @@ const useFavoriteStore = defineStore('favorite', () => {
 
   watch(() => [...favoriteList.value], () => {
     saveLocalFavorites();
-  });
+  })
 
   onMounted(() => getLocalFavorites());
 
@@ -51,6 +51,6 @@ const useFavoriteStore = defineStore('favorite', () => {
     removeLocalFavorites,
     checkFavorite,
   };
-});
+})
 
 export default useFavoriteStore;

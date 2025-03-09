@@ -51,7 +51,7 @@ const getBreadcrumbs = computed(() => {
     return [...breadcrumbs, ...orderBreadcrumbs, ...payBreadcrumbs, ...doneBreadcrumbs];
 
   return breadcrumbs;
-});
+})
 </script>
 
 <template>

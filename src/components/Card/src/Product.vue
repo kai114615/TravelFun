@@ -8,9 +8,7 @@ import { useGo } from '@/composables/go';
 import type { Product } from '@/types';
 import { useFavoriteStore } from '@/stores';
 
-defineProps<Product & { notRanking?: boolean
-  ranking?: number
-}>();
+defineProps<Product & { notRanking?: boolean, ranking?: number, }>();
 
 const favoriteStore = useFavoriteStore();
 

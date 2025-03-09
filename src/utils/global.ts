@@ -91,7 +91,7 @@ export function mapToArray(map: any) {
 
 export function checkToken() {
   const token = document.cookie.replace(
-    /(?:(?:^|.*;\s*)token\s*=\s*([^;]*).*$)|^.*$/,
+    /(?:^|.*;\s*)token\s*=\s*([^;]*).*$|^.*$/,
     '$1',
   );
 

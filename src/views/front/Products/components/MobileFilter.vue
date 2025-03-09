@@ -8,7 +8,8 @@ defineProps<{
   currEnTarget: string
   array: Record<string, string>[]
   currSort: string
-  sortArray: Record<string, Sort>[] }>();
+  sortArray: Record<string, Sort>[]
+}>();
 
 defineEmits<{
   (e: 'update:params', city: string): void

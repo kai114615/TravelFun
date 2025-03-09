@@ -47,7 +47,7 @@ const categories = computed(() => {
     const brands = categoryMap.get(product.category);
     if (brands && product.brand)
       brands.add(product.brand);
-  });
+  })
 
   // 轉換為所需的格式
   return Array.from(categoryMap.entries()).map(([category, brands], index) => ({
@@ -55,7 +55,7 @@ const categories = computed(() => {
     name: category,
     brands: Array.from(brands),
   }));
-});
+})
 
 const expandedCategories = ref<Record<number, boolean>>({});
 const selectedBrands = ref<Record<number, Set<string>>>({});
@@ -109,7 +109,7 @@ const filteredProducts = computed(() => {
       return Array.from(selectedBrands.value[categoryId]).some(brand =>
         product.brand.toLowerCase() === brand.toLowerCase(),
       );
-    });
+    })
   }
 
   // 應用價格範圍過濾
@@ -130,7 +130,7 @@ const filteredProducts = computed(() => {
   }
 
   return result;
-});
+})
 
 // 計算總頁數
 const totalPages = computed(() => Math.ceil(filteredProducts.value.length / pageSize));
@@ -140,7 +140,7 @@ const currentPageProducts = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   const end = start + pageSize;
   return filteredProducts.value.slice(start, end);
-});
+})
 
 // 頁面切換方法
 function changePage(page: number) {
@@ -168,7 +168,7 @@ async function loadProducts() {
 // 組件掛載時載入數據
 onMounted(() => {
   loadProducts();
-});
+})
 
 const router = useRouter();
 
@@ -198,7 +198,7 @@ function navigateToProduct(productId: number) {
                     :title="category.name"
                   >
                     <NSpace vertical>
-                      <n-tag
+                      <NTag
                         v-for="brand in category.brands"
                         :key="brand"
                         :type="isSelectedBrand(category.id, brand) ? 'primary' : 'default'"
@@ -207,7 +207,7 @@ function navigateToProduct(productId: number) {
                         @click="toggleBrandFilter(category.id, brand)"
                       >
                         {{ brand }}
-                      </n-tag>
+                      </NTag>
                     </NSpace>
                   </NCollapseItem>
                 </NCollapse>
@@ -250,9 +250,9 @@ function navigateToProduct(productId: number) {
                 <div class="flex justify-between items-center">
                   <h1 class="text-2xl font-bold">
                     所有商品
-                    <n-tag type="info" round>
+                    <NTag type="info" round>
                       {{ filteredProducts.length }}
-                    </n-tag>
+                    </NTag>
                   </h1>
                 </div>
               </template>
@@ -302,8 +302,8 @@ function navigateToProduct(productId: number) {
                         <div class="product-content">
                           <NButton
                             class="product-title-button"
-                            @click="navigateToProduct(product.id)"
                             text
+                            @click="navigateToProduct(product.id)"
                           >
                             {{ product.name }}
                           </NButton>

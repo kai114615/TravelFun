@@ -28,7 +28,7 @@ export default {
         const query = this.searchQuery.toLowerCase();
         result = result.filter(product =>
           product.商品名稱.toLowerCase().includes(query)
-            || product.品牌.toLowerCase().includes(query),
+          || product.品牌.toLowerCase().includes(query),
         );
       }
 
@@ -38,7 +38,7 @@ export default {
         result = result.filter((product) => {
           const categoryBrands = this.selectedFilters[product.category];
           return categoryBrands.size === 0 || categoryBrands.has(product.品牌);
-        });
+        })
       }
 
       // 價格排序
@@ -47,7 +47,7 @@ export default {
           const priceA = Number.parseInt(a.價格);
           const priceB = Number.parseInt(b.價格);
           return this.sortOrder === 'asc' ? priceA - priceB : priceB - priceA;
-        });
+        })
       }
 
       return result;
@@ -86,7 +86,7 @@ export default {
     this.categories.forEach((category) => {
       this.expandedCategories[category.id] = false;
       this.selectedFilters[category.id] = new Set();
-    });
+    })
   },
   methods: {
     toggleCategory(categoryId) {

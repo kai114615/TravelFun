@@ -106,7 +106,7 @@ onMounted(async () => {
   loadingBar.start();
   await Object.assign(product, await getProduct(productId));
   loadingBar.finish();
-});
+})
 </script>
 
 <template>

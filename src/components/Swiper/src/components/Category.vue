@@ -55,7 +55,7 @@ const getBindValues = computed(() => {
       },
     },
   };
-});
+})
 </script>
 
 <template>

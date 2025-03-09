@@ -4,12 +4,13 @@ import { NAvatar, NSpace, NCard, NMessageProvider, useMessage, NButton, NInput }
 import { storeToRefs } from 'pinia';
 import { useUserStore } from '@/stores';
 import { FORUM_API } from '@/utils/api';
+import { request } from '@/utils/request';
 
 const props = defineProps<{
   postId: number;
 }>();
 
-const emit = defineEmits(['comment-count-update']);
+const emit = defineEmits(['comment-count-update', 'commentAdded']);
 
 const userStore = useUserStore();
 const { userInfo, loginStatus } = storeToRefs(userStore);
@@ -46,32 +47,55 @@ const fetchComments = async () => {
 
 // 提交評論
 const submitComment = async () => {
-  if (!loginStatus.value) {
-    message.warning('請先登入後再發表評論');
+  if (!userInfo.value) {
+    message.error('請先登入後再發表評論');
     return;
   }
 
   if (!newComment.value.trim()) {
-    message.warning('評論內容不能為空');
+    message.error('評論內容不能為空');
     return;
   }
 
   isSubmitting.value = true;
+
   try {
-    const response = await FORUM_API.addComment(props.postId, newComment.value);
-    if (response.data.status === 'success') {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('未登入或登入已過期');
+    }
+
+    const response = await request({
+      method: 'post',
+      url: `/api/forum/posts/${props.postId}/add_comment/`,
+      data: { content: newComment.value.trim() },
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.status === 201) {
       message.success('評論發表成功');
       newComment.value = '';
-      await fetchComments(); // 重新獲取評論列表並更新數量
+      await fetchComments();
+      emit('commentAdded');
     } else {
       throw new Error(response.data.message || '發表評論失敗');
     }
-  }
-  catch (error: any) {
+  } catch (error: any) {
     console.error('發表評論失敗:', error);
-    message.error(error.message || '發表評論失敗，請稍後再試');
-  }
-  finally {
+    if (error.response?.status === 401) {
+      message.error('登入已過期，請重新登入');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      // 可以在這裡添加重定向到登入頁面的邏輯
+    } else if (error.response?.status === 403) {
+      message.error('您沒有權限執行此操作');
+    } else {
+      message.error(error.response?.data?.message || error.message || '發表評論失敗，請稍後再試');
+    }
+  } finally {
     isSubmitting.value = false;
   }
 };

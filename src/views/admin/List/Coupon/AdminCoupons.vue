@@ -7,7 +7,8 @@ import { columns } from './columns';
 import CouponModal from './components/CouponModal.vue';
 import { BasicTable, TableAction } from '@/components/Admin/Table';
 import {
-  apiAdminDelCoupon, apiAdminGetCoupons,
+  apiAdminDelCoupon,
+  apiAdminGetCoupons,
   apiAdminPostCoupon,
   apiAdminPutCoupon,
 } from '@/utils/api';
@@ -182,7 +183,7 @@ const getActionColumn = computed(() => ({
 
 onMounted(() => {
   getCoupons();
-});
+})
 </script>
 
 <template>
@@ -206,7 +207,7 @@ onMounted(() => {
       </template>
     </BasicTable>
     <CouponModal
-      v-model:showModal="showModal"
+      v-model:show-modal="showModal"
       :is-new="isNew"
       :is-loading="isLoading"
       :temp-coupon="tempCoupon"

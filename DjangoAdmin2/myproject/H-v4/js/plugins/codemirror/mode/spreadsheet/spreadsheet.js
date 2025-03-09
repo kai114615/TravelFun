@@ -1,109 +1,109 @@
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: http://codemirror.net/LICENSE
 
-(function(mod) {
-  if (typeof exports == "object" && typeof module == "object") // CommonJS
-    mod(require("../../lib/codemirror"));
-  else if (typeof define == "function" && define.amd) // AMD
-    define(["../../lib/codemirror"], mod);
+(function (mod) {
+  if (typeof exports == 'object' && typeof module == 'object') // CommonJS
+    mod(require('../../lib/codemirror'));
+  else if (typeof define == 'function' && define.amd) // AMD
+    define(['../../lib/codemirror'], mod);
   else // Plain browser env
     mod(CodeMirror);
-})(function(CodeMirror) {
-  "use strict";
+})((CodeMirror) => {
+  'use strict'
 
-  CodeMirror.defineMode("spreadsheet", function () {
+  CodeMirror.defineMode('spreadsheet', () => {
     return {
-      startState: function () {
+      startState() {
         return {
           stringType: null,
           stack: []
-        };
+        }
       },
-      token: function (stream, state) {
-        if (!stream) return;
+      token(stream, state) {
+        if (!stream) return
 
-        //check for state changes
+        // check for state changes
         if (state.stack.length === 0) {
-          //strings
-          if ((stream.peek() == '"') || (stream.peek() == "'")) {
-            state.stringType = stream.peek();
-            stream.next(); // Skip quote
-            state.stack.unshift("string");
+          // strings
+          if ((stream.peek() == '"') || (stream.peek() == '\'')) {
+            state.stringType = stream.peek()
+            stream.next() // Skip quote
+            state.stack.unshift('string');
           }
         }
 
-        //return state
-        //stack has
+        // return state
+        // stack has
         switch (state.stack[0]) {
-        case "string":
-          while (state.stack[0] === "string" && !stream.eol()) {
-            if (stream.peek() === state.stringType) {
-              stream.next(); // Skip quote
-              state.stack.shift(); // Clear flag
-            } else if (stream.peek() === "\\") {
-              stream.next();
-              stream.next();
-            } else {
-              stream.match(/^.[^\\\"\']*/);
+          case 'string':
+            while (state.stack[0] === 'string' && !stream.eol()) {
+              if (stream.peek() === state.stringType) {
+                stream.next() // Skip quote
+                state.stack.shift() // Clear flag
+              } else if (stream.peek() === '\\') {
+                stream.next()
+                stream.next()
+              } else {
+                stream.match(/^.[^\\"']*/)
+              }
             }
-          }
-          return "string";
+            return 'string';
 
-        case "characterClass":
-          while (state.stack[0] === "characterClass" && !stream.eol()) {
-            if (!(stream.match(/^[^\]\\]+/) || stream.match(/^\\./)))
-              state.stack.shift();
-          }
-          return "operator";
+          case 'characterClass':
+            while (state.stack[0] === 'characterClass' && !stream.eol()) {
+              if (!(stream.match(/^[^\]\\]+/) || stream.match(/^\\./)))
+                state.stack.shift()
+            }
+            return 'operator';
         }
 
-        var peek = stream.peek();
+        const peek = stream.peek();
 
-        //no stack
+        // no stack
         switch (peek) {
-        case "[":
-          stream.next();
-          state.stack.unshift("characterClass");
-          return "bracket";
-        case ":":
-          stream.next();
-          return "operator";
-        case "\\":
-          if (stream.match(/\\[a-z]+/)) return "string-2";
-          else return null;
-        case ".":
-        case ",":
-        case ";":
-        case "*":
-        case "-":
-        case "+":
-        case "^":
-        case "<":
-        case "/":
-        case "=":
-          stream.next();
-          return "atom";
-        case "$":
-          stream.next();
-          return "builtin";
+          case '[':
+            stream.next()
+            state.stack.unshift('characterClass');
+            return 'bracket';
+          case ':':
+            stream.next()
+            return 'operator';
+          case '\\':
+            if (stream.match(/\\[a-z]+/)) return 'string-2';
+            else return null
+          case '.':
+          case ',':
+          case ';':
+          case '*':
+          case '-':
+          case '+':
+          case '^':
+          case '<':
+          case '/':
+          case '=':
+            stream.next()
+            return 'atom';
+          case '$':
+            stream.next()
+            return 'builtin';
         }
 
         if (stream.match(/\d+/)) {
-          if (stream.match(/^\w+/)) return "error";
-          return "number";
-        } else if (stream.match(/^[a-zA-Z_]\w*/)) {
-          if (stream.match(/(?=[\(.])/, false)) return "keyword";
-          return "variable-2";
-        } else if (["[", "]", "(", ")", "{", "}"].indexOf(peek) != -1) {
-          stream.next();
-          return "bracket";
+          if (stream.match(/^\w+/)) return 'error';
+          return 'number';
+        } else if (stream.match(/^[a-z_]\w*/i)) {
+          if (stream.match(/(?=[(.])/, false)) return 'keyword';
+          return 'variable-2';
+        } else if (['[', ']', '(', ')', '{', '}'].includes(peek)) {
+          stream.next()
+          return 'bracket';
         } else if (!stream.eatSpace()) {
-          stream.next();
+          stream.next()
         }
-        return null;
+        return null
       }
     };
-  });
+  })
 
-  CodeMirror.defineMIME("text/x-spreadsheet", "spreadsheet");
+  CodeMirror.defineMIME('text/x-spreadsheet', 'spreadsheet')
 });

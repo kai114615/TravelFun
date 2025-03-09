@@ -51,21 +51,21 @@ TravelAdmin 是一個綜合性的旅遊管理系統，為用戶提供全方位�
    ```bash
    mysql -u 用戶名 -p 數據庫名 < 你的檔案.sql
    ```
-   
+
    b. 匯入整個資料夾中的所有SQL檔案：
    ```bash
    for file in /路徑/到/你的/SQL檔案夾/*.sql; do mysql -u 用戶名 -p 數據庫名 < "$file"; done
    ```
-   
+
    注意：請將 `/路徑/到/你的/SQL檔案夾/` 替換為實際的資料夾路徑。
-   
+
    或者,如果你使用的是MySQL Workbench:
-   
+
    a. 打開MySQL Workbench並連接到你的數據庫
    b. 選擇 "File" > "Open SQL Script"
    c. 選擇你的 .sql 檔案或整個資料夾
    d. 點擊 "Execute" 按鈕(閃電圖標)來運行腳本
-   
+
    對於多個檔案，你可能需要重複步驟 b-d
 
 8. 在settings.py中更新數據庫配置：

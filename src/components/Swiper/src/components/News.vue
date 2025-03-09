@@ -52,7 +52,7 @@ const getBindValues = computed(() => {
       nextEl: '.swiper-news-custom-next',
     },
   };
-});
+})
 </script>
 
 <template>

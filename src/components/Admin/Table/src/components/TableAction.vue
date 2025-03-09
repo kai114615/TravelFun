@@ -18,12 +18,12 @@ const getActions = computed<Action[]>(() => {
       ...action,
       size: 'small',
     };
-  });
+  })
 });
 
 const getDropdownList = computed(() => {
   return dropDownActions;
-});
+})
 </script>
 
 <template>

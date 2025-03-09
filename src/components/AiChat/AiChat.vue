@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { NButton, NInput, NCard, NScrollbar, NIcon, NAvatar } from 'naive-ui';
-import { SendOutlined, SupportAgentOutlined, CloseOutlined, ChatOutlined } from '@vicons/material';
+import { ref } from 'vue';
+import { NAvatar, NButton, NCard, NIcon, NInput, NScrollbar } from 'naive-ui';
+import { ChatOutlined, CloseOutlined, SendOutlined, SupportAgentOutlined } from '@vicons/material';
 
 const API_KEY = 'AIzaSyCDj5Wg3ZOj4SXz5uiIPbewuuPd04Kp1vA';
-const messages = ref<Array<{role: string, content: string}>>([]);
+const messages = ref<Array<{ role: string, content: string }>>([]);
 const inputMessage = ref('');
 const isLoading = ref(false);
 const chatContainer = ref(null);
@@ -33,9 +33,10 @@ const systemPrompt = `
 6. 回答要具體實用，可以適當舉例
 `;
 
-const sendMessage = async () => {
-  if (!inputMessage.value.trim() || isLoading.value) return;
-  
+async function sendMessage () {
+  if (!inputMessage.value.trim() || isLoading.value)
+    return
+
   const userMessage = inputMessage.value;
   messages.value.push({ role: 'user', content: userMessage });
   inputMessage.value = '';
@@ -50,7 +51,7 @@ const sendMessage = async () => {
 
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + API_KEY, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -58,16 +59,16 @@ const sendMessage = async () => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: systemPrompt + "\n\n用戶問題：" + userMessage
+            text: `${systemPrompt}\n\n用戶問題：${userMessage}`
           }]
         }]
       })
     });
 
     const data = await response.json();
-    
+
     messages.value.pop();
-    
+
     if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
       messages.value.push({
         role: 'assistant',
@@ -85,16 +86,16 @@ const sendMessage = async () => {
     isLoading.value = false;
     isThinking.value = false;
   }
-};
+}
 
-const handleKeyPress = (e: KeyboardEvent) => {
+function handleKeyPress (e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
   }
-};
+}
 
-const toggleChat = () => {
+function toggleChat () {
   isChatOpen.value = !isChatOpen.value;
   if (isChatOpen.value && messages.value.length === 0) {
     messages.value.push({
@@ -102,7 +103,7 @@ const toggleChat = () => {
       content: '您好！我是旅遊趣的旅遊顧問。我可以協助您：\n• 推薦各類景點（海邊、山、河、湖等）\n• 提供景點詳細資訊\n• 交通建議\n• 美食推薦\n• 住宿選擇\n• 行程規劃\n請問您想去哪裡玩呢？'
     });
   }
-};
+}
 </script>
 
 <template>
@@ -144,21 +145,20 @@ const toggleChat = () => {
             </template>
           </NButton>
         </div>
-        
+
         <!-- 聊天内容 -->
         <NScrollbar ref="chatContainer" class="flex-1 mb-4">
           <div class="space-y-3">
             <template v-for="(msg, index) in messages" :key="index">
               <div class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
                 <div
-                  :class="[
-                    'max-w-[85%] rounded-2xl p-2 px-3',
+                  class="max-w-[85%] rounded-2xl p-2 px-3" :class="[
                     msg.role === 'user'
                       ? 'bg-primary text-white'
-                      : msg.content === '思考中.....' 
+                      : msg.content === '思考中.....'
                         ? 'bg-gray-50 text-gray-400'
                         : 'bg-gray-100 text-gray-800',
-                    msg.content === '思考中.....' ? 'thinking-dots' : ''
+                    msg.content === '思考中.....' ? 'thinking-dots' : '',
                   ]"
                 >
                   {{ msg.content }}
@@ -246,4 +246,4 @@ const toggleChat = () => {
   66% { content: '...'; }
   100% { content: '.'; }
 }
-</style> 
+</style>

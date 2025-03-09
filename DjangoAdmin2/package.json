@@ -2,8 +2,8 @@
   "name": "DjangoAdmin2",
   "version": "1.0.0",
   "description": "TravelFun Django Admin",
-  "main": "index.js",
-  "scripts": {},
   "author": "",
-  "license": "ISC"
-} 
+  "license": "ISC",
+  "main": "index.js",
+  "scripts": {}
+}

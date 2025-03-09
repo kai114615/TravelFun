@@ -43,8 +43,8 @@ const { isNew, tempProduct } = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  addProduct: [product: Product]
-  updateProduct: [product: Product]
+  'addProduct': [product: Product]
+  'updateProduct': [product: Product]
   'update:showModal': [status: boolean]
 }>();
 

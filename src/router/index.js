@@ -1,7 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import MallView from '../views/front/Mall/MallView.vue';
 import HomeView from '../views/front/Home/HomeView.vue';
-import ThemeEntertainmentView from '@/views/admin/ThemeEntertainmentView.vue'
+import ThemeEntertainmentView from '@/views/admin/ThemeEntertainmentView.vue';
+import ActivityDetail from '@/views/front/Activity/ActivityDetail.vue';
 
 const routes = [
   {
@@ -42,6 +43,14 @@ const routes = [
     component: () => import('../views/front/Mall/MallProductsView.vue'),
     meta: {
       title: '商城商品 - Travel Fun',
+    },
+  },
+  {
+    path: '/mall-products/:id',
+    name: 'MallProductDetail',
+    component: () => import('../views/front/Mall/MallProductDetailView.vue'),
+    meta: {
+      title: '商品詳情 - Travel Fun'
     },
   },
   {
@@ -150,17 +159,43 @@ const routes = [
     component: ThemeEntertainmentView,
     meta: {
       requiresAuth: true,
-      title: '主題育樂活動管理'
-    }
+      title: '主題育樂活動管理',
+    },
   },
   {
     path: '/activities',
     name: 'ActivityList',
-    component: () => import('../views/ActivityList.vue'),
+    component: () => import('../views/front/Activity/ActivityList.vue'),
     meta: {
+      title: '主題育樂活動',
+    },
+  },
+  {
+    path: '/activity/:id',
+    name: 'ActivityDetail',
+    component: ActivityDetail,
+    meta: {
+      title: '活動詳細資訊',
       title: '主題育樂活動'
     }
-  }
+  },
+  {
+    path: '/cart',
+    name: 'Cart',
+    component: () => import('../views/front/Cart/CartView.vue'),
+    meta: {
+      title: '購物車',
+    }
+  },
+  {
+    path: '/checkout',
+    name: 'Checkout',
+    component: () => import('../views/front/Checkout/CheckoutView.vue'),
+    meta: {
+      title: '結帳',
+      requiresAuth: true,
+    },
+  },
 ];
 
 const router = createRouter({

@@ -1,55 +1,109 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import type { Cart as CartType } from '@/types';
 
-import { apiUserGetCarts, apiUserPostCart } from '../utils/api';
-import type { Cart } from '../types';
+export interface CartItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  image_url: string;
+  stock: number;
+}
 
-const useCartStore = defineStore('cart', () => {
-  const isLoading = ref(false);
-  const cartList = ref<Cart[]>([]);
-  const total = ref(0);
-  const finalTotal = ref(0);
+export const useCartStore = defineStore('cart', () => {
+  const items = ref<CartItem[]>([]);
 
-  const totalNum = computed(() => cartList.value.length);
+  // 計算購物車總數量
+  const totalNum = computed(() => {
+    return items.value.reduce((total, item) => total + item.quantity, 0);
+  })
 
-  const getCarts = async () => {
-    const res = await apiUserGetCarts();
+  // 計算購物車總金額
+  const totalAmount = computed(() => {
+    return items.value.reduce((total, item) => total + item.price * item.quantity, 0);
+  })
 
-    const {
-      data: {
-        success,
-        data: { carts, total: cart_total, final_total },
-      },
-    } = res;
+  // 轉換為 ShopCart 組件需要的格式
+  const cartList = computed<CartType[]>(() => {
+    return items.value.map(item => ({
+      id: String(item.id),
+      product_id: String(item.id),
+      qty: item.quantity,
+      total: item.price * item.quantity,
+      final_total: item.price * item.quantity,
+      buy_date: Date.now(),
+      product: {
+        id: item.id,
+        title: item.name,
+        description: '',
+        price: item.price,
+        imageUrl: item.image_url
+      }
+    }));
+  })
 
-    if (success) {
-      cartList.value = carts;
-      total.value = cart_total;
-      finalTotal.value = final_total;
+  // 添加商品到購物車
+  const addToCart = (product: CartItem) => {
+    const existingItem = items.value.find(item => item.id === product.id);
+    if (existingItem) {
+      if (existingItem.quantity < existingItem.stock) {
+        existingItem.quantity++;
+        items.value = [...items.value]; // 強制更新
+      }
+    } else {
+      items.value.push({ ...product, quantity: 1 });
+    }
+    // 保存到 localStorage
+    localStorage.setItem('cart', JSON.stringify(items.value));
+  };
+
+  // 從購物車移除商品
+  const removeFromCart = (productId: number) => {
+    items.value = items.value.filter(item => item.id !== productId);
+    // 保存到 localStorage
+    localStorage.setItem('cart', JSON.stringify(items.value));
+  };
+
+  // 更新商品數量
+  const updateQuantity = (productId: number, quantity: number) => {
+    const item = items.value.find(item => item.id === productId);
+    if (item) {
+      if (quantity > 0 && quantity <= item.stock) {
+        item.quantity = quantity;
+        items.value = [...items.value]; // 強制更新
+        // 保存到 localStorage
+        localStorage.setItem('cart', JSON.stringify(items.value));
+      }
     }
   };
 
-  const addCart = async (data: { data: Cart }) => {
-    isLoading.value = true;
-
-    try {
-      await apiUserPostCart(data);
-    }
-    finally {
-      await getCarts();
-      isLoading.value = false;
-    }
+  // 清空購物車
+  const clearCart = () => {
+    items.value = [];
+    // 清空 localStorage 中的購物車數據
+    localStorage.removeItem('cart');
   };
+
+  // 初始化購物車
+  const initCart = () => {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart)
+      items.value = JSON.parse(savedCart);
+  };
+
+  // 在 store 創建時初始化購物車
+  initCart();
 
   return {
-    isLoading,
-    cartList,
-    total,
-    finalTotal,
+    items,
     totalNum,
-    getCarts,
-    addCart,
+    totalAmount,
+    cartList,
+    addToCart,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    initCart
   };
-});
-
-export default useCartStore;
+})

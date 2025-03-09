@@ -1,0 +1,53 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-console": "off",
+    "no-debugger": "off",
+    "space-before-function-paren": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "unused-imports/no-unused-vars": "off",
+    "node/prefer-global/process": "off",
+    "regexp/no-super-linear-backtracking": "off",
+    "ts/ban-ts-comment": "off",
+    "ts/no-unused-vars": "off",
+    "vue/no-unused-refs": "off",
+    "ts/no-use-before-define": "off",
+    "style/space-before-function-paren": "off"
+  },
+  "overrides": [
+    {
+      "files": ["*.vue"],
+      "rules": {
+        "no-undef": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "dist/",
+    "build/",
+    "node_modules/",
+    "*.config.js",
+    "vite.config.ts",
+    ".eslintrc.js",
+    "DjangoAdmin2/**/*",
+    "src/utils/api.ts",
+    "src/views/front/Login/components/Login.vue",
+    "src/views/front/Login/components/Register.vue",
+    "src/router/index.ts",
+    "src/utils/request.ts",
+    "src/views/front/Login.vue"
+  ]
+}

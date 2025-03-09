@@ -75,7 +75,7 @@ const sortedAndFilteredProducts = computed(() => {
       const minOk = priceRange.value.min === null || price >= priceRange.value.min;
       const maxOk = priceRange.value.max === null || price <= priceRange.value.max;
       return minOk && maxOk;
-    });
+    })
   }
 
   // 排序

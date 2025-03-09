@@ -1,6 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx,vue}'],
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx,vue}',
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -24,14 +27,20 @@ module.exports = {
         'cc-other-5': '#D4D4D4',
         'cc-other-6': '#E9E9E9',
         'cc-other-7': '#F7F7F7',
-        'cc-other-8': 'rgba(24, 24, 24, 0.8);',
+        'cc-other-8': 'rgba(24, 24, 24, 0.8)',
         'cc-other-9': '#32302C',
+        'primary': 'var(--primary-color)',
+        'secondary': 'var(--secondary-color)',
+        'error': 'var(--error-color)',
+        'warning': 'var(--warning-color)',
+        'success': 'var(--success-color)',
       },
       borderRadius: {
         m: '5px',
       },
     },
-
-    plugins: [require('@tailwindcss/line-clamp'), require('@tailwindcss/forms')],
   },
-};
+  plugins: [
+    require('@tailwindcss/forms'),
+  ],
+}

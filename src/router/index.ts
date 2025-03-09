@@ -64,9 +64,9 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'login',
         name: 'Login',
-        component: () => import('../views/front/Login/LoginView.vue'),
+        component: () => import('../views/front/Login.vue'),
         meta: {
-          title: '後台登入 - Travel Fun',
+          title: '會員登入 - Travel Fun',
         },
       },
       {

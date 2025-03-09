@@ -23,6 +23,10 @@ urlpatterns = [
     path('api/recommended/', views.recommended_product_api, name='recommended_product_api_list'),
     path('api/recommended/<int:recommended_id>/', views.recommended_product_api, name='recommended_product_api_detail'),
     
+    # 新增：購物車和訂單相關的API
+    path('api/shopping/cart/add/', views.add_to_cart, name='add_to_cart'),
+    path('api/shopping/orders/create/', views.create_order, name='create_order'),
+    
     # 新增：導出商品資料到JSON檔案的API
     path('api/export-mall-products/', views.export_mall_products_json, name='export_mall_products_json'),
 ]

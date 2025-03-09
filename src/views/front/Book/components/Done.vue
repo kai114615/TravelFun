@@ -81,7 +81,7 @@ async function getOrder() {
 
 onMounted(() => {
   getOrder();
-});
+})
 </script>
 
 <template>

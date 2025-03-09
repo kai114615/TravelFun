@@ -97,7 +97,7 @@ request.interceptors.request.use(
 
       // 從 cookie 中獲取 CSRF token
       const csrfToken = document.cookie.replace(
-        /(?:(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$)|^.*$/,
+        /(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$|^.*$/,
         '$1',
       );
 
@@ -151,6 +151,7 @@ const api = {
     logout: '/api/user/logout/',
     checkSigin: '/api/user/check-auth/',
     refreshToken: '/api/token/refresh/',
+    googleSignin: '/api/user/google-signin/',
     product: `/api/${API_PATH}/product`,
     cart: `/api/${API_PATH}/cart`,
     coupon: `/api/${API_PATH}/coupon`,
@@ -379,6 +380,78 @@ export const apiForumDeleteComment = FORUM_API.deleteComment;
 
 export const apiForumGetCategories = () => request.get(api.forum.categories);
 export const apiForumGetModerators = () => request.get(api.forum.moderators);
+
+// 修改 Google 登入的 API 函數
+export async function apiGoogleSignin(data: { 
+  google_token: string, 
+  email?: string, 
+  name?: string, 
+  google_id?: string 
+}) {
+  try {
+    // 檢查 token 是否存在
+    if (!data.google_token) {
+      console.error('Google token 錯誤:', {
+        token內容: data.google_token,
+        token類型: typeof data.google_token
+      });
+      throw new Error('未獲取到有效的 Google token，請重新嘗試登入');
+    }
+    
+    console.log('開始發送 Google 登入請求:', {
+      token提供: true,
+      token長度: data.google_token.length,
+      token前綴: data.google_token.substring(0, 10) + '...',
+      email存在: !!data.email,
+      name存在: !!data.name,
+      google_id存在: !!data.google_id
+    });
+    
+    // 發送 POST 請求到後端
+    try {
+      const response = await request.post(api.user.googleSignin, {
+        google_token: data.google_token,  // 使用 google_token 作為參數名
+        email: data.email,                // 明確傳送 email
+        name: data.name,                  // 傳送姓名
+        google_id: data.google_id         // 傳送 Google ID
+      });
+      
+      console.log('Google 登入回應狀態:', {
+        status: response.status,
+        data存在: !!response.data,
+        access存在: !!response.data?.access,
+        success: response.data?.success
+      });
+      
+      if (!response.data?.success) {
+        console.error('Google 登入回應不成功:', response.data);
+      }
+      
+      return response;
+    } catch (fetchError: any) {
+      console.error('Google 登入 API 請求失敗:', {
+        status: fetchError.response?.status,
+        statusText: fetchError.response?.statusText,
+        data: fetchError.response?.data,
+        message: fetchError.message
+      });
+      
+      // 提供更具體的錯誤信息
+      if (fetchError.response?.status === 400) {
+        throw new Error(fetchError.response?.data?.message || 'Google 登入資料格式不正確，請重試');
+      } else if (fetchError.response?.status === 401) {
+        throw new Error(fetchError.response?.data?.message || 'Google 授權無效，請重新登入');
+      } else if (fetchError.response?.status === 500) {
+        throw new Error('伺服器處理錯誤，請稍後再試');
+      }
+      
+      throw fetchError;
+    }
+  } catch (error: any) {
+    console.error('Google 登入整體錯誤:', error);
+    throw error;
+  }
+}
 
 export {
   api,

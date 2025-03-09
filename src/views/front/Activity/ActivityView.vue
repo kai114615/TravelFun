@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import Banner from '@/components/Banner.vue';
 import Footer from '@/components/Footer.vue';
-import ActivityList from '@/views/ActivityList.vue';
+import ActivityList from '@/views/front/Activity/ActivityList.vue';
 
 const title = ref('主題育樂');
 </script>

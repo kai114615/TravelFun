@@ -23,7 +23,7 @@ export const useUserStore = defineStore('user', () => {
   // 計算屬性：用戶顯示名稱
   const displayName = computed(() => {
     return userInfo.value?.full_name || userInfo.value?.username || '';
-  });
+  })
 
   // 更新用戶狀態
   const updateUserState = (user: UserInfo | null, status: boolean = true) => {
@@ -195,4 +195,4 @@ export const useUserStore = defineStore('user', () => {
     checkLoginStatus,
     updateUserState,
   };
-});
+})

@@ -88,7 +88,7 @@ watch(
 
 onMounted(() => {
   loadProduct();
-});
+})
 
 // 加入購物車
 function addToCart() {
@@ -242,14 +242,14 @@ function buyNow() {
 
                 <!-- 商品標籤 -->
                 <div class="flex flex-wrap gap-2">
-                  <n-tag
+                  <NTag
                     v-for="tag in productTags"
                     :key="tag"
                     size="small"
                     :bordered="false"
                   >
                     {{ tag }}
-                  </n-tag>
+                  </NTag>
                 </div>
               </div>
             </div>

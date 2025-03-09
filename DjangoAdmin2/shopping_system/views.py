@@ -4,10 +4,11 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 import json
-from .models import Product, Carousel, CategoryDisplay, RecommendedProduct
+from .models import Product, Carousel, CategoryDisplay, RecommendedProduct, Order, OrderItem
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+import uuid
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
@@ -370,5 +371,164 @@ def export_mall_products_json(request):
         print("導出商品資料時發生錯誤：", str(e))
         return JsonResponse({
             'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_to_cart(request):
+    """加入購物車 API"""
+    try:
+        data = json.loads(request.body)
+        product_id = data.get('product_id')
+        quantity = data.get('quantity', 1)
+        
+        # 檢查商品是否存在
+        product = get_object_or_404(Product, id=product_id)
+        
+        # 檢查庫存
+        if product.stock < quantity:
+            return JsonResponse({
+                'success': False,
+                'message': '商品庫存不足'
+            }, status=400)
+        
+        # TODO: 這裡應該實現購物車功能
+        # 暫時直接返回成功
+        return JsonResponse({
+            'success': True,
+            'message': '成功加入購物車'
+        })
+        
+    except Product.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': '商品不存在'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_order(request):
+    """建立訂單 API"""
+    try:
+        # 記錄請求數據
+        print(f"收到建立訂單請求，用戶: {request.user.username}, 數據: {request.data}")
+        
+        # 檢查用戶資料
+        user = request.user
+        if not user.address:
+            return JsonResponse({
+                'success': False,
+                'message': '請先設置收貨地址'
+            }, status=400)
+        
+        if not user.phone:
+            return JsonResponse({
+                'success': False,
+                'message': '請先設置聯絡電話'
+            }, status=400)
+
+        # 直接使用 request.data，因為 DRF 已經解析過請求數據
+        data = request.data
+        items = data.get('items', [])
+        
+        if not items:
+            return JsonResponse({
+                'success': False,
+                'message': '訂單項目不能為空'
+            }, status=400)
+        
+        # 生成訂單編號
+        order_number = f"ORD{timezone.now().strftime('%Y%m%d%H%M%S')}{uuid.uuid4().hex[:6]}"
+        
+        # 計算總金額並檢查庫存
+        total_amount = 0
+        order_items = []
+        
+        for item in items:
+            try:
+                product = Product.objects.get(id=item['product_id'])
+                quantity = int(item['quantity'])
+                
+                if not product.is_active:
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'{product.name} 已下架'
+                    }, status=400)
+                
+                if product.stock < quantity:
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'{product.name} 庫存不足，目前庫存: {product.stock}'
+                    }, status=400)
+                
+                total_amount += product.price * quantity
+                order_items.append({
+                    'product': product,
+                    'quantity': quantity,
+                    'price': product.price
+                })
+            except Product.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'商品ID {item["product_id"]} 不存在'
+                }, status=404)
+        
+        # 建立訂單
+        try:
+            order = Order.objects.create(
+                user=user,
+                order_number=order_number,
+                total_amount=total_amount,
+                status='pending',
+                shipping_address=user.address,
+                contact_phone=user.phone
+            )
+            
+            # 建立訂單項目並更新庫存
+            for item in order_items:
+                OrderItem.objects.create(
+                    order=order,
+                    product=item['product'],
+                    quantity=item['quantity'],
+                    price=item['price']
+                )
+                
+                # 更新庫存
+                product = item['product']
+                product.stock -= item['quantity']
+                product.save()
+            
+            print(f"訂單建立成功，訂單編號: {order_number}")
+            return JsonResponse({
+                'success': True,
+                'message': '訂單建立成功',
+                'order_number': order_number
+            })
+            
+        except Exception as e:
+            print(f"建立訂單時發生錯誤: {str(e)}")
+            # 如果訂單建立過程中出錯，需要回滾已扣除的庫存
+            for item in order_items:
+                product = item['product']
+                product.stock += item['quantity']
+                product.save()
+            
+            return JsonResponse({
+                'success': False,
+                'message': f'建立訂單時發生錯誤: {str(e)}'
+            }, status=500)
+            
+    except Exception as e:
+        print(f"處理訂單請求時發生錯誤: {str(e)}")
+        return JsonResponse({
+            'success': False,
             'message': str(e)
         }, status=500)

@@ -77,7 +77,7 @@ const getBindValues = computed(() => {
       nextEl: `.swiper-${btnUUID}-custom-next`,
     },
   };
-});
+})
 </script>
 
 <template>

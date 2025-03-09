@@ -14,11 +14,11 @@ const { hotCitys = [] } = defineProps<{
 
 const mainCity = computed<City | null>(() => {
   return hotCitys.length > 0 ? hotCitys[0] : null;
-});
+})
 
 const otherCity = computed(() => {
   return hotCitys.slice(1);
-});
+})
 </script>
 
 <template>

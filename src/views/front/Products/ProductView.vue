@@ -29,12 +29,12 @@ async function loadProduct() {
 
 onMounted(() => {
   loadProduct();
-});
+})
 
 onBeforeRouteUpdate((to, from) => {
   if (to.params.productId !== from.params.productId)
     loadProduct();
-});
+})
 </script>
 
 <template>

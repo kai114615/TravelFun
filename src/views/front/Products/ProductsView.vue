@@ -91,7 +91,7 @@ const getBreadcrumbs = computed(() => {
           title: getCategory.value,
         },
       ];
-});
+})
 
 const getProductList = computed(() =>
   getFilterData(

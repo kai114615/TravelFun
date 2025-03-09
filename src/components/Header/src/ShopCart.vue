@@ -3,11 +3,9 @@ import {
   ShoppingCartOutlined,
 } from '@vicons/material';
 import type { TooltipProps } from 'naive-ui';
-import { NBadge, NButton, NCard, NDrawer, NDrawerContent, NEllipsis, NEmpty, NIcon, NList, NListItem, NScrollbar, NThing, NTooltip } from 'naive-ui';
+import { NBadge, NButton, NCard, NDrawer, NDrawerContent, NEmpty, NIcon, NList, NListItem, NScrollbar, NThing, NTooltip } from 'naive-ui';
 import { RouterLink, onBeforeRouteUpdate } from 'vue-router';
 import { reactive } from 'vue';
-import { currency } from '@/utils/global';
-
 import type { Cart, DrawerActive } from '@/types';
 
 type TooltipThemeOverrides = NonNullable<TooltipProps['themeOverrides']>
@@ -43,7 +41,7 @@ const closeActive = () => activate.active = false;
 
 onBeforeRouteUpdate(() => {
   closeActive();
-});
+})
 
 defineExpose({
   closeActive,
@@ -59,7 +57,7 @@ defineExpose({
     :style="{ width: '400px' }"
   >
     <template #trigger>
-      <NBadge color="#EE5220" :max="10" :value="totalNum">
+      <NBadge color="#EE5220" :max="99" :value="totalNum">
         <NIcon size="24" color="white" class="cursor-pointer">
           <ShoppingCartOutlined />
         </NIcon>
@@ -78,26 +76,25 @@ defineExpose({
         <NScrollbar style="max-height: 340px">
           <NList hoverable clickable>
             <template
-              v-for="{ product } in cartList"
-              :key="product?.id"
+              v-for="item in cartList"
+              :key="item.product_id"
             >
               <NListItem>
                 <template #prefix>
                   <div class="w-14 aspect-square">
-                    <img class="img" :src="product?.imageUrl">
+                    <img class="img" :src="item.product?.imageUrl" :alt="item.product?.title">
                   </div>
                 </template>
-                <NThing :title="product?.title">
+                <NThing :title="item.product?.title">
                   <template #description>
-                    <NEllipsis style="max-width: 240px">
-                      {{ product?.description }}
-                    </NEllipsis>
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm text-gray-500">數量: {{ item.qty }}</span>
+                      <span class="text-sm font-medium text-green-600">
+                        NT$ {{ item.final_total }}
+                      </span>
+                    </div>
                   </template>
-                  <p class="text-cc-primary font-bold">
-                    {{ currency(product?.price!) }}
-                  </p>
                 </NThing>
-                <div />
               </NListItem>
             </template>
           </NList>
@@ -106,8 +103,11 @@ defineExpose({
       <NEmpty v-else description="您的購物車是空的" />
       <template #footer>
         <div class="flex items-center justify-between">
-          共 {{ totalNum }} 件商品
-          <RouterLink class="btn" :to="{ name: 'Cart' }">
+          <span class="text-sm text-gray-600">共 {{ totalNum }} 件商品</span>
+          <RouterLink
+            to="/cart"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+          >
             前往購物車
           </RouterLink>
         </div>
@@ -116,7 +116,7 @@ defineExpose({
   </NTooltip>
   <template v-else>
     <NButton text @click="toggleActive">
-      <NBadge color="#EE5220" :max="10" :value="totalNum">
+      <NBadge color="#EE5220" :max="99" :value="totalNum">
         <NIcon size="24" color="white" class="cursor-pointer">
           <ShoppingCartOutlined />
         </NIcon>
@@ -134,31 +134,33 @@ defineExpose({
         <template v-if="totalNum">
           <NList hoverable clickable>
             <template
-              v-for="{ product }, index in cartList"
-              :key="product?.id"
+              v-for="item in cartList"
+              :key="item.product_id"
             >
-              <RouterLink v-slot="{ navigate }" custom :to="{ name: 'Product', params: { productId: product?.id } }">
+              <RouterLink
+                v-slot="{ navigate }"
+                custom
+                :to="{ name: 'MallProductDetail', params: { id: item.product_id } }"
+              >
                 <NListItem
                   class="py-5 flex gap-5 cursor-pointer"
-                  :class="index !== cartList.length - 1 ? 'border-b' : ''"
                   @click="navigate"
                 >
                   <template #prefix>
                     <div class="w-28 aspect-square rounded-m overflow-hidden">
-                      <img class="img" :src="product?.imageUrl">
+                      <img class="img" :src="item.product?.imageUrl" :alt="item.product?.title">
                     </div>
                   </template>
-                  <NThing :title="product?.title">
+                  <NThing :title="item.product?.title">
                     <template #description>
-                      <NEllipsis class="text-sm" :line-clamp="2" :tooltip="false">
-                        {{ product?.description }}
-                      </NEllipsis>
+                      <div class="flex flex-col gap-1">
+                        <span class="text-sm text-gray-500">數量: {{ item.qty }}</span>
+                        <span class="text-sm font-medium text-green-600">
+                          NT$ {{ item.final_total }}
+                        </span>
+                      </div>
                     </template>
-                    <p class="text-cc-primary font-bold">
-                      {{ currency(product?.price!) }}
-                    </p>
                   </NThing>
-                  <div />
                 </NListItem>
               </RouterLink>
             </template>
@@ -166,8 +168,11 @@ defineExpose({
         </template>
         <NEmpty v-else description="您的購物車是空的" />
         <template #footer>
-          共 {{ totalNum }} 件商品
-          <RouterLink class="btn" :to="{ name: 'Cart' }">
+          <span class="text-sm text-gray-600">共 {{ totalNum }} 件商品</span>
+          <RouterLink
+            to="/cart"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+          >
             前往購物車
           </RouterLink>
         </template>
@@ -175,3 +180,11 @@ defineExpose({
     </NDrawer>
   </template>
 </template>
+
+<style scoped>
+.img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+</style>
