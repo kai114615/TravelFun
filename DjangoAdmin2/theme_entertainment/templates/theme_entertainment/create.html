@@ -6,6 +6,27 @@
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <link href="https://unpkg.com/naive-ui@2.34.4/dist/index.css" rel="stylesheet">
 <script src="https://kit.fontawesome.com/your-kit-code.js" crossorigin="anonymous"></script>
+
+<style>
+    /* 表單樣式 */
+    .n-form-item-label {
+        font-weight: 500;
+    }
+
+    .n-input,
+    .n-select,
+    .n-date-picker {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .n-button {
+        transition: all 0.2s ease;
+    }
+
+    .n-button:hover {
+        transform: translateY(-1px);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -26,15 +47,21 @@
             NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider
         },
         setup() {
+            // 表單與訊息相關參考
+            const formRef = ref(null);
+            const message = ref(null);
+
+            // 初始化訊息提供者
+            const handleMessage = () => {
+                message.value = useMessage();
+            };
+
+            // 返回列表頁面
             const handleBack = () => {
                 window.location.href = '/admin-dashboard/entertainment/activities/';
             };
 
-            const message = ref(null);
-            const handleMessage = () => {
-                message.value = useMessage();
-            };
-            const formRef = ref(null);
+            // 表單資料
             const formValue = ref({
                 activity_name: '',
                 description: '',
@@ -47,6 +74,7 @@
                 image: null
             });
 
+            // 活動類型選項
             const activityTypes = [
                 { label: '展覽', value: '展覽' },
                 { label: '表演', value: '表演' },
@@ -55,6 +83,19 @@
                 { label: '其他', value: '其他' }
             ];
 
+            // 處理圖片上傳
+            const handleImageUpload = (options) => {
+                const { file } = options;
+                if (file.file) {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file.file);
+                    reader.onload = () => {
+                        formValue.value.image = reader.result;
+                    };
+                }
+            };
+
+            // 表單驗證規則
             const rules = {
                 activity_name: {
                     required: true,
@@ -101,8 +142,9 @@
                 }
             };
 
+            // 提交表單
             const handleSubmit = async (e) => {
-        e.preventDefault();
+                e.preventDefault();
                 try {
                     // 先進行表單驗證
                     await formRef.value?.validate();
@@ -151,7 +193,7 @@
                         const response = await axios.post('/admin-dashboard/entertainment/activities/create/',
                             submitData,
                             {
-            headers: {
+                                headers: {
                                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
                                     'Content-Type': 'application/json'
                                 }
@@ -165,7 +207,7 @@
                             setTimeout(() => {
                                 window.location.href = '/admin-dashboard/entertainment/activities/?sort=desc';
                             }, 1500);
-                } else {
+                        } else {
                             throw new Error(response.data.message || '建立活動失敗');
                         }
                     } catch (error) {
@@ -178,6 +220,7 @@
                 }
             };
 
+            // 重置表單
             const resetForm = () => {
                 formValue.value = {
                     activity_name: '',
@@ -201,7 +244,8 @@
                 handleSubmit,
                 handleMessage,
                 handleBack,
-                resetForm
+                resetForm,
+                handleImageUpload
             };
         },
         template: `
