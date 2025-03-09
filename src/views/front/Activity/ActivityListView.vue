@@ -1,22 +1,43 @@
 // 主題育樂活動列表頁面元件
-<script>
+<script setup lang="ts">
+import { ref } from 'vue';
+import type { Ref } from 'vue';
+
+// 匯入共用元件
+import Banner from '@/components/Banner.vue';
+import Footer from '@/components/Footer.vue';
+
 // 匯入活動列表元件
 import ActivityList from '@/views/front/Activity/ActivityList.vue';
 
-export default {
-  name: 'ActivityListView',
-  components: {
-    ActivityList, // 註冊活動列表元件
-  },
-};
+// 設定頁面標題
+const title: Ref<string> = ref('主題育樂');
+const subTitle: Ref<string> = ref('探索精彩的主題活動');
 </script>
 
 <template>
-  <!-- 主題育樂活動列表頁面容器 -->
-  <div class="activity-list">
-    <!-- 活動列表元件 -->
-    <ActivityList />
-  </div>
+  <main>
+    <!-- 頁面橫幅 -->
+    <Banner bg-url="/images/banner.jpg">
+      <template #title>
+        {{ title }}
+      </template>
+      <template #sec-title>
+        {{ subTitle }}
+      </template>
+    </Banner>
+
+    <!-- 活動列表容器 -->
+    <div class="container mx-auto px-4 py-8">
+      <ActivityList />
+    </div>
+
+    <!-- 路由視圖 -->
+    <router-view />
+  </main>
+
+  <!-- 頁尾 -->
+  <Footer />
 </template>
 
 <style scoped>

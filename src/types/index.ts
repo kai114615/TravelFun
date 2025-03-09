@@ -107,3 +107,4 @@ export enum Sort {
 }
 
 export * from './naive.ts';
+export * from './activity';

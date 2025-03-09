@@ -2,22 +2,10 @@
 import axios from 'axios';
 import { defineComponent } from 'vue';
 import { NButton, NCard, NPagination, NSelect, NTooltip } from 'naive-ui';
+import { EventStatus, STATUS_MAP, STATUS_OPTIONS } from '@/types/activity';
+import type { Activity } from '@/types/activity';
 
 // import { CalendarOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
-
-// 定義活動介面
-interface Activity {
-  id: number
-  uid: string
-  activity_name: string
-  description: string
-  location: string
-  start_date: string
-  end_date: string
-  ticket_price: string
-  image_url: string | string[]
-  sortTime?: number
-}
 
 // 定義分類活動介面
 interface CategorizedActivities {
@@ -94,18 +82,6 @@ export const defaultActivityImages = [
   'https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=800&fm=jpg&fit=crop&q=80',
 ];
 
-// 常數定義
-const STATUS_OPTIONS = [
-  { label: '全部活動', value: '' },
-  { label: '只限今日', value: '只限今日' },
-  { label: '即將結束', value: '即將結束' },
-  { label: '進行中', value: '進行中' },
-  { label: '即將開始', value: '即將開始' },
-  { label: '未開始', value: '未開始' },
-  { label: '已結束', value: '已結束' },
-  { label: '未知', value: '未知' },
-];
-
 const PAGE_SIZE_OPTIONS = [12, 36, 60];
 
 export default defineComponent({
@@ -141,7 +117,7 @@ export default defineComponent({
       topPagination: true, // 控制上方分頁的顯示
       pageSizeOptions: PAGE_SIZE_OPTIONS, // 頁面大小選項
       selectedStatus: '', // 選擇的活動狀態
-      statusOptions: STATUS_OPTIONS, // 活動狀態選項
+      statusOptions: [...STATUS_OPTIONS], // 活動狀態選項
       // 新增搜尋相關的資料
       showSuggestions: false,
       searchSuggestions: [] as SearchSuggestion[],

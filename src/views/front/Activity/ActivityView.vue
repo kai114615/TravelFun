@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // 匯入 Vue 的響應式 API
 import { ref } from 'vue';
+import type { Ref } from 'vue';
 
 // 匯入共用元件
 import Banner from '@/components/Banner.vue';
@@ -10,7 +11,8 @@ import Footer from '@/components/Footer.vue';
 import ActivityList from '@/views/front/Activity/ActivityList.vue';
 
 // 設定頁面標題
-const title = ref('主題育樂');
+const title: Ref<string> = ref('主題育樂');
+const subTitle: Ref<string> = ref('探索精彩的主題活動');
 </script>
 
 <template>
@@ -22,7 +24,7 @@ const title = ref('主題育樂');
         {{ title }}
       </template>
       <template #sec-title>
-        探索精彩的主題活動
+        {{ subTitle }}
       </template>
     </Banner>
 

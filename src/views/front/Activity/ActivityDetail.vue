@@ -1,13 +1,25 @@
-<script>
+<script lang="ts">
 // 匯入所需的套件與工具
 import axios from 'axios';
+import { defineComponent } from 'vue';
 import { NButton, NCard, NSpace } from 'naive-ui';
+
+import { defaultActivityImages } from './ActivityList.vue'; // 從 ActivityList 匯入預設圖片設定
+import type { Activity } from '@/types/activity';
 
 // import { ArrowBackOutline, BusinessOutline, CalendarOutline, ChevronBackOutline, ChevronForwardOutline, LocationOutline, TicketOutline } from '@vicons/ionicons5';
 
-import { defaultActivityImages } from './ActivityList.vue'; // 從 ActivityList 匯入預設圖片設定
+interface ActivityDetailData {
+  activity: Activity | null
+  loading: boolean
+  error: string | null
+  defaultImages: string[]
+  currentImageIndex: number
+  randomDefaultImageIndex: number
+  hasMultipleImages: boolean
+}
 
-export default {
+export default defineComponent({
   name: 'ActivityDetail',
 
   // 註冊元件
@@ -26,7 +38,7 @@ export default {
   },
 
   // 元件資料定義
-  data() {
+  data(): ActivityDetailData {
     return {
       activity: null, // 活動詳細資料
       loading: true, // 讀取狀態標記
@@ -55,7 +67,8 @@ export default {
         // 先嘗試從靜態 JSON 檔案讀取資料
         try {
           const staticData = await import('@/assets/theme_entertainment/events_data.json');
-          const foundActivity = staticData.default.find(activity => activity.uid === id);
+          const activities = staticData.default as Activity[];
+          const foundActivity = activities.find(activity => activity.uid === id);
 
           if (foundActivity) {
             this.activity = foundActivity;
@@ -86,7 +99,7 @@ export default {
     // === 日期格式化方法 ===
 
     // 將日期字串格式化為本地日期格式
-    formatDate(dateString) {
+    formatDate(dateString: string | null | undefined) {
       if (!dateString)
         return '時間未定';
       const date = new Date(dateString);
@@ -145,7 +158,7 @@ export default {
     },
 
     // 解析圖片網址字串
-    parseImageUrlString(urlString) {
+    parseImageUrlString(urlString: string) {
       try {
         return JSON.parse(urlString);
       }
@@ -159,7 +172,7 @@ export default {
     },
 
     // 過濾並清理圖片網址清單
-    filterAndCleanImageUrls(urls) {
+    filterAndCleanImageUrls(urls: string[]) {
       return urls
         .filter(url => url && url.trim()) // 過濾無效網址
         .map(url => url.trim()); // 清理網址字串
@@ -191,24 +204,27 @@ export default {
     // === 錯誤處理方法 ===
 
     // 處理圖片載入錯誤
-    handleImageError(e) {
+    handleImageError(e: Event) {
       if (this.activity) {
         const storageKey = `activity_image_${this.activity.id}`;
         const newIndex = this.getRandomUniqueImageIndex();
-        localStorage.setItem(storageKey, newIndex);
-        e.target.src = this.defaultImages[newIndex];
+        localStorage.setItem(storageKey, newIndex.toString());
+        (e.target as HTMLImageElement).src = this.defaultImages[newIndex];
       }
-      e.target.onerror = null;
+      (e.target as HTMLImageElement).onerror = null;
     },
 
     // 取得隨機且未使用的圖片索引
     getRandomUniqueImageIndex() {
       // 取得已使用的圖片索引
-      const usedIndexes = new Set();
+      const usedIndexes = new Set<number>();
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key.startsWith('activity_image_'))
-          usedIndexes.add(Number.parseInt(localStorage.getItem(key)));
+        if (key && key.startsWith('activity_image_')) {
+          const value = localStorage.getItem(key);
+          if (value)
+            usedIndexes.add(Number.parseInt(value));
+        }
       }
 
       // 產生可用的圖片索引清單
@@ -229,7 +245,7 @@ export default {
       return availableIndexes[Math.floor(Math.random() * availableIndexes.length)];
     },
   },
-};
+});
 </script>
 
 <template>
@@ -516,14 +532,5 @@ export default {
     height: 8px;
     margin: 0 3px;
   }
-}
-
-/* 移除舊的 icon-wrapper 相關樣式 */
-.icon-wrapper {
-  display: none;
-}
-
-.info-icon {
-  display: none;
 }
 </style>

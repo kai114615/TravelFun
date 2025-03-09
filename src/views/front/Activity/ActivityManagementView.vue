@@ -1,57 +1,61 @@
-<script>
+<script lang="ts">
+import { defineComponent } from 'vue';
+import type { AxiosError, AxiosInstance } from 'axios';
 import axios from 'axios';
+import type { ApiResponse as ActivityApiResponse, Event as ActivityEvent, EventStatus } from '@/types/activity';
+import { STATUS_CLASSES, STATUS_MAP, STATUS_OPTIONS } from '@/types/activity';
 
-export default {
+export default defineComponent({
   name: 'ThemeEntertainmentAdmin',
 
   emits: ['showError'],
 
   data() {
     return {
-      events: [],
+      events: [] as ActivityEvent[],
       total: 0,
       loading: false,
-      error: null,
+      error: null as string | null,
       baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000',
+      axiosInstance: null as AxiosInstance | null,
+      statusOptions: STATUS_OPTIONS,
     };
   },
 
   created() {
+    this.initializeAxios();
     this.fetchEvents();
   },
 
-  mounted() {
-    window.addEventListener('unhandledrejection', (event) => {
-      console.error('Unhandled promise rejection:', event.reason);
-      this.error = '發生未預期的錯誤';
-    });
-  },
-
-  beforeUnmount() {
-    window.removeEventListener('unhandledrejection', () => { });
-  },
   methods: {
-    async fetchEvents() {
+    // 初始化 Axios 實例
+    initializeAxios(): void {
+      this.axiosInstance = axios.create({
+        baseURL: this.baseURL,
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      this.axiosInstance.interceptors.request.use((config) => {
+        const token = localStorage.getItem('token');
+        if (token)
+          config.headers.Authorization = `Bearer ${token}`;
+
+        return config;
+      });
+    },
+
+    // 取得活動列表
+    async fetchEvents(): Promise<void> {
+      if (!this.axiosInstance)
+        return;
+
       try {
         this.loading = true;
-        const axiosInstance = axios.create({
-          baseURL: this.baseURL,
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        });
-
-        axiosInstance.interceptors.request.use((config) => {
-          const token = localStorage.getItem('token');
-          if (token)
-            config.headers.Authorization = `Bearer ${token}`;
-
-          return config;
-        });
-
-        const response = await axiosInstance.get('/admin-dashboard/entertainment/activities/');
+        const response = await this.axiosInstance.get<ActivityApiResponse>('/admin-dashboard/entertainment/activities/');
 
         if (response.data.status === 'success') {
           this.events = response.data.data.map(event => ({
@@ -66,8 +70,8 @@ export default {
         }
       }
       catch (error) {
-        console.error('Error fetching events:', error);
-        this.error = this.handleError(error);
+        console.error('獲取活動列表錯誤:', error);
+        this.error = this.handleError(error as AxiosError);
         this.$emit('showError', this.error);
       }
       finally {
@@ -75,78 +79,96 @@ export default {
       }
     },
 
-    formatDate(dateString) {
+    // 格式化日期
+    formatDate(dateString: string): string {
       if (!dateString)
         return '';
       const date = new Date(dateString);
       return date.toISOString().split('T')[0];
     },
 
-    formatDateRange(start, end) {
+    // 格式化日期範圍
+    formatDateRange(start: string, end: string): string {
       return `${start} ~ ${end}`;
     },
 
-    getStatusText(event) {
+    // 取得活動狀態文字
+    getStatusText(event: ActivityEvent): keyof typeof STATUS_CLASSES {
       const today = new Date();
       const startDate = new Date(event.start_date);
       const endDate = new Date(event.end_date);
+      const threeDays = 3 * 24 * 60 * 60 * 1000; // 3天的毫秒數
 
-      if (startDate > today)
-        return '即將開始';
+      // 檢查是否為當日活動
+      const isSameDay = startDate.toDateString() === endDate.toDateString();
+      if (isSameDay && startDate.toDateString() === today.toDateString())
+        return '只限今日';
+
+      // 檢查是否已結束
       if (endDate < today)
         return '已結束';
-      return '進行中';
+
+      // 檢查是否即將結束（3天內）
+      const endDiff = endDate.getTime() - today.getTime();
+      if (endDiff <= threeDays && endDiff > 0)
+        return '即將結束';
+
+      // 檢查是否進行中
+      if (today >= startDate)
+        return '進行中';
+
+      // 檢查是否即將開始（3天內）
+      const startDiff = startDate.getTime() - today.getTime();
+      if (startDiff <= threeDays)
+        return '即將開始';
+
+      // 檢查是否未開始
+      if (startDiff > threeDays)
+        return '未開始';
+
+      // 默認情況
+      return '未知';
     },
 
-    getStatusClass(event) {
+    // 取得狀態樣式類別
+    getStatusClass(event: ActivityEvent): string {
       const status = this.getStatusText(event);
       const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full';
-
-      switch (status) {
-        case '即將開始':
-          return `${baseClasses} bg-blue-100 text-blue-800`;
-        case '進行中':
-          return `${baseClasses} bg-green-100 text-green-800`;
-        case '已結束':
-          return `${baseClasses} bg-gray-100 text-gray-800`;
-        default:
-          return baseClasses;
-      }
+      return `${baseClasses} ${STATUS_CLASSES[status]}`;
     },
 
-    getStatusCount(status) {
-      return this.events.filter(event => this.getStatusText(event) === status).length;
+    // 取得特定狀態的活動數量
+    getStatusCount(status: string): number {
+      const targetStatus = STATUS_MAP[status as keyof typeof STATUS_MAP];
+      return this.events.filter(event => this.getStatusText(event) === targetStatus).length;
     },
 
-    handleError(error) {
+    // 處理錯誤訊息
+    handleError(error: AxiosError): string {
       if (error.response) {
         const status = error.response.status;
-        switch (status) {
-          case 401:
-            return '未授權訪問，請重新登入';
-          case 403:
-            return '沒有權限訪問此資源';
-          case 404:
-            return '找不到請求的資源';
-          case 500:
-            return '伺服器錯誤，請稍後再試';
-          default:
-            return error.response.data.message || '發生未知錯誤';
-        }
+        const errorMessages = {
+          401: '未授權訪問，請重新登入',
+          403: '沒有權限訪問此資源',
+          404: '找不到請求的資源',
+          500: '伺服器錯誤，請稍後再試',
+        };
+        return errorMessages[status as keyof typeof errorMessages]
+          || (error.response.data as any).message
+          || '發生未知錯誤';
       }
-      else if (error.request) {
+      if (error.request)
         return '無法連接到伺服器，請檢查網路連接';
-      }
-      else {
-        return error.message || '發生未知錯誤';
-      }
+
+      return error.message || '發生未知錯誤';
     },
 
-    async handleRefresh() {
+    // 重新整理資料
+    async handleRefresh(): Promise<void> {
       await this.fetchEvents();
     },
   },
-};
+});
 </script>
 
 <template>
@@ -163,7 +185,7 @@ export default {
       </button>
     </div>
 
-    <!-- 1. 頂部功能區 -->
+    <!-- 頂部功能區 -->
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold">
         主題育樂活動管理
@@ -171,8 +193,7 @@ export default {
       <div class="flex gap-4">
         <button
           class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-          :disabled="loading"
-          @click="handleRefresh"
+          :disabled="loading" @click="handleRefresh"
         >
           <span v-if="!loading">重新整理</span>
           <span v-else>載入中...</span>
@@ -180,8 +201,9 @@ export default {
       </div>
     </div>
 
-    <!-- 優化數據統計卡片 -->
+    <!-- 數據統計卡片 -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <!-- 總活動數 -->
       <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
         <div class="flex items-center justify-between">
           <div>
@@ -202,6 +224,8 @@ export default {
           </div>
         </div>
       </div>
+
+      <!-- 進行中活動 -->
       <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
         <div class="flex items-center justify-between">
           <div>
@@ -214,14 +238,13 @@ export default {
           </div>
           <div class="text-green-500">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
         </div>
       </div>
+
+      <!-- 即將開始活動 -->
       <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
         <div class="flex items-center justify-between">
           <div>
@@ -242,6 +265,8 @@ export default {
           </div>
         </div>
       </div>
+
+      <!-- 已結束活動 -->
       <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
         <div class="flex items-center justify-between">
           <div>
@@ -261,55 +286,37 @@ export default {
       </div>
     </div>
 
-    <!-- 優化活動列表 -->
+    <!-- 活動列表 -->
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th
-                scope="col"
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 活動資訊
               </th>
-              <th
-                scope="col"
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 主辦單位
               </th>
-              <th
-                scope="col"
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 地點
               </th>
-              <th
-                scope="col"
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 時間
               </th>
-              <th
-                scope="col"
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 狀態
               </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr
-              v-for="event in events" :key="event.id"
-              class="hover:bg-gray-50 transition-colors duration-200"
-            >
+            <tr v-for="event in events" :key="event.id" class="hover:bg-gray-50 transition-colors duration-200">
               <td class="px-6 py-4">
                 <div class="flex items-center space-x-3">
                   <div class="flex-shrink-0 w-10 h-10">
                     <img
-                      class="w-10 h-10 rounded-full object-cover"
-                      :src="event.image_url || 'default-image.jpg'" :alt="event.activity_name"
+                      class="w-10 h-10 rounded-full object-cover" :src="event.image_url || '/default-image.jpg'"
+                      :alt="event.activity_name"
                     >
                   </div>
                   <div>
@@ -341,14 +348,14 @@ export default {
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <span
-                  :class="getStatusClass(event)"
-                  class="inline-flex items-center px-3 py-1 rounded-full text-sm"
-                >
+                <span :class="getStatusClass(event)" class="inline-flex items-center px-3 py-1 rounded-full text-sm">
                   <span
                     class="w-2 h-2 mr-2 rounded-full" :class="{
                       'bg-green-500': getStatusText(event) === '進行中',
                       'bg-blue-500': getStatusText(event) === '即將開始',
+                      'bg-yellow-500': getStatusText(event) === '即將結束',
+                      'bg-red-500': getStatusText(event) === '只限今日',
+                      'bg-purple-500': getStatusText(event) === '未開始',
                       'bg-gray-500': getStatusText(event) === '已結束',
                     }"
                   />
@@ -370,27 +377,18 @@ export default {
 
 <style scoped>
 .theme-entertainment-admin {
-    padding: 1.5rem;
-    min-height: 100vh;
-    background-color: #f3f4f6;
+  padding: 1.5rem;
+  min-height: 100vh;
+  background-color: #f3f4f6;
 }
 
 /* 添加卡片動畫效果 */
 .hover\:shadow-xl {
-    transition: all 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 /* 添加表格動畫效果 */
 .transition-colors {
-    transition: background-color 0.2s ease;
-}
-
-/* 狀態標籤樣式 */
-.status-badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm;
-}
-
-.status-dot {
-    @apply w-2 h-2 mr-2 rounded-full;
+  transition: background-color 0.2s ease;
 }
 </style>
