@@ -30,6 +30,9 @@
 {% endblock %}
 
 {% block content %}
+<!-- CSRF令牌 -->
+{% csrf_token %}
+
 <div id="app">
     <!-- Vue 應用將在這裡渲染 -->
 </div>
@@ -164,16 +167,16 @@
 
                     // 準備要發送的數據
                     const submitData = {
-                        uid: Date.now().toString(), // 生成唯一ID
+                        uid: `manual-${Date.now()}`, // 生成唯一ID
                         activity_name: formValue.value.activity_name,
                         description: formValue.value.description,
-                        organizer: '', // 可為空
+                        organizer: formValue.value.organizer || '', // 使用空字符串代替undefined
                         address: formValue.value.location, // 使用location作為address
                         location: formValue.value.location,
                         start_date: formatDate(formValue.value.date_range?.[0]),
                         end_date: formatDate(formValue.value.date_range?.[1]),
-                        latitude: null,
-                        longitude: null,
+                        latitude: null, // 由後端處理或後續優化
+                        longitude: null, // 由後端處理或後續優化
                         ticket_price: formValue.value.ticket_price || '',
                         source_url: '',
                         image_url: formValue.value.image || ''
@@ -190,11 +193,25 @@
                     console.log('Submitting data:', submitData); // 用於調試
 
                     try {
+                        // 獲取CSRF令牌
+                        let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                        if (!csrfToken) {
+                            // 如果沒有在頁面中找到csrfmiddlewaretoken，嘗試從cookie中獲取
+                            const csrfCookie = document.cookie
+                                .split('; ')
+                                .find(row => row.startsWith('csrftoken='));
+                            if (csrfCookie) {
+                                csrfToken = csrfCookie.split('=')[1];
+                            }
+                        }
+
+                        console.log('使用的CSRF令牌:', csrfToken); // 調試用
+
                         const response = await axios.post('/admin-dashboard/entertainment/activities/create/',
                             submitData,
                             {
                                 headers: {
-                                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                                    'X-CSRFToken': csrfToken,
                                     'Content-Type': 'application/json'
                                 }
                             }
@@ -203,10 +220,20 @@
                         console.log('Response:', response.data); // 用於調試
 
                         if (response.data.status === 'success') {
-                            message.value.success('活動建立成功');
+                            // 顯示更明顯的成功訊息
+                            console.log('活動建立成功，活動ID:', response.data.id);
+                            console.log('活動建立時間:', response.data.created_at);
+                            message.value.success(`活動建立成功！建立時間: ${response.data.created_at}`);
+
+                            // 顯示成功訊息的彈窗或UI元素（如果需要）
+                            // 這裡可以添加其他UI反饋
+
                             setTimeout(() => {
-                                window.location.href = '/admin-dashboard/entertainment/activities/?sort=desc';
-                            }, 1500);
+                                // 使用絕對路徑確保正確跳轉
+                                const baseUrl = window.location.origin;
+                                window.location.href = `${baseUrl}/admin-dashboard/entertainment/activities/`;
+                                console.log('正在跳轉到:', `${baseUrl}/admin-dashboard/entertainment/activities/`);
+                            }, 2500); // 延長等待時間，確保用戶能看到成功訊息
                         } else {
                             throw new Error(response.data.message || '建立活動失敗');
                         }

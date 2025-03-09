@@ -25,6 +25,10 @@ from .serializers import ActivitySerializer
 # 工具
 import json
 import logging
+import uuid
+from django.utils import timezone
+import pytz
+from django.conf import settings
 
 # 設置日誌
 logger = logging.getLogger(__name__)
@@ -297,6 +301,9 @@ def create_event(request):
         try:
             data = json.loads(request.body)
 
+            # 記錄接收到的數據，用於調試
+            logger.info(f"接收到的活動數據: {data}")
+
             # 驗證必要欄位
             required_fields = ['activity_name', 'description', 'location', 'start_date', 'end_date']
             for field in required_fields:
@@ -306,37 +313,61 @@ def create_event(request):
                         'message': f'缺少必要欄位: {field}'
                     }, status=400)
 
+            # 如果沒有提供uid，則生成一個
+            if not data.get('uid'):
+                data['uid'] = f"manual-{uuid.uuid4()}"
             # 檢查 uid 是否存在
-            if Events.objects.filter(uid=data.get('uid')).exists():
+            elif Events.objects.filter(uid=data.get('uid')).exists():
                 return JsonResponse({
                     'status': 'error',
                     'message': 'uid 已存在'
                 }, status=400)
+
+            # 處理日期格式（確保是字符串格式的日期）
+            for date_field in ['start_date', 'end_date']:
+                if isinstance(data.get(date_field), list):
+                    # 如果是時間戳列表，取第一個值
+                    data[date_field] = data[date_field][0]
+
+            # 因為 USE_TZ = False，所以 timezone.now() 直接返回台灣時間
+            # 不需要額外的時區設置
 
             # 創建新活動
             new_event = Events.objects.create(
                 uid=data.get('uid'),
                 activity_name=data.get('activity_name'),
                 description=data.get('description'),
-                organizer=data.get('organizer'),
-                address=data.get('address'),
+                organizer=data.get('organizer', ''),
+                address=data.get('address', ''),
                 start_date=data.get('start_date'),
                 end_date=data.get('end_date'),
                 location=data.get('location'),
                 latitude=data.get('latitude'),
                 longitude=data.get('longitude'),
-                ticket_price=data.get('ticket_price'),
-                source_url=data.get('source_url'),
+                ticket_price=data.get('ticket_price', ''),
+                source_url=data.get('source_url', ''),
                 image_url=data.get('image_url', '')
             )
+
+            # 直接獲取創建時間（已經是台灣時間）
+            current_time = new_event.created_at.strftime('%Y-%m-%d %H:%M:%S')
+
+            # 直接輸出到終端，確保可見
+            print(f"活動建立成功! 活動ID: {new_event.id}, 活動名稱: {new_event.activity_name}")
+            print(f"建立時間: {current_time} (台灣時區 UTC+8)")
+            logger.info(f"成功創建活動: {new_event.activity_name}, 活動ID: {new_event.id}, 建立時間: {current_time}")
 
             return JsonResponse({
                 'status': 'success',
                 'message': '活動創建成功',
-                'id': new_event.id
+                'id': new_event.id,
+                'created_at': current_time
             })
 
         except Exception as e:
+            # 直接輸出到終端，確保可見
+            print(f"創建活動時發生錯誤: {str(e)}")
+            logger.error(f"創建活動時出錯: {str(e)}")
             return JsonResponse({
                 'status': 'error',
                 'message': str(e)
@@ -404,3 +435,48 @@ def delete_event(request, event_id):
             'status': 'error',
             'message': str(e)
         }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def test_create_form(request):
+    """
+    測試活動創建表單的視圖
+    僅用於開發階段測試表單提交
+    """
+    return render(request, 'theme_entertainment/create.html', {
+        'page_title': '測試新增活動',
+        'page_description': '測試創建新的活動（開發用）'
+    })
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def test_timezone(request):
+    """
+    測試時區設置是否正確
+    此視圖將顯示:
+    1. 當前系統時間（台灣時間 UTC+8）
+    2. 創建的活動時間（也應為台灣時間）
+    """
+    # 獲取當前時間（由於 USE_TZ = False，這將直接是台灣時間）
+    now = timezone.now()
+
+    # 創建一個測試活動
+    test_event = Events.objects.create(
+        uid=f"timezone-test-{uuid.uuid4()}",
+        activity_name="時區測試活動",
+        description="這是一個用於測試時區設置的活動",
+        location="台北市",
+        start_date=now.date(),
+        end_date=now.date() + timezone.timedelta(days=7)
+    )
+
+    # 返回時間信息
+    return JsonResponse({
+        'system_time': now.strftime('%Y-%m-%d %H:%M:%S'),
+        'event_created_at': test_event.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'settings_time_zone': settings.TIME_ZONE,
+        'settings_use_tz': settings.USE_TZ,
+        'note': 'USE_TZ = False 表示所有時間直接以台灣時區(UTC+8)存儲，無需轉換'
+    })

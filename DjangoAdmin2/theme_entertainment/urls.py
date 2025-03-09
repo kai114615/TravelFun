@@ -45,6 +45,16 @@ urlpatterns = [
          views.create_event,
          name='create_activity'),
 
+    # 測試視圖 - 僅用於開發階段
+    path('activities/test-create/',
+         views.test_create_form,
+         name='test_create_form'),
+
+    # 時區測試視圖
+    path('activities/test-timezone/',
+         views.test_timezone,
+         name='test_timezone'),
+
     # 後台 API 路由 - 需要認證
     path('activities/list/',
          views.get_events,
