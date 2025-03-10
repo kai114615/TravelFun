@@ -1,0 +1,652 @@
+{% extends "admin-dashboard/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extracss %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link href="https://unpkg.com/naive-ui@2.34.4/dist/index.css" rel="stylesheet">
+<script src="https://kit.fontawesome.com/your-kit-code.js" crossorigin="anonymous"></script>
+
+<style>
+    /* 表單樣式 */
+    .n-form-item-label {
+        font-weight: 500;
+    }
+
+    .n-input,
+    .n-select,
+    .n-date-picker {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .n-button {
+        transition: all 0.2s ease;
+    }
+
+    .n-button:hover {
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- CSRF令牌 -->
+{% csrf_token %}
+
+<div id="app">
+    <!-- Vue 應用將在這裡渲染 -->
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/naive-ui@2.34.4/dist/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<script>
+    // 定義 Django 變量為 JavaScript 變量
+    const djangoPageTitle = "{{ page_title }}";
+    const djangoPageDescription = "{{ page_description }}";
+
+    const { createApp, ref, computed, onMounted } = Vue;
+    const { NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider, useMessage } = naive;
+
+    const app = createApp({
+        components: {
+            NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider
+        },
+        setup() {
+            // 頁面標題和描述
+            const pageTitle = ref(djangoPageTitle || '編輯活動');
+            const pageDescription = ref(djangoPageDescription || '編輯現有活動資料');
+
+            // 表單與訊息相關參考
+            const formRef = ref(null);
+            const message = ref(null);
+
+            // 獲取當前活動ID（從URL中獲取）
+            const eventId = "{{ event_id }}";
+
+            // 初始化訊息提供者
+            const handleMessage = () => {
+                message.value = useMessage();
+            };
+
+            // 返回列表頁面
+            const handleBack = () => {
+                window.location.href = '/admin-dashboard/entertainment/activities/';
+            };
+
+            // 表單資料
+            const formValue = ref({
+                activity_name: '',
+                description: '',
+                location: '',
+                address: '',
+                organizer: '',
+                source_url: '',
+                date_range: null,
+                start_time: null,
+                end_time: null,
+                ticket_price: '',
+                activity_type: null,
+                image: null,
+                imageFile: null,
+                original_image_url: '' // 儲存原始圖片URL
+            });
+
+            // 加載活動數據
+            const loadEventData = async () => {
+                try {
+                    console.log(`正在加載活動ID: ${eventId} 的數據`);
+                    // 使用基於數據庫ID查詢的API端點
+                    const response = await axios.get(`/admin-dashboard/entertainment/activities/api/id/${eventId}/`);
+                    console.log('API返回數據:', response.data);
+
+                    // 檢查和提取API返回的數據
+                    let eventData;
+                    if (response.data.status === 'success' && response.data.data) {
+                        eventData = response.data.data;
+                        console.log('成功提取活動數據:', eventData);
+                    } else {
+                        eventData = response.data;
+                        console.log('直接使用返回數據:', eventData);
+                    }
+
+                    // 處理日期時間
+                    // 開始日期時間
+                    let startDate = null;
+                    let startTime = null;
+                    let endDate = null;
+                    let endTime = null;
+
+                    console.log('處理日期時間 - 開始日期時間:', eventData.start_date);
+                    console.log('處理日期時間 - 結束日期時間:', eventData.end_date);
+
+                    // 如果有開始日期時間，解析為日期與時間部分
+                    if (eventData.start_date) {
+                        try {
+                            const startDateTime = new Date(eventData.start_date);
+                            startDate = new Date(
+                                startDateTime.getFullYear(),
+                                startDateTime.getMonth(),
+                                startDateTime.getDate()
+                            );
+                            startTime = startDateTime; // 時間選擇器可以使用完整日期對象
+                            console.log('解析開始日期:', startDate);
+                            console.log('解析開始時間:', startTime);
+                        } catch (error) {
+                            console.error('解析開始日期時間出錯:', error);
+                            message.value.warning('解析開始日期時間失敗，請手動設置');
+                        }
+                    }
+
+                    // 如果有結束日期時間，解析為日期與時間部分
+                    if (eventData.end_date) {
+                        try {
+                            const endDateTime = new Date(eventData.end_date);
+                            endDate = new Date(
+                                endDateTime.getFullYear(),
+                                endDateTime.getMonth(),
+                                endDateTime.getDate()
+                            );
+                            endTime = endDateTime; // 時間選擇器可以使用完整日期對象
+                            console.log('解析結束日期:', endDate);
+                            console.log('解析結束時間:', endTime);
+                        } catch (error) {
+                            console.error('解析結束日期時間出錯:', error);
+                            message.value.warning('解析結束日期時間失敗，請手動設置');
+                        }
+                    }
+
+                    // 設置表單值
+                    formValue.value = {
+                        ...formValue.value,
+                        activity_name: eventData.activity_name || '',
+                        description: eventData.description || '',
+                        location: eventData.location || '',
+                        address: eventData.address || '',
+                        organizer: eventData.organizer || '',
+                        source_url: eventData.source_url || '',
+                        date_range: (startDate && endDate) ? [startDate, endDate] : null,
+                        start_time: startTime,
+                        end_time: endTime,
+                        ticket_price: eventData.ticket_price || '',
+                        activity_type: eventData.activity_type || null,
+                        image: null,
+                        imageFile: null,
+                        original_image_url: eventData.image_url || ''
+                    };
+
+                    message.value.success('活動資料載入成功');
+                } catch (error) {
+                    console.error('加載活動數據失敗:', error);
+                    console.error('詳細錯誤:', error.response || error.message);
+                    message.value.error(`加載活動數據失敗: ${error.response?.data?.message || error.message}`);
+                }
+            };
+
+            // 在組件掛載後加載數據
+            onMounted(() => {
+                loadEventData();
+            });
+
+            // 活動類型選項
+            const activityTypes = [
+                { label: '展覽', value: '展覽' },
+                { label: '表演', value: '表演' },
+                { label: '音樂會', value: '音樂會' },
+                { label: '戲劇', value: '戲劇' },
+                { label: '其他', value: '其他' }
+            ];
+
+            // 處理圖片上傳
+            const handleImageUpload = (options) => {
+                const { file } = options;
+                if (file.file) {
+                    // 保存檔案物件
+                    formValue.value.imageFile = file.file;
+
+                    // 同時建立預覽用的 base64
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file.file);
+                    reader.onload = () => {
+                        formValue.value.image = reader.result;
+                    };
+                }
+            };
+
+            // 圖片預覽
+            const imagePreview = ref('');
+            const showImagePreview = computed(() => Boolean(formValue.value.image || formValue.value.original_image_url));
+
+            // 獲取圖片顯示URL
+            const displayImageUrl = computed(() => formValue.value.image || formValue.value.original_image_url);
+
+            // 表單驗證規則
+            const rules = {
+                activity_name: {
+                    required: true,
+                    message: '請輸入活動名稱',
+                    trigger: 'blur',
+                    validator: (rule, value) => {
+                        if (value && value.length > 30) {
+                            return new Error('活動名稱不能超過30字');
+                        }
+                        return true;
+                    }
+                },
+                description: {
+                    required: true,
+                    message: '請輸入活動介紹',
+                    trigger: 'blur',
+                    validator: (rule, value) => {
+                        if (value && value.length > 500) {
+                            return new Error('活動介紹不能超過500字');
+                        }
+                        return true;
+                    }
+                },
+                location: {
+                    required: true,
+                    message: '請輸入活動地點',
+                    trigger: 'blur'
+                },
+                date_range: {
+                    required: true,
+                    message: '請選擇活動日期範圍',
+                    trigger: 'blur',
+                    validator: (rule, value) => {
+                        if (!value || !value[0] || !value[1]) {
+                            return new Error('請選擇完整的日期範圍');
+                        }
+                        return true;
+                    }
+                },
+                activity_type: {
+                    required: true,
+                    message: '請選擇活動類型',
+                    trigger: 'change'
+                },
+                address: {
+                    required: true,
+                    message: '請輸入活動詳細地址',
+                    trigger: 'blur'
+                },
+                organizer: {
+                    required: true,
+                    message: '請輸入主辦單位名稱',
+                    trigger: 'blur'
+                }
+            };
+
+            // 提交表單
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                try {
+                    // 先進行表單驗證
+                    await formRef.value?.validate();
+
+                    // 組合日期和時間為完整的日期時間字符串
+                    // 獲取日期部分
+                    const formatDateTime = () => {
+                        let startDateTime = null;
+                        let endDateTime = null;
+
+                        // 處理開始日期時間
+                        if (formValue.value.date_range && formValue.value.date_range[0]) {
+                            const startDate = formValue.value.date_range[0];
+
+                            if (formValue.value.start_time) {
+                                // 建立合併的日期時間對象
+                                const dateObj = new Date(startDate);
+                                const timeObj = new Date(formValue.value.start_time);
+
+                                dateObj.setHours(timeObj.getHours());
+                                dateObj.setMinutes(timeObj.getMinutes());
+
+                                // 格式化為 YYYY-MM-DD HH:MM:SS
+                                startDateTime = dateObj.toISOString().slice(0, 19).replace('T', ' ');
+                            } else {
+                                // 如果沒有時間，使用 00:00:00
+                                startDateTime = `${startDate.toISOString().split('T')[0]} 00:00:00`;
+                            }
+                        }
+
+                        // 處理結束日期時間
+                        if (formValue.value.date_range && formValue.value.date_range[1]) {
+                            const endDate = formValue.value.date_range[1];
+
+                            if (formValue.value.end_time) {
+                                // 建立合併的日期時間對象
+                                const dateObj = new Date(endDate);
+                                const timeObj = new Date(formValue.value.end_time);
+
+                                dateObj.setHours(timeObj.getHours());
+                                dateObj.setMinutes(timeObj.getMinutes());
+
+                                // 格式化為 YYYY-MM-DD HH:MM:SS
+                                endDateTime = dateObj.toISOString().slice(0, 19).replace('T', ' ');
+                            } else {
+                                // 如果沒有時間，使用 23:59:59
+                                endDateTime = `${endDate.toISOString().split('T')[0]} 23:59:59`;
+                            }
+                        }
+
+                        return { startDateTime, endDateTime };
+                    };
+
+                    // 獲取合併的日期時間
+                    const { startDateTime, endDateTime } = formatDateTime();
+                    console.log('合併後的開始日期時間:', startDateTime);
+                    console.log('合併後的結束日期時間:', endDateTime);
+
+                    // 檢查必要欄位
+                    const requiredFields = ['activity_name', 'address', 'organizer', 'description', 'location'];
+
+                    // 創建FormData對象用於提交包含檔案的資料
+                    const formData = new FormData();
+
+                    // 準備要發送的數據
+                    const submitData = {
+                        activity_name: formValue.value.activity_name,
+                        description: formValue.value.description,
+                        organizer: formValue.value.organizer || '',
+                        address: formValue.value.address || '',
+                        location: formValue.value.location,
+                        start_date: startDateTime,
+                        end_date: endDateTime,
+                        latitude: null, // 由後端處理或後續優化
+                        longitude: null, // 由後端處理或後續優化
+                        ticket_price: formValue.value.ticket_price || '',
+                        source_url: formValue.value.source_url || '',
+                        original_image_url: formValue.value.original_image_url || '' // 原始圖片路徑
+                    };
+
+                    console.log('準備提交的數據:', submitData); // 調試用
+
+                    for (const field of requiredFields) {
+                        if (!submitData[field]) {
+                            throw new Error(`${field} 是必填欄位`);
+                        }
+                    }
+
+                    // 將數據添加到FormData
+                    Object.keys(submitData).forEach(key => {
+                        formData.append(key, submitData[key]);
+                    });
+
+                    // 如果有新上傳圖片，添加到FormData
+                    if (formValue.value.imageFile) {
+                        formData.append('image', formValue.value.imageFile);
+                    }
+
+                    console.log('Submitting data with file:', formValue.value.imageFile); // 用於調試
+
+                    try {
+                        // 獲取CSRF令牌
+                        let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                        if (!csrfToken) {
+                            // 如果沒有在頁面中找到csrfmiddlewaretoken，嘗試從cookie中獲取
+                            const csrfCookie = document.cookie
+                                .split('; ')
+                                .find(row => row.startsWith('csrftoken='));
+                            if (csrfCookie) {
+                                csrfToken = csrfCookie.split('=')[1];
+                            }
+                        }
+
+                        console.log('使用的CSRF令牌:', csrfToken); // 調試用
+
+                        // 使用PUT方法更新活動
+                        const response = await axios({
+                            method: 'put', // 使用PUT方法
+                            url: `/admin-dashboard/entertainment/activities/update/${eventId}/`,
+                            data: formData,
+                            headers: {
+                                'X-CSRFToken': csrfToken,
+                                'Content-Type': 'multipart/form-data'
+                            }
+                        });
+
+                        console.log('Response:', response.data); // 用於調試
+
+                        if (response.data.status === 'success') {
+                            // 顯示更明顯的成功訊息
+                            console.log('活動更新成功，活動ID:', response.data.id);
+                            message.value.success(`活動更新成功！`);
+
+                            setTimeout(() => {
+                                // 使用絕對路徑確保正確跳轉
+                                const baseUrl = window.location.origin;
+                                window.location.href = `${baseUrl}/admin-dashboard/entertainment/activities/`;
+                                console.log('正在跳轉到:', `${baseUrl}/admin-dashboard/entertainment/activities/`);
+                            }, 2500); // 延長等待時間，確保用戶能看到成功訊息
+                        } else {
+                            throw new Error(response.data.message || '更新活動失敗');
+                        }
+                    } catch (error) {
+                        console.error('API Error:', error.response?.data || error);
+                        message.value.error(error.response?.data?.message || error.message || '更新活動失敗');
+                    }
+                } catch (error) {
+                    console.error('Form Error:', error);
+                    message.value.error(error.message || '表單驗證失敗');
+                }
+            };
+
+            // 重置表單
+            const resetForm = () => {
+                // 重新載入原始數據
+                loadEventData();
+                message.value.info('表單已重置為原始數據');
+            };
+
+            return {
+                formRef,
+                formValue,
+                activityTypes,
+                rules,
+                handleSubmit,
+                handleMessage,
+                handleBack,
+                resetForm,
+                handleImageUpload,
+                showImagePreview,
+                displayImageUrl,
+                onMounted,
+                pageTitle,
+                pageDescription
+            };
+        },
+        template: `
+        <n-message-provider>
+            <n-layout class="p-6" @mounted="handleMessage">
+                <div ref="mountHook"></div>
+                <n-card class="mb-6">
+                    <n-grid :cols="2">
+                        <n-grid-item>
+                            <h1 class="text-2xl font-bold mb-2">[[pageTitle]]</h1>
+                            <p class="text-gray-600">[[pageDescription]]</p>
+                        </n-grid-item>
+                        <n-grid-item class="text-right">
+                            <n-button type="default" @click="handleBack">
+                                <template #icon>&#8592;</template>
+                                返回列表
+                            </n-button>
+                        </n-grid-item>
+                    </n-grid>
+                </n-card>
+
+                <n-grid :x-gap="12" :cols="2">
+                    <n-grid-item span="1">
+                        <n-card title="活動基本資訊" class="mb-6">
+                            <n-form ref="formRef" :model="formValue" :rules="rules">
+                                <n-form-item label="活動名稱" path="activity_name">
+                                    <n-input
+                                        v-model:value="formValue.activity_name"
+                                        placeholder="請輸入活動名稱（最多30字）"
+                                        :maxlength="30"
+                                        show-count
+                                    />
+                                </n-form-item>
+
+                                <n-form-item label="主辦單位" path="organizer">
+                                    <n-input
+                                        v-model:value="formValue.organizer"
+                                        placeholder="請輸入主辦單位名稱"
+                                    />
+                                </n-form-item>
+
+                                <n-form-item label="請輸入活動介紹" path="description">
+                                    <n-input
+                                        v-model:value="formValue.description"
+                                        type="textarea"
+                                        placeholder="請輸入活動介紹（最多500字）"
+                                        :rows="4"
+                                        :maxlength="500"
+                                        show-count
+                                        :autosize="{ minRows: 4, maxRows: 8 }"
+                                    />
+                                </n-form-item>
+
+                                <n-form-item label="活動地點" path="location">
+                                    <n-input v-model:value="formValue.location" placeholder="請輸入活動地點"/>
+                                </n-form-item>
+
+                                <n-form-item label="活動詳細地址" path="address">
+                                    <n-input v-model:value="formValue.address" placeholder="請輸入活動詳細地址"/>
+                                </n-form-item>
+
+                                <n-grid :cols="2" :x-gap="12">
+                                    <n-grid-item>
+                                        <n-form-item label="活動日期" path="date_range">
+                                            <div style="max-width: 300px;">
+                                                <n-date-picker
+                                                    v-model:value="formValue.date_range"
+                                                    type="daterange"
+                                                    clearable
+                                                    start-placeholder="開始日期"
+                                                    end-placeholder="結束日期"
+                                                    :default-time="['00:00:00', '23:59:59']"
+                                                    style="width: 100%;"
+                                                />
+                                            </div>
+                                        </n-form-item>
+                                    </n-grid-item>
+                                    <n-grid-item>
+                                        <n-grid :cols="2" :x-gap="8">
+                                            <n-grid-item>
+                                                <n-form-item label="活動起始時間" path="start_time">
+                                                    <n-time-picker
+                                                        v-model:value="formValue.start_time"
+                                                        clearable
+                                                        format="HH:mm"
+                                                        :minutes-step="5"
+                                                        :minutes-options="[
+                                                            '00', '05', '10', '15', '20', '25',
+                                                            '30', '35', '40', '45', '50', '55'
+                                                        ]"
+                                                        :use-12-hours="false"
+                                                        placement="top-start"
+                                                        :is-hours-disabled="(hour) => false"
+                                                        :is-minutes-disabled="(minute) => minute % 5 !== 0"
+                                                        :actions="null"
+                                                        style="width: 100%;"
+                                                    />
+                                                </n-form-item>
+                                            </n-grid-item>
+                                            <n-grid-item>
+                                                <n-form-item label="活動結束時間" path="end_time">
+                                                    <n-time-picker
+                                                        v-model:value="formValue.end_time"
+                                                        clearable
+                                                        format="HH:mm"
+                                                        :minutes-step="5"
+                                                        :minutes-options="[
+                                                            '00', '05', '10', '15', '20', '25',
+                                                            '30', '35', '40', '45', '50', '55'
+                                                        ]"
+                                                        :use-12-hours="false"
+                                                        placement="top-start"
+                                                        :is-hours-disabled="(hour) => false"
+                                                        :is-minutes-disabled="(minute) => minute % 5 !== 0"
+                                                        :actions="null"
+                                                        style="width: 100%;"
+                                                    />
+                                                </n-form-item>
+                                            </n-grid-item>
+                                        </n-grid>
+                                    </n-grid-item>
+                                </n-grid>
+                            </n-form>
+                        </n-card>
+                    </n-grid-item>
+
+                    <n-grid-item span="1">
+                        <n-card title="活動詳細設定" class="mb-6">
+                            <n-form ref="formRef" :model="formValue" :rules="rules">
+                                <n-form-item label="票價資訊">
+                                    <n-input v-model:value="formValue.ticket_price" placeholder="請輸入票價資訊（若為免費活動可不填）"/>
+                                </n-form-item>
+
+                                <n-form-item label="活動類型" path="activity_type">
+                                    <n-select
+                                        v-model:value="formValue.activity_type"
+                                        :options="activityTypes"
+                                        placeholder="請選擇活動類型"
+                                    />
+                                </n-form-item>
+
+                                <n-form-item label="活動網址" path="source_url">
+                                    <n-input v-model:value="formValue.source_url" placeholder="請輸入活動官方網址"/>
+                                </n-form-item>
+
+                                <n-form-item label="活動圖片">
+                                    <n-upload
+                                        accept="image/*"
+                                        :max="1"
+                                        @change="handleImageUpload"
+                                        list-type="image-card"
+                                    >
+                                        <n-button>上傳新圖片</n-button>
+                                    </n-upload>
+                                    <p class="text-sm text-gray-500 mt-2">建議尺寸: 1200x630 像素，檔案大小不超過 2MB，上傳新圖片將替換原有圖片</p>
+                                </n-form-item>
+
+                                <!-- 圖片預覽區域，獨立顯示 -->
+                                <div v-if="showImagePreview" class="mb-6 mt-2 border-t pt-4 border-gray-200">
+                                    <h3 class="text-lg font-medium text-gray-700 mb-3">
+                                        [[formValue.image ? '新上傳圖片預覽' : '現有圖片']]
+                                    </h3>
+                                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                                        <p class="text-xs text-gray-500 text-left mt-2">
+                                            [[formValue.image ? '上傳的新圖片將替換原有圖片' : '目前使用的圖片']]
+                                        </p>
+                                        <img :src="displayImageUrl" class="mx-auto" style="max-width: 100%; max-height: 300px; object-fit: contain;" />
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between mt-6 space-x-12">
+                                    <n-button type="primary" @click="handleSubmit" size="large">
+                                        <template #icon>💾</template>
+                                        更新活動
+                                    </n-button>
+                                    <n-button type="warning" @click="resetForm" size="large">
+                                        <template #icon>🔄</template>
+                                        還原變更
+                                    </n-button>
+                                </div>
+                            </n-form>
+                        </n-card>
+                    </n-grid-item>
+                </n-grid>
+            </n-layout>
+        </n-message-provider>
+    `
+    });
+
+    // 設定Vue分隔符號
+    app.config.compilerOptions.delimiters = ['[[', ']]'];
+
+    app.mount('#app');
+</script>
+{% endblock %}

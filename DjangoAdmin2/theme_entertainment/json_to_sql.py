@@ -18,7 +18,7 @@ CONFIG = {
     },
     'sql': {
         'table_name': 'theme_events',  # 資料表名稱
-        'date_fields': ['start_date', 'end_date', 'created_at', 'updated_at'],  # 日期欄位清單
+        'datetime_fields': ['start_date', 'end_date', 'created_at', 'updated_at'],  # 日期欄位清單
         'batch_size': 100  # 批次處理筆數
     }
 }
@@ -70,15 +70,27 @@ def format_value(value: Any) -> str:
     return f"'{str(value)}'"
 
 def convert_datetime_format(date_str: str) -> str:
-    # 轉換日期時間格式為 MySQL 資料庫格式
+    # 轉換日期時間格式為 MySQL 資料庫格式 (YYYY-MM-DD HH:MM:SS)
     if not date_str or date_str == 'NULL':
         return 'NULL'
+
+    # 如果是已經格式化好的完整日期時間，直接返回
+    if isinstance(date_str, str) and len(date_str) >= 19 and 'T' in date_str:
+        try:
+            # 處理 ISO 格式 (2023-06-15T14:30:00.000Z)
+            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            return f"'{dt.strftime('%Y-%m-%d %H:%M:%S')}'"
+        except ValueError:
+            pass  # 如果解析失敗，繼續嘗試其他格式
 
     # 定義支援的日期格式清單
     formats = [
         '%Y-%m-%d %H:%M:%S',  # 西元年-月-日 時:分:秒
+        '%Y-%m-%dT%H:%M:%S',  # ISO 格式
+        '%Y-%m-%d %H:%M',     # 西元年-月-日 時:分
         '%Y-%m-%d',           # 西元年-月-日
         '%Y/%m/%d %H:%M:%S',  # 西元年/月/日 時:分:秒
+        '%Y/%m/%d %H:%M',     # 西元年/月/日 時:分
         '%Y/%m/%d'            # 西元年/月/日
     ]
 
@@ -86,9 +98,32 @@ def convert_datetime_format(date_str: str) -> str:
     for fmt in formats:
         try:
             dt = datetime.strptime(date_str, fmt)
-            return f"'{dt.strftime('%Y-%m-%d')}'"
+            # 確保返回完整的日期時間格式
+            if '%H' in fmt or '%T' in fmt:
+                # 如果原始格式包含時間，保留完整時間
+                return f"'{dt.strftime('%Y-%m-%d %H:%M:%S')}'"
+            else:
+                # 如果原始格式只有日期，添加默認時間 00:00:00
+                return f"'{dt.strftime('%Y-%m-%d')} 00:00:00'"
         except ValueError:
             continue
+        except TypeError:
+            # 處理非字符串類型
+            try:
+                if hasattr(date_str, 'strftime'):
+                    # 如果是日期對象，直接格式化
+                    return f"'{date_str.strftime('%Y-%m-%d %H:%M:%S')}'"
+            except Exception:
+                pass
+            break
+
+    # 如果所有格式都無法匹配，嘗試將其視為時間戳
+    try:
+        if isinstance(date_str, (int, float)):
+            dt = datetime.fromtimestamp(date_str)
+            return f"'{dt.strftime('%Y-%m-%d %H:%M:%S')}'"
+    except Exception:
+        pass
 
     return 'NULL'
 
@@ -98,30 +133,39 @@ def generate_upsert_sql(table_name: str, data: Dict[str, Any]) -> str:
     values = []
     updates = []
 
+    # 記錄日期時間欄位清單
+    datetime_fields = CONFIG.get('sql', {}).get('datetime_fields', [])
+
     # 處理每個欄位的資料
     for key, value in data.items():
-        columns.append(f"`{key}`")
+        # 只處理資料不為 None 的欄位
+        if value is not None:
+            columns.append(f"`{key}`")
 
-        # 根據欄位類型處理值
-        if key in ['start_date', 'end_date'] and value:
-            formatted_value = convert_datetime_format(str(value))
-        else:
-            formatted_value = format_value(value)
+            # 特殊處理日期時間欄位
+            if key in datetime_fields:
+                # 確保日期時間格式正確
+                formatted_value = convert_datetime_format(value)
+                values.append(formatted_value)
+                updates.append(f"`{key}`={formatted_value}")
+            else:
+                # 一般數據類型
+                values.append(format_value(value))
+                updates.append(f"`{key}`={format_value(value)}")
 
-        values.append(formatted_value)
+    # 忽略沒有資料的情況
+    if not columns:
+        return ""
 
-        # 不更新主鍵欄位
-        if key != 'uid':
-            updates.append(f"`{key}` = new.`{key}`")
+    # 生成 SQL 語句
+    sql = f"INSERT INTO `{table_name}` ({', '.join(columns)}) VALUES ({', '.join(values)})"
 
-    # 組合 SQL 語句
-    columns_str = ', '.join(columns)
-    values_str = ', '.join(values)
-    updates_str = ', '.join(updates)
+    # 如果需要更新，添加 ON DUPLICATE KEY UPDATE 子句
+    if updates:
+        sql += f" ON DUPLICATE KEY UPDATE {', '.join(updates)}"
+    sql += ";"
 
-    return f"""INSERT INTO `{table_name}` ({columns_str})
-            VALUES ({values_str}) AS new
-            ON DUPLICATE KEY UPDATE {updates_str};"""
+    return sql
 
 def process_event_data(event: Dict[str, Any]) -> Dict[str, Any]:
     # 處理活動資料，轉換為標準格式

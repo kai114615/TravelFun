@@ -22,8 +22,8 @@ class Events(models.Model):
     description = models.TextField(blank=True, null=True)
     organizer = models.CharField(max_length=255, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
-    start_date = models.DateField(blank=True, null=True)
-    end_date = models.DateField(blank=True, null=True)
+    start_date = models.DateTimeField(blank=True, null=True, verbose_name='開始日期時間')
+    end_date = models.DateTimeField(blank=True, null=True, verbose_name='結束日期時間')
     location = models.CharField(max_length=255, blank=True, null=True)
     latitude = models.DecimalField(
         max_digits=10, decimal_places=8, blank=True, null=True)

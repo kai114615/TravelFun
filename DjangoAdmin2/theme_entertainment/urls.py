@@ -60,10 +60,15 @@ urlpatterns = [
          views.get_events,
          name='admin_events'),
 
-    # 新增基於類的活動詳情視圖路由
+    # 活動詳情API視圖路由 - 原本是使用uid查詢
     path('activities/api/<str:id>/',
          views.ActivityDetailView.as_view(),
          name='activity_detail'),
+
+    # 新增使用數據庫id查詢的活動詳情API路由
+    path('activities/api/id/<int:event_id>/',
+         views.ActivityDetailByIdView.as_view(),
+         name='activity_detail_by_id'),
 
     path('activities/<int:event_id>/update/',
          views.update_event,
@@ -72,4 +77,9 @@ urlpatterns = [
     path('activities/<int:event_id>/delete/',
          views.delete_event,
          name='delete_event'),
+
+    # 新增編輯活動頁面路由
+    path('activities/<int:event_id>/edit/',
+         views.edit_event,
+         name='edit_event'),
 ]
