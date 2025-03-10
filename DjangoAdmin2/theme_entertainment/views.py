@@ -29,9 +29,14 @@ import uuid
 from django.utils import timezone
 import pytz
 from django.conf import settings
+import os
 
 # 設置日誌
 logger = logging.getLogger(__name__)
+
+# 媒體檔案設定
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(settings.BASE_DIR, 'media')
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -299,10 +304,29 @@ def create_event(request):
 
     elif request.method == "POST":
         try:
-            data = json.loads(request.body)
+            # 依據不同內容類型處理請求資料
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                image_file = None
+            else:  # 處理 multipart/form-data
+                data = request.POST.dict()
+                image_file = request.FILES.get('image')
+
+                # 日期欄位可能需要特殊處理，因為通過表單提交時格式不同
+                if 'date_range' in request.POST:
+                    # 日期範圍可能需要從字串轉換
+                    try:
+                        date_range = json.loads(request.POST.get('date_range'))
+                        if date_range and len(date_range) == 2:
+                            data['start_date'] = date_range[0]
+                            data['end_date'] = date_range[1]
+                    except:
+                        pass
 
             # 記錄接收到的數據，用於調試
             logger.info(f"接收到的活動數據: {data}")
+            if image_file:
+                logger.info(f"接收到的圖片: {image_file.name}, 大小: {image_file.size} bytes")
 
             # 驗證必要欄位
             required_fields = ['activity_name', 'description', 'location', 'start_date', 'end_date']
@@ -315,7 +339,7 @@ def create_event(request):
 
             # 如果沒有提供uid，則生成一個
             if not data.get('uid'):
-                data['uid'] = f"manual-{uuid.uuid4()}"
+                data['uid'] = f"{uuid.uuid4()}"
             # 檢查 uid 是否存在
             elif Events.objects.filter(uid=data.get('uid')).exists():
                 return JsonResponse({
@@ -329,8 +353,68 @@ def create_event(request):
                     # 如果是時間戳列表，取第一個值
                     data[date_field] = data[date_field][0]
 
-            # 因為 USE_TZ = False，所以 timezone.now() 直接返回台灣時間
-            # 不需要額外的時區設置
+            # 處理經緯度欄位（確保正確的數值類型）
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+
+            # 將 "null" 字符串或空字符串轉換為 None
+            if latitude == "null" or latitude == "" or latitude is None:
+                latitude = None
+            else:
+                try:
+                    latitude = float(latitude)  # 嘗試轉換為浮點數
+                except (TypeError, ValueError):
+                    latitude = None
+
+            if longitude == "null" or longitude == "" or longitude is None:
+                longitude = None
+            else:
+                try:
+                    longitude = float(longitude)  # 嘗試轉換為浮點數
+                except (TypeError, ValueError):
+                    longitude = None
+
+            # 處理票價欄位 (如果也是 decimal)
+            ticket_price = data.get('ticket_price', '')
+            if ticket_price == "null":
+                ticket_price = ''
+
+            # 處理圖片上傳
+            image_url = data.get('image_url', '')
+            if image_file:
+                try:
+                    # 從設定檔獲取 BASE_DIR 和 MEDIA_ROOT
+                    from django.conf import settings
+                    import os
+
+                    # 生成唯一檔名
+                    file_extension = image_file.name.split('.')[-1].lower()
+                    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+
+                    # 設定儲存路徑
+                    upload_dir = os.path.join('theme_entertainment', 'activities', 'images')
+                    full_dir_path = os.path.join(settings.MEDIA_ROOT, upload_dir)
+
+                    # 確保目錄存在
+                    os.makedirs(full_dir_path, exist_ok=True)
+
+                    # 完整檔案路徑
+                    file_path = os.path.join(full_dir_path, unique_filename)
+
+                    # 儲存檔案
+                    with open(file_path, 'wb+') as destination:
+                        for chunk in image_file.chunks():
+                            destination.write(chunk)
+
+                    # 設定可訪問的 URL
+                    image_url = f"{settings.MEDIA_URL}{upload_dir}/{unique_filename}"
+                    logger.info(f"圖片已保存到: {file_path}")
+                    logger.info(f"圖片 URL: {image_url}")
+
+                except Exception as img_err:
+                    logger.error(f"保存圖片時出錯: {str(img_err)}")
+                    print(f"保存圖片時出錯: {str(img_err)}")
+                    # 繼續執行，即使圖片上傳失敗
 
             # 創建新活動
             new_event = Events.objects.create(
@@ -342,11 +426,11 @@ def create_event(request):
                 start_date=data.get('start_date'),
                 end_date=data.get('end_date'),
                 location=data.get('location'),
-                latitude=data.get('latitude'),
-                longitude=data.get('longitude'),
-                ticket_price=data.get('ticket_price', ''),
+                latitude=latitude,  # 使用處理後的經緯度值
+                longitude=longitude,
+                ticket_price=ticket_price,
                 source_url=data.get('source_url', ''),
-                image_url=data.get('image_url', '')
+                image_url=image_url
             )
 
             # 直接獲取創建時間（已經是台灣時間）

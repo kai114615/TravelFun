@@ -42,7 +42,7 @@
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
 <script>
-    const { createApp, ref } = Vue;
+    const { createApp, ref, computed } = Vue;
     const { NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider, useMessage } = naive;
 
     const app = createApp({
@@ -69,12 +69,16 @@
                 activity_name: '',
                 description: '',
                 location: '',
+                address: '',
+                organizer: '',
+                source_url: '',
                 date_range: null,
                 start_time: null,
                 end_time: null,
                 ticket_price: '',
                 activity_type: null,
-                image: null
+                image: null,
+                imageFile: null
             });
 
             // 活動類型選項
@@ -90,6 +94,10 @@
             const handleImageUpload = (options) => {
                 const { file } = options;
                 if (file.file) {
+                    // 保存檔案物件
+                    formValue.value.imageFile = file.file;
+
+                    // 同時建立預覽用的 base64
                     const reader = new FileReader();
                     reader.readAsDataURL(file.file);
                     reader.onload = () => {
@@ -98,6 +106,10 @@
                 }
             };
 
+            // 圖片預覽
+            const imagePreview = ref('');
+            const showImagePreview = computed(() => Boolean(formValue.value.image));
+
             // 表單驗證規則
             const rules = {
                 activity_name: {
@@ -105,8 +117,8 @@
                     message: '請輸入活動名稱',
                     trigger: 'blur',
                     validator: (rule, value) => {
-                        if (value && value.length > 50) {
-                            return new Error('活動名稱不能超過50字');
+                        if (value && value.length > 30) {
+                            return new Error('活動名稱不能超過30字');
                         }
                         return true;
                     }
@@ -142,6 +154,16 @@
                     required: true,
                     message: '請選擇活動類型',
                     trigger: 'change'
+                },
+                address: {
+                    required: true,
+                    message: '請輸入活動詳細地址',
+                    trigger: 'blur'
+                },
+                organizer: {
+                    required: true,
+                    message: '請輸入主辦單位名稱',
+                    trigger: 'blur'
                 }
             };
 
@@ -165,32 +187,46 @@
                         return `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
                     };
 
+                    // 檢查必要欄位
+                    const requiredFields = ['activity_name', 'address', 'organizer', 'description', 'location', 'start_date', 'end_date'];
+
+                    // 創建FormData對象用於提交包含檔案的資料
+                    const formData = new FormData();
+
                     // 準備要發送的數據
                     const submitData = {
-                        uid: `manual-${Date.now()}`, // 生成唯一ID
+                        uid: `${Date.now()}`, // 生成唯一ID
                         activity_name: formValue.value.activity_name,
                         description: formValue.value.description,
                         organizer: formValue.value.organizer || '', // 使用空字符串代替undefined
-                        address: formValue.value.location, // 使用location作為address
+                        address: formValue.value.address || '', // 活動地址
                         location: formValue.value.location,
                         start_date: formatDate(formValue.value.date_range?.[0]),
                         end_date: formatDate(formValue.value.date_range?.[1]),
                         latitude: null, // 由後端處理或後續優化
                         longitude: null, // 由後端處理或後續優化
                         ticket_price: formValue.value.ticket_price || '',
-                        source_url: '',
-                        image_url: formValue.value.image || ''
+                        source_url: formValue.value.source_url || '',
+                        image_url: '' // 將由後端處理實際圖片路徑
                     };
 
-                    // 檢查必要欄位
-                    const requiredFields = ['activity_name', 'description', 'location', 'start_date', 'end_date'];
                     for (const field of requiredFields) {
                         if (!submitData[field]) {
                             throw new Error(`${field} 是必填欄位`);
                         }
                     }
 
-                    console.log('Submitting data:', submitData); // 用於調試
+                    // 將數據添加到FormData
+                    Object.keys(submitData).forEach(key => {
+                        formData.append(key, submitData[key]);
+                    });
+
+                    // 如果有圖片檔案，添加到FormData
+                    if (formValue.value.imageFile) {
+                        formData.append('image', formValue.value.imageFile);
+                    }
+
+                    console.log('Submitting data with file:', formValue.value.imageFile); // 用於調試
 
                     try {
                         // 獲取CSRF令牌
@@ -208,11 +244,11 @@
                         console.log('使用的CSRF令牌:', csrfToken); // 調試用
 
                         const response = await axios.post('/admin-dashboard/entertainment/activities/create/',
-                            submitData,
+                            formData,
                             {
                                 headers: {
                                     'X-CSRFToken': csrfToken,
-                                    'Content-Type': 'application/json'
+                                    'Content-Type': 'multipart/form-data' // 變更為multipart/form-data用於檔案上傳
                                 }
                             }
                         );
@@ -253,12 +289,16 @@
                     activity_name: '',
                     description: '',
                     location: '',
+                    address: '',
+                    organizer: '',
+                    source_url: '',
                     date_range: null,
                     start_time: null,
                     end_time: null,
                     ticket_price: '',
                     activity_type: null,
-                    image: null
+                    image: null,
+                    imageFile: null
                 };
                 formRef.value?.restoreValidation();
             };
@@ -272,7 +312,8 @@
                 handleMessage,
                 handleBack,
                 resetForm,
-                handleImageUpload
+                handleImageUpload,
+                showImagePreview
             };
         },
         template: `
@@ -300,9 +341,16 @@
                                 <n-form-item label="活動名稱" path="activity_name">
                                     <n-input
                                         v-model:value="formValue.activity_name"
-                                        placeholder="請輸入活動名稱（最多50字）"
-                                        :maxlength="50"
+                                        placeholder="請輸入活動名稱（最多30字）"
+                                        :maxlength="30"
                                         show-count
+                                    />
+                                </n-form-item>
+
+                                <n-form-item label="主辦單位" path="organizer">
+                                    <n-input
+                                        v-model:value="formValue.organizer"
+                                        placeholder="請輸入主辦單位名稱"
                                     />
                                 </n-form-item>
 
@@ -320,6 +368,10 @@
 
                                 <n-form-item label="活動地點" path="location">
                                     <n-input v-model:value="formValue.location" placeholder="請輸入活動地點"/>
+                                </n-form-item>
+
+                                <n-form-item label="活動詳細地址" path="address">
+                                    <n-input v-model:value="formValue.address" placeholder="請輸入活動詳細地址"/>
                                 </n-form-item>
 
                                 <n-grid :cols="2" :x-gap="12">
@@ -403,16 +455,30 @@
                                     />
                                 </n-form-item>
 
+                                <n-form-item label="活動網址" path="source_url">
+                                    <n-input v-model:value="formValue.source_url" placeholder="請輸入活動官方網址"/>
+                                </n-form-item>
+
                                 <n-form-item label="活動圖片">
                                     <n-upload
                                         accept="image/*"
                                         :max="1"
                                         @change="handleImageUpload"
+                                        list-type="image-card"
                                     >
                                         <n-button>上傳圖片</n-button>
                                     </n-upload>
-                                    <p class="text-sm text-gray-500 mt-2">建議尺寸: 1200x630 像素，檔案大小不超過 2MB</p>
+                                    <p class="text-sm text-gray-500 mt-2">建議尺寸: 1200x630 像素，檔案大小不超過 2MB，圖片將保存在服務器上</p>
                                 </n-form-item>
+
+                                <!-- 圖片預覽區域，獨立顯示 -->
+                                <div v-if="formValue.image" class="mb-6 mt-2 border-t pt-4 border-gray-200">
+                                    <h3 class="text-lg font-medium text-gray-700 mb-3">圖片預覽</h3>
+                                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                                        <p class="text-xs text-gray-500 text-left mt-2">上傳的圖片將顯示在活動詳情頁面</p>
+                                        <img :src="formValue.image" class="mx-auto" style="max-width: 100%; max-height: 300px; object-fit: contain;" />
+                                    </div>
+                                </div>
 
                                 <div class="flex justify-between mt-6 space-x-12">
                                     <n-button type="primary" @click="handleSubmit" size="large">
