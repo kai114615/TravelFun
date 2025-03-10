@@ -43,20 +43,34 @@
 
 <script>
     const { createApp, ref, computed } = Vue;
-    const { NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider, useMessage } = naive;
+    const {
+        NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker,
+        NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider,
+        useMessage
+    } = naive;
 
     const app = createApp({
         components: {
-            NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider
+            NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker,
+            NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider
         },
         setup() {
             // 表單與訊息相關參考
             const formRef = ref(null);
             const message = ref(null);
 
-            // 初始化訊息提供者
-            const handleMessage = () => {
-                message.value = useMessage();
+            // 訊息系統初始化
+            const initMessageSystem = () => {
+                if (message.value === null) {
+                    message.value = useMessage();
+                    console.log('訊息系統初始化完成');
+                }
+                return message.value;
+            };
+
+            // 掛載後立即初始化訊息系統
+            const initComponent = () => {
+                setTimeout(initMessageSystem, 100);
             };
 
             // 返回列表頁面
@@ -89,26 +103,6 @@
                 { label: '戲劇', value: '戲劇' },
                 { label: '其他', value: '其他' }
             ];
-
-            // 處理圖片上傳
-            const handleImageUpload = (options) => {
-                const { file } = options;
-                if (file.file) {
-                    // 保存檔案物件
-                    formValue.value.imageFile = file.file;
-
-                    // 同時建立預覽用的 base64
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file.file);
-                    reader.onload = () => {
-                        formValue.value.image = reader.result;
-                    };
-                }
-            };
-
-            // 圖片預覽
-            const imagePreview = ref('');
-            const showImagePreview = computed(() => Boolean(formValue.value.image));
 
             // 表單驗證規則
             const rules = {
@@ -167,52 +161,123 @@
                 }
             };
 
-            // 提交表單
+            // ===== 圖片處理 =====
+            // 處理圖片上傳
+            const handleImageUpload = (options) => {
+                const { file } = options;
+                if (file.file) {
+                    // 保存檔案物件
+                    formValue.value.imageFile = file.file;
+
+                    // 建立預覽用的 base64
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file.file);
+                    reader.onload = () => {
+                        formValue.value.image = reader.result;
+                    };
+                }
+            };
+
+            // 圖片預覽狀態
+            const showImagePreview = computed(() => Boolean(formValue.value.image));
+
+            // ===== 表單處理 =====
+            // 日期格式化輔助函數
+            const formatDate = (date) => {
+                if (!date) return null;
+                const d = new Date(date);
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            };
+
+            // UUID 生成函數
+            const generateUUID = () => {
+                const hexDigits = "0123456789abcdef";
+                let uuid = "";
+                for (let i = 0; i < 32; i++) {
+                    // UUID v4 版本的特定位置需要特定值
+                    if (i === 12) {
+                        uuid += "4"; // 版本4
+                    } else if (i === 16) {
+                        uuid += hexDigits[(Math.floor(Math.random() * 16) & 0x3) | 0x8]; // 變體
+                    } else {
+                        uuid += hexDigits[Math.floor(Math.random() * 16)];
+                    }
+                }
+                return uuid; // 32位字符，不含連字符
+            };
+
+            // 獲取 CSRF 令牌
+            const getCsrfToken = () => {
+                let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                if (!csrfToken) {
+                    const csrfCookie = document.cookie
+                        .split('; ')
+                        .find(row => row.startsWith('csrftoken='));
+                    if (csrfCookie) {
+                        csrfToken = csrfCookie.split('=')[1];
+                    }
+                }
+                console.log('使用的CSRF令牌:', csrfToken);
+                return csrfToken;
+            };
+
+            // 顯示操作結果訊息
+            const showResultMessage = (success, data) => {
+                // 確保訊息系統已初始化
+                const msgInstance = initMessageSystem();
+                const activityName = data.activity_name || '新活動';
+                const redirectUrl = data.redirect_url || `${window.location.origin}/admin-dashboard/entertainment/activities/`;
+
+                // 成功訊息內容
+                const successTitle = `活動「${activityName}」建立成功！`;
+                const successContent = `活動ID: ${data.id}\n建立時間: ${data.created_at}`;
+
+                if (success) {
+                    // 使用 Naive UI 訊息系統
+                    try {
+                        msgInstance.success({
+                            content: `${successTitle} ID: ${data.id}`,
+                            duration: 3000,
+                            closable: true
+                        });
+                    } catch (e) {
+                        console.error('Naive UI 訊息顯示失敗:', e);
+                    }
+
+                    // 使用瀏覽器內建 alert 作為備用
+                    alert(`${successTitle}\n\n${successContent}`);
+
+                    // 詢問用戶後續動作
+                    const confirmed = confirm('是否返回活動列表？');
+                    if (confirmed) {
+                        window.location.href = redirectUrl;
+                    } else {
+                        resetForm();
+                    }
+                } else {
+                    // 錯誤訊息
+                    try {
+                        msgInstance.error(data.message || '操作失敗');
+                    } catch (e) {
+                        alert(`操作失敗: ${data.message || '未知錯誤'}`);
+                    }
+                }
+            };
+
+            // 提交表單處理
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 try {
-                    // 先進行表單驗證
+                    // 表單驗證
                     await formRef.value?.validate();
 
-                    // 處理日期格式
-                    const formatDate = (date) => {
-                        if (!date) return null;
-                        const d = new Date(date);
-                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    };
+                    // 必要欄位檢查
+                    const requiredFields = ['activity_name', 'description', 'location', 'start_date', 'end_date'];
 
-                    // 處理時間格式
-                    const formatTime = (time) => {
-                        if (!time) return null;
-                        return `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
-                    };
-
-                    // 檢查必要欄位
-                    const requiredFields = ['activity_name', 'address', 'organizer', 'description', 'location', 'start_date', 'end_date'];
-
-                    // 創建FormData對象用於提交包含檔案的資料
+                    // 創建 FormData 用於提交
                     const formData = new FormData();
 
-                    // 生成UUID v4函數（不含連字符"-"）
-                    const generateUUID = () => {
-                        // 使用標準方法生成 UUID v4
-                        const hexDigits = "0123456789abcdef";
-                        let uuid = "";
-                        for (let i = 0; i < 32; i++) {
-                            const random = Math.floor(Math.random() * 16);
-                            // UUID v4 版本的特定位置需要特定值
-                            if (i === 12) {
-                                uuid += "4"; // 版本4
-                            } else if (i === 16) {
-                                uuid += hexDigits[(random & 0x3) | 0x8]; // 變體
-                            } else {
-                                uuid += hexDigits[random];
-                            }
-                        }
-                        return uuid; // 直接返回32位字符，不含連字符
-                    };
-
-                    // 直接生成一個 UUID 字符串
+                    // 生成 UUID
                     const generatedUUID = generateUUID();
                     console.log("生成的UUID:", generatedUUID);
 
@@ -221,96 +286,77 @@
                         uid: generatedUUID,
                         activity_name: formValue.value.activity_name,
                         description: formValue.value.description,
-                        organizer: formValue.value.organizer || '', // 使用空字符串代替undefined
-                        address: formValue.value.address || '', // 活動地址
+                        organizer: formValue.value.organizer || '',
+                        address: formValue.value.address || '',
                         location: formValue.value.location,
                         start_date: formatDate(formValue.value.date_range?.[0]),
                         end_date: formatDate(formValue.value.date_range?.[1]),
-                        latitude: null, // 由後端處理或後續優化
-                        longitude: null, // 由後端處理或後續優化
+                        latitude: null,
+                        longitude: null,
                         ticket_price: formValue.value.ticket_price || '',
                         source_url: formValue.value.source_url || '',
-                        image_url: '' // 將由後端處理實際圖片路徑
+                        image_url: ''
                     };
 
+                    // 驗證必填欄位
                     for (const field of requiredFields) {
                         if (!submitData[field]) {
                             throw new Error(`${field} 是必填欄位`);
                         }
                     }
 
-                    // 先明確設置 UID
+                    // 設置 UID
                     formData.append('uid', generatedUUID);
-                    console.log(`直接設置 UID: ${formData.get('uid')}`);
 
-                    // 將其他數據添加到FormData
+                    // 將其他數據添加到 FormData
                     Object.keys(submitData).forEach(key => {
-                        if (key !== 'uid') { // 跳過 uid，因為已經添加過了
+                        if (key !== 'uid') {
                             formData.append(key, submitData[key]);
                         }
                     });
 
-                    // 如果有圖片檔案，添加到FormData
+                    // 如果有圖片檔案，添加到 FormData
                     if (formValue.value.imageFile) {
                         formData.append('image', formValue.value.imageFile);
                     }
 
-                    console.log('Submitting data with file:', formValue.value.imageFile); // 用於調試
-                    console.log('Form data keys:', [...formData.keys()]); // 查看FormData包含哪些鍵
-                    console.log('UUID being sent:', formData.get('uid')); // 查看傳送的UUID
+                    // 獲取 CSRF 令牌
+                    const csrfToken = getCsrfToken();
 
+                    // 發送 API 請求
                     try {
-                        // 獲取CSRF令牌
-                        let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-                        if (!csrfToken) {
-                            // 如果沒有在頁面中找到csrfmiddlewaretoken，嘗試從cookie中獲取
-                            const csrfCookie = document.cookie
-                                .split('; ')
-                                .find(row => row.startsWith('csrftoken='));
-                            if (csrfCookie) {
-                                csrfToken = csrfCookie.split('=')[1];
-                            }
-                        }
-
-                        console.log('使用的CSRF令牌:', csrfToken); // 調試用
-
-                        const response = await axios.post('/admin-dashboard/entertainment/activities/create/',
+                        const response = await axios.post(
+                            '/admin-dashboard/entertainment/activities/create/',
                             formData,
                             {
                                 headers: {
                                     'X-CSRFToken': csrfToken,
-                                    'Content-Type': 'multipart/form-data' // 變更為multipart/form-data用於檔案上傳
+                                    'Content-Type': 'multipart/form-data'
                                 }
                             }
                         );
 
-                        console.log('Response:', response.data); // 用於調試
+                        console.log('Response:', response.data);
 
                         if (response.data.status === 'success') {
                             // 顯示更明顯的成功訊息
                             console.log('活動建立成功，活動ID:', response.data.id);
                             console.log('活動建立時間:', response.data.created_at);
-                            message.value.success(`活動建立成功！建立時間: ${response.data.created_at}`);
 
-                            // 顯示成功訊息的彈窗或UI元素（如果需要）
-                            // 這裡可以添加其他UI反饋
-
-                            setTimeout(() => {
-                                // 使用絕對路徑確保正確跳轉
-                                const baseUrl = window.location.origin;
-                                window.location.href = `${baseUrl}/admin-dashboard/entertainment/activities/`;
-                                console.log('正在跳轉到:', `${baseUrl}/admin-dashboard/entertainment/activities/`);
-                            }, 2500); // 延長等待時間，確保用戶能看到成功訊息
+                            // 顯示成功訊息並處理後續動作
+                            showResultMessage(true, response.data);
                         } else {
                             throw new Error(response.data.message || '建立活動失敗');
                         }
                     } catch (error) {
                         console.error('API Error:', error.response?.data || error);
-                        message.value.error(error.response?.data?.message || error.message || '建立活動失敗');
+                        showResultMessage(false, {
+                            message: error.response?.data?.message || error.message || '建立活動失敗'
+                        });
                     }
                 } catch (error) {
                     console.error('Form Error:', error);
-                    message.value.error(error.message || '表單驗證失敗');
+                    showResultMessage(false, { message: error.message || '表單驗證失敗' });
                 }
             };
 
@@ -340,16 +386,17 @@
                 activityTypes,
                 rules,
                 handleSubmit,
-                handleMessage,
+                initMessageSystem,
                 handleBack,
                 resetForm,
                 handleImageUpload,
-                showImagePreview
+                showImagePreview,
+                initComponent
             };
         },
         template: `
         <n-message-provider>
-            <n-layout class="p-6" @mounted="handleMessage">
+            <n-layout class="p-6" @mounted="initComponent">
                 <n-card class="mb-6">
                     <n-grid :cols="2">
                         <n-grid-item>
@@ -502,7 +549,7 @@
                                     <p class="text-sm text-gray-500 mt-2">建議尺寸: 1200x630 像素，檔案大小不超過 2MB，圖片將保存在服務器上</p>
                                 </n-form-item>
 
-                                <!-- 圖片預覽區域，獨立顯示 -->
+                                <!-- 圖片預覽區域 -->
                                 <div v-if="formValue.image" class="mb-6 mt-2 border-t pt-4 border-gray-200">
                                     <h3 class="text-lg font-medium text-gray-700 mb-3">圖片預覽</h3>
                                     <div class="bg-gray-50 p-4 rounded-lg shadow-sm">

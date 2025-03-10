@@ -34,6 +34,7 @@ import pytz
 from django.conf import settings
 import os
 from datetime import time, datetime
+import glob
 
 # 設置日誌
 logger = logging.getLogger(__name__)
@@ -360,6 +361,54 @@ def get_events(request):
         }, status=500)
 
 
+# 抽取共用函數：處理圖片上傳
+def handle_image_upload(image_file, event_id):
+    """
+    處理圖片上傳，並返回圖片URL
+
+    參數:
+        image_file: 上傳的圖片檔案
+        event_id: 活動ID
+
+    返回:
+        image_url: 圖片存儲後的URL
+    """
+    try:
+        # 設定儲存路徑
+        upload_dir = os.path.join('theme_entertainment', 'activities', 'images')
+        full_dir_path = os.path.join(settings.MEDIA_ROOT, upload_dir)
+
+        # 確保目錄存在
+        os.makedirs(full_dir_path, exist_ok=True)
+
+        # 計算此活動已有的圖片數量
+        existing_images = glob.glob(os.path.join(full_dir_path, f"{event_id}_*"))
+        image_count = len(existing_images) + 1  # 新圖片的次序編號
+
+        # 生成新檔名：活動ID_次序編號.副檔名
+        file_extension = image_file.name.split('.')[-1].lower()
+        new_filename = f"{event_id}_{image_count}.{file_extension}"
+
+        # 完整檔案路徑
+        file_path = os.path.join(full_dir_path, new_filename)
+
+        # 儲存檔案
+        with open(file_path, 'wb+') as destination:
+            for chunk in image_file.chunks():
+                destination.write(chunk)
+
+        # 設定可訪問的 URL
+        image_url = f"{settings.MEDIA_URL}{upload_dir}/{new_filename}"
+        logger.info(f"圖片已保存到: {file_path}")
+        logger.info(f"圖片 URL: {image_url}")
+
+        return image_url
+    except Exception as img_err:
+        logger.error(f"保存圖片時出錯: {str(img_err)}")
+        print(f"保存圖片時出錯: {str(img_err)}")
+        return None
+
+
 # 創建活動（POST）
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
@@ -470,42 +519,8 @@ def create_event(request):
 
             # 處理圖片上傳
             image_url = data.get('image_url', '')
-            if image_file:
-                try:
-                    # 從設定檔獲取 BASE_DIR 和 MEDIA_ROOT
-                    from django.conf import settings
-                    import os
 
-                    # 生成唯一檔名
-                    file_extension = image_file.name.split('.')[-1].lower()
-                    unique_filename = f"{uuid.uuid4()}.{file_extension}"
-
-                    # 設定儲存路徑
-                    upload_dir = os.path.join('theme_entertainment', 'activities', 'images')
-                    full_dir_path = os.path.join(settings.MEDIA_ROOT, upload_dir)
-
-                    # 確保目錄存在
-                    os.makedirs(full_dir_path, exist_ok=True)
-
-                    # 完整檔案路徑
-                    file_path = os.path.join(full_dir_path, unique_filename)
-
-                    # 儲存檔案
-                    with open(file_path, 'wb+') as destination:
-                        for chunk in image_file.chunks():
-                            destination.write(chunk)
-
-                    # 設定可訪問的 URL
-                    image_url = f"{settings.MEDIA_URL}{upload_dir}/{unique_filename}"
-                    logger.info(f"圖片已保存到: {file_path}")
-                    logger.info(f"圖片 URL: {image_url}")
-
-                except Exception as img_err:
-                    logger.error(f"保存圖片時出錯: {str(img_err)}")
-                    print(f"保存圖片時出錯: {str(img_err)}")
-                    # 繼續執行，即使圖片上傳失敗
-
-            # 創建新活動
+            # 先創建新活動以獲取活動ID (不管是否有圖片上傳)
             new_event = Events.objects.create(
                 uid=data.get('uid'),
                 activity_name=data.get('activity_name'),
@@ -519,8 +534,15 @@ def create_event(request):
                 longitude=longitude,
                 ticket_price=ticket_price,
                 source_url=data.get('source_url', ''),
-                image_url=image_url
+                image_url=image_url  # 先用預設值或傳入的URL
             )
+
+            # 如果有上傳圖片，處理圖片並更新活動的圖片URL
+            if image_file:
+                uploaded_image_url = handle_image_upload(image_file, new_event.id)
+                if uploaded_image_url:
+                    new_event.image_url = uploaded_image_url
+                    new_event.save()
 
             # 直接獲取創建時間（已經是台灣時間）
             current_time = new_event.created_at.strftime('%Y-%m-%d %H:%M:%S')
@@ -530,11 +552,15 @@ def create_event(request):
             print(f"建立時間: {current_time} (台灣時區 UTC+8)")
             logger.info(f"成功創建活動: {new_event.activity_name}, 活動ID: {new_event.id}, 建立時間: {current_time}")
 
+            # 返回成功訊息，包含更多資訊以支援前端處理
             return JsonResponse({
                 'status': 'success',
                 'message': '活動創建成功',
                 'id': new_event.id,
-                'created_at': current_time
+                'created_at': current_time,
+                'activity_name': new_event.activity_name,
+                'redirect_url': '/admin-dashboard/entertainment/activities/',
+                'show_popup': True  # 標記前端需要顯示彈窗
             })
 
         except Exception as e:
@@ -555,11 +581,13 @@ def update_event(request, event_id):
         # 嘗試解析JSON數據或表單數據
         try:
             data = json.loads(request.body)
+            image = None
         except json.JSONDecodeError:
             # 如果不是JSON格式，則處理表單數據
             data = {}
             for key, value in request.POST.items():
                 data[key] = value
+            image = request.FILES.get('image')
 
         # 獲取活動對象
         event = get_object_or_404(Events, id=event_id)
@@ -625,10 +653,11 @@ def update_event(request, event_id):
                 setattr(event, field, data[field])
 
         # 處理文件上傳
-        if 'image' in request.FILES:
-            # 保存上傳的圖片文件
-            image = request.FILES['image']
-            # 這裡應該有實際儲存圖片的邏輯，並更新event.image_url
+        if image:
+            # 使用共用的圖片上傳處理函數
+            uploaded_image_url = handle_image_upload(image, event_id)
+            if uploaded_image_url:
+                event.image_url = uploaded_image_url
 
         # 保存活動
         event.save()
@@ -643,7 +672,10 @@ def update_event(request, event_id):
             'message': '活動更新成功',
             'id': event.id,
             'start_date': start_datetime_str,
-            'end_date': end_datetime_str
+            'end_date': end_datetime_str,
+            'activity_name': event.activity_name,
+            'redirect_url': '/admin-dashboard/entertainment/activities/',
+            'show_popup': True  # 標記前端需要顯示彈窗
         }
 
         return JsonResponse(response_data)

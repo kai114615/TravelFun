@@ -47,11 +47,16 @@
     const djangoPageDescription = "{{ page_description }}";
 
     const { createApp, ref, computed, onMounted } = Vue;
-    const { NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider, useMessage } = naive;
+    const {
+        NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker,
+        NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider,
+        useMessage
+    } = naive;
 
     const app = createApp({
         components: {
-            NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker, NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider
+            NLayout, NCard, NForm, NFormItem, NInput, NDatePicker, NTimePicker,
+            NSelect, NUpload, NButton, NGrid, NGridItem, NSpace, NMessageProvider
         },
         setup() {
             // 頁面標題和描述
@@ -65,9 +70,18 @@
             // 獲取當前活動ID（從URL中獲取）
             const eventId = "{{ event_id }}";
 
-            // 初始化訊息提供者
-            const handleMessage = () => {
-                message.value = useMessage();
+            // 訊息系統初始化
+            const initMessageSystem = () => {
+                if (message.value === null) {
+                    message.value = useMessage();
+                    console.log('訊息系統初始化完成');
+                }
+                return message.value;
+            };
+
+            // 元件掛載初始化
+            const initComponent = () => {
+                setTimeout(initMessageSystem, 100);
             };
 
             // 返回列表頁面
@@ -93,102 +107,6 @@
                 original_image_url: '' // 儲存原始圖片URL
             });
 
-            // 加載活動數據
-            const loadEventData = async () => {
-                try {
-                    console.log(`正在加載活動ID: ${eventId} 的數據`);
-                    // 使用基於數據庫ID查詢的API端點
-                    const response = await axios.get(`/admin-dashboard/entertainment/activities/api/id/${eventId}/`);
-                    console.log('API返回數據:', response.data);
-
-                    // 檢查和提取API返回的數據
-                    let eventData;
-                    if (response.data.status === 'success' && response.data.data) {
-                        eventData = response.data.data;
-                        console.log('成功提取活動數據:', eventData);
-                    } else {
-                        eventData = response.data;
-                        console.log('直接使用返回數據:', eventData);
-                    }
-
-                    // 處理日期時間
-                    // 開始日期時間
-                    let startDate = null;
-                    let startTime = null;
-                    let endDate = null;
-                    let endTime = null;
-
-                    console.log('處理日期時間 - 開始日期時間:', eventData.start_date);
-                    console.log('處理日期時間 - 結束日期時間:', eventData.end_date);
-
-                    // 如果有開始日期時間，解析為日期與時間部分
-                    if (eventData.start_date) {
-                        try {
-                            const startDateTime = new Date(eventData.start_date);
-                            startDate = new Date(
-                                startDateTime.getFullYear(),
-                                startDateTime.getMonth(),
-                                startDateTime.getDate()
-                            );
-                            startTime = startDateTime; // 時間選擇器可以使用完整日期對象
-                            console.log('解析開始日期:', startDate);
-                            console.log('解析開始時間:', startTime);
-                        } catch (error) {
-                            console.error('解析開始日期時間出錯:', error);
-                            message.value.warning('解析開始日期時間失敗，請手動設置');
-                        }
-                    }
-
-                    // 如果有結束日期時間，解析為日期與時間部分
-                    if (eventData.end_date) {
-                        try {
-                            const endDateTime = new Date(eventData.end_date);
-                            endDate = new Date(
-                                endDateTime.getFullYear(),
-                                endDateTime.getMonth(),
-                                endDateTime.getDate()
-                            );
-                            endTime = endDateTime; // 時間選擇器可以使用完整日期對象
-                            console.log('解析結束日期:', endDate);
-                            console.log('解析結束時間:', endTime);
-                        } catch (error) {
-                            console.error('解析結束日期時間出錯:', error);
-                            message.value.warning('解析結束日期時間失敗，請手動設置');
-                        }
-                    }
-
-                    // 設置表單值
-                    formValue.value = {
-                        ...formValue.value,
-                        activity_name: eventData.activity_name || '',
-                        description: eventData.description || '',
-                        location: eventData.location || '',
-                        address: eventData.address || '',
-                        organizer: eventData.organizer || '',
-                        source_url: eventData.source_url || '',
-                        date_range: (startDate && endDate) ? [startDate, endDate] : null,
-                        start_time: startTime,
-                        end_time: endTime,
-                        ticket_price: eventData.ticket_price || '',
-                        activity_type: eventData.activity_type || null,
-                        image: null,
-                        imageFile: null,
-                        original_image_url: eventData.image_url || ''
-                    };
-
-                    message.value.success('活動資料載入成功');
-                } catch (error) {
-                    console.error('加載活動數據失敗:', error);
-                    console.error('詳細錯誤:', error.response || error.message);
-                    message.value.error(`加載活動數據失敗: ${error.response?.data?.message || error.message}`);
-                }
-            };
-
-            // 在組件掛載後加載數據
-            onMounted(() => {
-                loadEventData();
-            });
-
             // 活動類型選項
             const activityTypes = [
                 { label: '展覽', value: '展覽' },
@@ -197,29 +115,6 @@
                 { label: '戲劇', value: '戲劇' },
                 { label: '其他', value: '其他' }
             ];
-
-            // 處理圖片上傳
-            const handleImageUpload = (options) => {
-                const { file } = options;
-                if (file.file) {
-                    // 保存檔案物件
-                    formValue.value.imageFile = file.file;
-
-                    // 同時建立預覽用的 base64
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file.file);
-                    reader.onload = () => {
-                        formValue.value.image = reader.result;
-                    };
-                }
-            };
-
-            // 圖片預覽
-            const imagePreview = ref('');
-            const showImagePreview = computed(() => Boolean(formValue.value.image || formValue.value.original_image_url));
-
-            // 獲取圖片顯示URL
-            const displayImageUrl = computed(() => formValue.value.image || formValue.value.original_image_url);
 
             // 表單驗證規則
             const rules = {
@@ -278,61 +173,246 @@
                 }
             };
 
-            // 提交表單
+            // ===== 圖片處理 =====
+            // 處理圖片上傳
+            const handleImageUpload = (options) => {
+                const { file } = options;
+                if (file.file) {
+                    // 保存檔案物件
+                    formValue.value.imageFile = file.file;
+
+                    // 建立預覽用的 base64
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file.file);
+                    reader.onload = () => {
+                        formValue.value.image = reader.result;
+                    };
+                }
+            };
+
+            // 圖片預覽狀態
+            const showImagePreview = computed(() => Boolean(formValue.value.image || formValue.value.original_image_url));
+
+            // 獲取圖片顯示URL
+            const displayImageUrl = computed(() => formValue.value.image || formValue.value.original_image_url);
+
+            // ===== 資料加載與處理 =====
+            // 加載活動數據
+            const loadEventData = async () => {
+                try {
+                    console.log(`正在加載活動ID: ${eventId} 的數據`);
+                    // 使用基於數據庫ID查詢的API端點
+                    const response = await axios.get(`/admin-dashboard/entertainment/activities/api/id/${eventId}/`);
+                    console.log('API返回數據:', response.data);
+
+                    // 檢查和提取API返回的數據
+                    let eventData;
+                    if (response.data.status === 'success' && response.data.data) {
+                        eventData = response.data.data;
+                        console.log('成功提取活動數據:', eventData);
+                    } else {
+                        eventData = response.data;
+                        console.log('直接使用返回數據:', eventData);
+                    }
+
+                    // 處理日期時間
+                    const { startDate, startTime, endDate, endTime } = parseDateTimeData(eventData);
+
+                    // 設置表單值
+                    formValue.value = {
+                        ...formValue.value,
+                        activity_name: eventData.activity_name || '',
+                        description: eventData.description || '',
+                        location: eventData.location || '',
+                        address: eventData.address || '',
+                        organizer: eventData.organizer || '',
+                        source_url: eventData.source_url || '',
+                        date_range: (startDate && endDate) ? [startDate, endDate] : null,
+                        start_time: startTime,
+                        end_time: endTime,
+                        ticket_price: eventData.ticket_price || '',
+                        activity_type: eventData.activity_type || null,
+                        image: null,
+                        imageFile: null,
+                        original_image_url: eventData.image_url || ''
+                    };
+
+                    const msgSystem = initMessageSystem();
+                    msgSystem.success('活動資料載入成功');
+                } catch (error) {
+                    console.error('加載活動數據失敗:', error);
+                    console.error('詳細錯誤:', error.response || error.message);
+
+                    const msgSystem = initMessageSystem();
+                    msgSystem.error(`加載活動數據失敗: ${error.response?.data?.message || error.message}`);
+                }
+            };
+
+            // 解析日期時間數據
+            const parseDateTimeData = (eventData) => {
+                let startDate = null;
+                let startTime = null;
+                let endDate = null;
+                let endTime = null;
+
+                console.log('處理日期時間 - 開始日期時間:', eventData.start_date);
+                console.log('處理日期時間 - 結束日期時間:', eventData.end_date);
+
+                // 如果有開始日期時間，解析為日期與時間部分
+                if (eventData.start_date) {
+                    try {
+                        const startDateTime = new Date(eventData.start_date);
+                        startDate = new Date(
+                            startDateTime.getFullYear(),
+                            startDateTime.getMonth(),
+                            startDateTime.getDate()
+                        );
+                        startTime = startDateTime; // 時間選擇器可以使用完整日期對象
+                        console.log('解析開始日期:', startDate);
+                        console.log('解析開始時間:', startTime);
+                    } catch (error) {
+                        console.error('解析開始日期時間出錯:', error);
+                        initMessageSystem().warning('解析開始日期時間失敗，請手動設置');
+                    }
+                }
+
+                // 如果有結束日期時間，解析為日期與時間部分
+                if (eventData.end_date) {
+                    try {
+                        const endDateTime = new Date(eventData.end_date);
+                        endDate = new Date(
+                            endDateTime.getFullYear(),
+                            endDateTime.getMonth(),
+                            endDateTime.getDate()
+                        );
+                        endTime = endDateTime; // 時間選擇器可以使用完整日期對象
+                        console.log('解析結束日期:', endDate);
+                        console.log('解析結束時間:', endTime);
+                    } catch (error) {
+                        console.error('解析結束日期時間出錯:', error);
+                        initMessageSystem().warning('解析結束日期時間失敗，請手動設置');
+                    }
+                }
+
+                return { startDate, startTime, endDate, endTime };
+            };
+
+            // 在組件掛載後加載數據
+            onMounted(() => {
+                loadEventData();
+            });
+
+            // ===== 表單處理 =====
+            // 格式化日期時間
+            const formatDateTime = () => {
+                let startDateTime = null;
+                let endDateTime = null;
+
+                // 處理開始日期時間
+                if (formValue.value.date_range && formValue.value.date_range[0]) {
+                    const startDate = formValue.value.date_range[0];
+
+                    if (formValue.value.start_time) {
+                        // 建立合併的日期時間對象
+                        const dateObj = new Date(startDate);
+                        const timeObj = new Date(formValue.value.start_time);
+
+                        dateObj.setHours(timeObj.getHours());
+                        dateObj.setMinutes(timeObj.getMinutes());
+
+                        // 格式化為 YYYY-MM-DD HH:MM:SS
+                        startDateTime = dateObj.toISOString().slice(0, 19).replace('T', ' ');
+                    } else {
+                        // 如果沒有時間，使用 00:00:00
+                        startDateTime = `${startDate.toISOString().split('T')[0]} 00:00:00`;
+                    }
+                }
+
+                // 處理結束日期時間
+                if (formValue.value.date_range && formValue.value.date_range[1]) {
+                    const endDate = formValue.value.date_range[1];
+
+                    if (formValue.value.end_time) {
+                        // 建立合併的日期時間對象
+                        const dateObj = new Date(endDate);
+                        const timeObj = new Date(formValue.value.end_time);
+
+                        dateObj.setHours(timeObj.getHours());
+                        dateObj.setMinutes(timeObj.getMinutes());
+
+                        // 格式化為 YYYY-MM-DD HH:MM:SS
+                        endDateTime = dateObj.toISOString().slice(0, 19).replace('T', ' ');
+                    } else {
+                        // 如果沒有時間，使用 23:59:59
+                        endDateTime = `${endDate.toISOString().split('T')[0]} 23:59:59`;
+                    }
+                }
+
+                return { startDateTime, endDateTime };
+            };
+
+            // 獲取 CSRF 令牌
+            const getCsrfToken = () => {
+                let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                if (!csrfToken) {
+                    const csrfCookie = document.cookie
+                        .split('; ')
+                        .find(row => row.startsWith('csrftoken='));
+                    if (csrfCookie) {
+                        csrfToken = csrfCookie.split('=')[1];
+                    }
+                }
+                console.log('使用的CSRF令牌:', csrfToken);
+                return csrfToken;
+            };
+
+            // 顯示操作結果訊息
+            const showResultMessage = (success, data) => {
+                // 確保訊息系統已初始化
+                const msgInstance = initMessageSystem();
+                const activityName = data.activity_name || formValue.value.activity_name || '此活動';
+                const redirectUrl = data.redirect_url || `${window.location.origin}/admin-dashboard/entertainment/activities/`;
+
+                // 成功訊息內容
+                const successTitle = `活動「${activityName}」更新成功！`;
+                const successContent = `活動ID: ${data.id}`;
+
+                if (success) {
+                    // 使用 Naive UI 訊息系統
+                    try {
+                        msgInstance.success({
+                            content: `${successTitle} ID: ${data.id}`,
+                            duration: 3000,
+                            closable: true
+                        });
+                    } catch (e) {
+                        console.error('Naive UI 訊息顯示失敗:', e);
+                    }
+
+                    // 使用瀏覽器內建 alert 作為備用
+                    alert(`${successTitle}\n\n${successContent}`);
+
+                    // 詢問用戶後續動作
+                    const confirmed = confirm('是否返回活動列表？');
+                    if (confirmed) {
+                        window.location.href = redirectUrl;
+                    }
+                } else {
+                    // 錯誤訊息
+                    try {
+                        msgInstance.error(data.message || '操作失敗');
+                    } catch (e) {
+                        alert(`操作失敗: ${data.message || '未知錯誤'}`);
+                    }
+                }
+            };
+
+            // 提交表單處理
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 try {
-                    // 先進行表單驗證
+                    // 表單驗證
                     await formRef.value?.validate();
-
-                    // 組合日期和時間為完整的日期時間字符串
-                    // 獲取日期部分
-                    const formatDateTime = () => {
-                        let startDateTime = null;
-                        let endDateTime = null;
-
-                        // 處理開始日期時間
-                        if (formValue.value.date_range && formValue.value.date_range[0]) {
-                            const startDate = formValue.value.date_range[0];
-
-                            if (formValue.value.start_time) {
-                                // 建立合併的日期時間對象
-                                const dateObj = new Date(startDate);
-                                const timeObj = new Date(formValue.value.start_time);
-
-                                dateObj.setHours(timeObj.getHours());
-                                dateObj.setMinutes(timeObj.getMinutes());
-
-                                // 格式化為 YYYY-MM-DD HH:MM:SS
-                                startDateTime = dateObj.toISOString().slice(0, 19).replace('T', ' ');
-                            } else {
-                                // 如果沒有時間，使用 00:00:00
-                                startDateTime = `${startDate.toISOString().split('T')[0]} 00:00:00`;
-                            }
-                        }
-
-                        // 處理結束日期時間
-                        if (formValue.value.date_range && formValue.value.date_range[1]) {
-                            const endDate = formValue.value.date_range[1];
-
-                            if (formValue.value.end_time) {
-                                // 建立合併的日期時間對象
-                                const dateObj = new Date(endDate);
-                                const timeObj = new Date(formValue.value.end_time);
-
-                                dateObj.setHours(timeObj.getHours());
-                                dateObj.setMinutes(timeObj.getMinutes());
-
-                                // 格式化為 YYYY-MM-DD HH:MM:SS
-                                endDateTime = dateObj.toISOString().slice(0, 19).replace('T', ' ');
-                            } else {
-                                // 如果沒有時間，使用 23:59:59
-                                endDateTime = `${endDate.toISOString().split('T')[0]} 23:59:59`;
-                            }
-                        }
-
-                        return { startDateTime, endDateTime };
-                    };
 
                     // 獲取合併的日期時間
                     const { startDateTime, endDateTime } = formatDateTime();
@@ -342,7 +422,7 @@
                     // 檢查必要欄位
                     const requiredFields = ['activity_name', 'address', 'organizer', 'description', 'location'];
 
-                    // 創建FormData對象用於提交包含檔案的資料
+                    // 創建 FormData 用於提交
                     const formData = new FormData();
 
                     // 準備要發送的數據
@@ -354,49 +434,37 @@
                         location: formValue.value.location,
                         start_date: startDateTime,
                         end_date: endDateTime,
-                        latitude: null, // 由後端處理或後續優化
-                        longitude: null, // 由後端處理或後續優化
+                        latitude: null,
+                        longitude: null,
                         ticket_price: formValue.value.ticket_price || '',
                         source_url: formValue.value.source_url || '',
-                        original_image_url: formValue.value.original_image_url || '' // 原始圖片路徑
+                        original_image_url: formValue.value.original_image_url || ''
                     };
 
-                    console.log('準備提交的數據:', submitData); // 調試用
+                    console.log('準備提交的數據:', submitData);
 
+                    // 驗證必填欄位
                     for (const field of requiredFields) {
                         if (!submitData[field]) {
                             throw new Error(`${field} 是必填欄位`);
                         }
                     }
 
-                    // 將數據添加到FormData
+                    // 將數據添加到 FormData
                     Object.keys(submitData).forEach(key => {
                         formData.append(key, submitData[key]);
                     });
 
-                    // 如果有新上傳圖片，添加到FormData
+                    // 如果有新上傳圖片，添加到 FormData
                     if (formValue.value.imageFile) {
                         formData.append('image', formValue.value.imageFile);
                     }
 
-                    console.log('Submitting data with file:', formValue.value.imageFile); // 用於調試
+                    // 獲取 CSRF 令牌
+                    const csrfToken = getCsrfToken();
 
+                    // 發送 API 請求
                     try {
-                        // 獲取CSRF令牌
-                        let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-                        if (!csrfToken) {
-                            // 如果沒有在頁面中找到csrfmiddlewaretoken，嘗試從cookie中獲取
-                            const csrfCookie = document.cookie
-                                .split('; ')
-                                .find(row => row.startsWith('csrftoken='));
-                            if (csrfCookie) {
-                                csrfToken = csrfCookie.split('=')[1];
-                            }
-                        }
-
-                        console.log('使用的CSRF令牌:', csrfToken); // 調試用
-
-                        // 使用PUT方法更新活動
                         const response = await axios({
                             method: 'put', // 使用PUT方法
                             url: `/admin-dashboard/entertainment/activities/update/${eventId}/`,
@@ -407,29 +475,26 @@
                             }
                         });
 
-                        console.log('Response:', response.data); // 用於調試
+                        console.log('Response:', response.data);
 
                         if (response.data.status === 'success') {
-                            // 顯示更明顯的成功訊息
+                            // 記錄成功信息
                             console.log('活動更新成功，活動ID:', response.data.id);
-                            message.value.success(`活動更新成功！`);
 
-                            setTimeout(() => {
-                                // 使用絕對路徑確保正確跳轉
-                                const baseUrl = window.location.origin;
-                                window.location.href = `${baseUrl}/admin-dashboard/entertainment/activities/`;
-                                console.log('正在跳轉到:', `${baseUrl}/admin-dashboard/entertainment/activities/`);
-                            }, 2500); // 延長等待時間，確保用戶能看到成功訊息
+                            // 顯示成功訊息並處理後續動作
+                            showResultMessage(true, response.data);
                         } else {
                             throw new Error(response.data.message || '更新活動失敗');
                         }
                     } catch (error) {
                         console.error('API Error:', error.response?.data || error);
-                        message.value.error(error.response?.data?.message || error.message || '更新活動失敗');
+                        showResultMessage(false, {
+                            message: error.response?.data?.message || error.message || '更新活動失敗'
+                        });
                     }
                 } catch (error) {
                     console.error('Form Error:', error);
-                    message.value.error(error.message || '表單驗證失敗');
+                    showResultMessage(false, { message: error.message || '表單驗證失敗' });
                 }
             };
 
@@ -437,7 +502,7 @@
             const resetForm = () => {
                 // 重新載入原始數據
                 loadEventData();
-                message.value.info('表單已重置為原始數據');
+                initMessageSystem().info('表單已重置為原始數據');
             };
 
             return {
@@ -446,20 +511,20 @@
                 activityTypes,
                 rules,
                 handleSubmit,
-                handleMessage,
                 handleBack,
                 resetForm,
                 handleImageUpload,
                 showImagePreview,
                 displayImageUrl,
-                onMounted,
+                initMessageSystem,
+                initComponent,
                 pageTitle,
                 pageDescription
             };
         },
         template: `
         <n-message-provider>
-            <n-layout class="p-6" @mounted="handleMessage">
+            <n-layout class="p-6" @mounted="initComponent">
                 <div ref="mountHook"></div>
                 <n-card class="mb-6">
                     <n-grid :cols="2">
@@ -612,7 +677,7 @@
                                     <p class="text-sm text-gray-500 mt-2">建議尺寸: 1200x630 像素，檔案大小不超過 2MB，上傳新圖片將替換原有圖片</p>
                                 </n-form-item>
 
-                                <!-- 圖片預覽區域，獨立顯示 -->
+                                <!-- 圖片預覽區域 -->
                                 <div v-if="showImagePreview" class="mb-6 mt-2 border-t pt-4 border-gray-200">
                                     <h3 class="text-lg font-medium text-gray-700 mb-3">
                                         [[formValue.image ? '新上傳圖片預覽' : '現有圖片']]
