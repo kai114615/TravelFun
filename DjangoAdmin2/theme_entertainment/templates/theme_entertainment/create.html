@@ -193,9 +193,32 @@
                     // 創建FormData對象用於提交包含檔案的資料
                     const formData = new FormData();
 
+                    // 生成UUID v4函數（不含連字符"-"）
+                    const generateUUID = () => {
+                        // 使用標準方法生成 UUID v4
+                        const hexDigits = "0123456789abcdef";
+                        let uuid = "";
+                        for (let i = 0; i < 32; i++) {
+                            const random = Math.floor(Math.random() * 16);
+                            // UUID v4 版本的特定位置需要特定值
+                            if (i === 12) {
+                                uuid += "4"; // 版本4
+                            } else if (i === 16) {
+                                uuid += hexDigits[(random & 0x3) | 0x8]; // 變體
+                            } else {
+                                uuid += hexDigits[random];
+                            }
+                        }
+                        return uuid; // 直接返回32位字符，不含連字符
+                    };
+
+                    // 直接生成一個 UUID 字符串
+                    const generatedUUID = generateUUID();
+                    console.log("生成的UUID:", generatedUUID);
+
                     // 準備要發送的數據
                     const submitData = {
-                        uid: `${Date.now()}`, // 生成唯一ID
+                        uid: generatedUUID,
                         activity_name: formValue.value.activity_name,
                         description: formValue.value.description,
                         organizer: formValue.value.organizer || '', // 使用空字符串代替undefined
@@ -216,9 +239,15 @@
                         }
                     }
 
-                    // 將數據添加到FormData
+                    // 先明確設置 UID
+                    formData.append('uid', generatedUUID);
+                    console.log(`直接設置 UID: ${formData.get('uid')}`);
+
+                    // 將其他數據添加到FormData
                     Object.keys(submitData).forEach(key => {
-                        formData.append(key, submitData[key]);
+                        if (key !== 'uid') { // 跳過 uid，因為已經添加過了
+                            formData.append(key, submitData[key]);
+                        }
                     });
 
                     // 如果有圖片檔案，添加到FormData
@@ -227,6 +256,8 @@
                     }
 
                     console.log('Submitting data with file:', formValue.value.imageFile); // 用於調試
+                    console.log('Form data keys:', [...formData.keys()]); // 查看FormData包含哪些鍵
+                    console.log('UUID being sent:', formData.get('uid')); // 查看傳送的UUID
 
                     try {
                         // 獲取CSRF令牌

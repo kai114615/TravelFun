@@ -393,6 +393,17 @@ def create_event(request):
 
             # 記錄接收到的數據，用於調試
             logger.info(f"接收到的活動數據: {data}")
+            logger.info(f"提交的UID(原始): {data.get('uid', 'None')}")
+
+            # 從請求中直接獲取 uid，避免可能的轉換問題
+            submitted_uid = None
+            if request.content_type == 'application/json':
+                submitted_uid = json.loads(request.body).get('uid')
+            else:  # multipart/form-data
+                submitted_uid = request.POST.get('uid')
+
+            logger.info(f"直接從請求中獲取的UID: {submitted_uid}")
+
             if image_file:
                 logger.info(f"接收到的圖片: {image_file.name}, 大小: {image_file.size} bytes")
 
@@ -405,15 +416,25 @@ def create_event(request):
                         'message': f'缺少必要欄位: {field}'
                     }, status=400)
 
-            # 如果沒有提供uid，則生成一個
-            if not data.get('uid'):
-                data['uid'] = f"{uuid.uuid4()}"
+            # 處理 UID - 優先使用直接從請求中獲取的 UID
+            if submitted_uid and submitted_uid != 'undefined' and submitted_uid != 'null':
+                # 確保使用前端提交的 UID，而不是從字典中獲取
+                data['uid'] = submitted_uid
+                logger.info(f"使用請求中的UID: {submitted_uid}")
+            else:
+                # 如果前端沒有提供有效的 UID，則生成一個新的
+                generated_uid = f"{uuid.uuid4()}".replace('-', '')  # 生成不含連字符的UUID
+                data['uid'] = generated_uid
+                logger.info(f"生成新的UUID: {generated_uid}")
+
             # 檢查 uid 是否存在
-            elif Events.objects.filter(uid=data.get('uid')).exists():
+            if Events.objects.filter(uid=data['uid']).exists():
                 return JsonResponse({
                     'status': 'error',
                     'message': 'uid 已存在'
                 }, status=400)
+
+            logger.info(f"最終使用的UUID: {data['uid']}")  # 記錄最終使用的UUID
 
             # 處理日期格式（確保是字符串格式的日期）
             for date_field in ['start_date', 'end_date']:
