@@ -116,7 +116,8 @@ DATABASES = {
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES';",
+            'charset': 'utf8mb4',
         },
     }
 }
@@ -139,7 +140,7 @@ LANGUAGE_CODE = 'zh-hant'
 TIME_ZONE = 'Asia/Taipei'
 USE_I18N = True
 USE_L10N = True
-USE_TZ = True
+USE_TZ = False
 
 # 修改靜態文件設置
 STATIC_URL = '/static/'

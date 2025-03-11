@@ -6,32 +6,175 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}主題育樂活動{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block extracss %}{% endblock %}
+    <style>
+        /* 全域樣式 */
+        body {
+            font-family: 'Microsoft JhengHei', 'PingFang TC', 'Segoe UI', Tahoma, sans-serif;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        /* 主要內容區域樣式 */
+        .page-content {
+            min-height: calc(100vh - 12rem);
+        }
+
+        /* 動畫效果 */
+        .hover-scale {
+            transition: transform 0.2s ease;
+        }
+
+        .hover-scale:hover {
+            transform: translateY(-3px);
+        }
+
+        /* 漸層背景 */
+        .gradient-header {
+            background: linear-gradient(to right, #3b82f6, #2563eb);
+        }
+    </style>
 </head>
 
 <body class="bg-gray-100">
-    <nav class="bg-white shadow-lg">
+    <!-- 導覽列 -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between h-16">
-                <div class="flex">
-                    <div class="flex-shrink-0 flex items-center">
-                        <a href="{% url 'theme_entertainment:theme_list' %}" class="text-xl font-bold text-gray-800">
-                            主題育樂
+                <div class="flex items-center">
+                    <a href="{% url 'theme_entertainment:theme_list' %}" class="flex items-center">
+                        <span class="text-xl font-bold text-blue-600 mr-2">
+                            <i class="fas fa-ticket-alt"></i>
+                        </span>
+                        <span class="text-xl font-bold text-gray-800">主題育樂</span>
+                    </a>
+                    <div class="hidden md:flex items-center ml-10 space-x-8">
+                        <a href="{% url 'theme_entertainment:theme_list' %}"
+                            class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">
+                            活動列表
                         </a>
+                        <a href="#"
+                            class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">
+                            精選活動
+                        </a>
+                        <a href="#"
+                            class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">
+                            活動類別
+                        </a>
+                        <a href="#"
+                            class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">
+                            關於我們
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="hidden md:flex">
+                        <button
+                            class="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-blue-600 transition duration-150 ease-in-out">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div class="flex md:hidden">
+                        <button id="mobile-menu-button"
+                            class="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-blue-600 transition duration-150 ease-in-out">
+                            <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                                <path class="mobile-menu-icon" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                                <path class="mobile-menu-close hidden" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- 手機版選單 -->
+        <div id="mobile-menu" class="hidden md:hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="{% url 'theme_entertainment:theme_list' %}"
+                    class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors duration-200">活動列表</a>
+                <a href="#"
+                    class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors duration-200">精選活動</a>
+                <a href="#"
+                    class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors duration-200">活動類別</a>
+                <a href="#"
+                    class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors duration-200">關於我們</a>
+            </div>
+        </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <!-- 主要內容區域 -->
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 page-content">
         {% block content %}{% endblock %}
     </main>
 
+    <!-- 頁尾區域 -->
     <footer class="bg-white shadow-lg mt-8">
-        <div class="max-w-7xl mx-auto py-4 px-4">
-            <p class="text-center text-gray-600">© 2024 主題育樂活動. All rights reserved.</p>
+        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">關於主題育樂</h3>
+                    <p class="text-gray-600 mb-4">我們致力於推廣台灣各地的藝文活動與展覽資訊，提供最便利的平台讓您輕鬆找到感興趣的育樂活動。</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-500 hover:text-blue-600"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="text-gray-500 hover:text-blue-600"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-gray-500 hover:text-blue-600"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">快速連結</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600">活動列表</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600">精選活動</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600">常見問題</a></li>
+                        <li><a href="#" class="text-gray-600 hover:text-blue-600">聯絡我們</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">聯絡資訊</h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-start">
+                            <i class="fas fa-map-marker-alt text-blue-600 mt-1 mr-2"></i>
+                            <span class="text-gray-600">台北市信義區市府路45號</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-phone text-blue-600 mt-1 mr-2"></i>
+                            <span class="text-gray-600">02-12345678</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-envelope text-blue-600 mt-1 mr-2"></i>
+                            <span class="text-gray-600">info@themefun.com.tw</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-200 mt-8 pt-6 text-center">
+                <p class="text-gray-600">© 2024 主題育樂活動. All rights reserved.</p>
+            </div>
         </div>
     </footer>
+
+    <!-- 手機版選單控制 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileMenuIcon = document.querySelector('.mobile-menu-icon');
+            const mobileMenuClose = document.querySelector('.mobile-menu-close');
+
+            if (mobileMenuButton) {
+                mobileMenuButton.addEventListener('click', function () {
+                    mobileMenu.classList.toggle('hidden');
+                    mobileMenuIcon.classList.toggle('hidden');
+                    mobileMenuClose.classList.toggle('hidden');
+                });
+            }
+        });
+    </script>
+
+    {% block extrajs %}{% endblock %}
 </body>
 
 </html>

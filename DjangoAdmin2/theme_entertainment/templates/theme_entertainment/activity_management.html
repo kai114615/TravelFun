@@ -1,28 +1,28 @@
 {% extends "admin-dashboard/base.html" %}
 {% load static %}
 
-
-
-
-
-
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extracss %}
+<!-- 引入必要的外部CSS資源 -->
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-<!-- 添加 Naive UI 的樣式 -->
 <link href="https://unpkg.com/naive-ui@2.34.4/dist/index.css" rel="stylesheet">
 <script src="https://kit.fontawesome.com/your-kit-code.js" crossorigin="anonymous"></script>
+
 <style>
-    /* 全局變量定義 */
+    /* 全域變數定義 */
     :root {
         --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        /* 主要漸層色 */
         --secondary-gradient: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+        /* 次要漸層色 */
         --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        /* 卡片陰影 */
         --border-color: rgba(255, 255, 255, 0.5);
+        /* 邊框顏色 */
     }
 
-    /* 主要布局樣式 */
+    /* 主要版面配置 */
     .n-layout {
         min-height: 100vh;
         /* 確保最小高度填滿視窗 */
@@ -30,7 +30,7 @@
         /* 淺灰背景色 */
     }
 
-    /* 頁面頂部區域樣式 */
+    /* 頁面頂端區域 */
     .n-layout-header {
         background: transparent;
         /* 透明背景 */
@@ -142,7 +142,7 @@
         /* 主要按鈕漸變背景 */
     }
 
-    /* 數據表格樣式 */
+    /* 資料表格樣式 */
     .n-data-table {
         border-radius: 0.75rem;
         /* 表格圓角 */
@@ -150,7 +150,40 @@
         /* 隱藏溢出 */
     }
 
-    /* 表格標題樣式 */
+    /* 表格欄位調整寬度樣式 */
+    .n-data-table .n-data-table-th {
+        position: relative;
+        /* 相對定位 */
+        user-select: none;
+        /* 防止文字被選中 */
+    }
+
+    .n-data-table .n-data-table-th-resize {
+        position: absolute;
+        /* 絕對定位 */
+        right: 0;
+        /* 靠右對齊 */
+        top: 0;
+        /* 靠上對齊 */
+        bottom: 0;
+        /* 延伸到底部 */
+        width: 4px;
+        /* 調整區域寬度 */
+        cursor: col-resize;
+        /* 調整寬度游標 */
+        background: transparent;
+        /* 透明背景 */
+        transition: background-color 0.2s;
+        /* 過渡動畫 */
+    }
+
+    .n-data-table .n-data-table-th-resize:hover,
+    .n-data-table .n-data-table-th-resize.resizing {
+        background: #3b82f6;
+        /* 調整時顯示藍色 */
+    }
+
+    /* 表格標題列樣式 */
     .n-data-table .n-data-table-th {
         background: #f8fafc;
         /* 表頭背景色 */
@@ -174,11 +207,11 @@
         /* 增加字間距 */
     }
 
-    /* 確保表格內容也置中 */
+    /* 表格內容列樣式 */
     .n-data-table .n-data-table-td {
         text-align: center;
         /* 單元格文字置中 */
-        padding: 1rem;
+        padding: 2rem;
         /* 單元格內邊距 */
         border-bottom: 1px solid #f1f5f9;
         /* 底部邊框 */
@@ -186,7 +219,7 @@
         /* 垂直居中 */
     }
 
-    /* 表格行懸停效果 */
+    /* 表格列懸停效果 */
     .n-data-table .n-data-table-tr:hover {
         background-color: #f8fafc;
         /* 懸停背景色 */
@@ -232,86 +265,16 @@
         /* 按鈕間距 */
     }
 
-    /* 分頁器樣式 */
-    .n-pagination {
-        margin-top: 1.5rem;
-        /* 上方間距 */
-        padding: 1rem;
-        /* 內邊距 */
-        background: #f8fafc;
-        /* 背景色 */
-        border-top: 1px solid #f1f5f9;
-        /* 頂部邊框 */
-    }
-
-    /* 狀態標籤樣式 */
-    .status-badge {
-        padding: 0.375rem 0.75rem;
-        /* 內邊距 */
-        border-radius: 9999px;
-        /* 圓角 */
-        font-size: 0.875rem;
-        /* 字體大小 */
-        font-weight: 500;
-        /* 字重 */
-        display: inline-flex;
-        /* 行內Flex */
-        align-items: center;
-        /* 垂直居中 */
-    }
-
-    /* 圖標樣式 */
-    .table-icon {
-        width: 1.5rem;
-        /* 寬度 */
-        height: 1.5rem;
-        /* 高度 */
-        display: inline-flex;
-        /* 行內Flex */
-        align-items: center;
-        /* 垂直居中 */
-        justify-content: center;
-        /* 水平居中 */
-        border-radius: 0.375rem;
-        /* 圓角 */
-        margin-right: 0.5rem;
-        /* 右側間距 */
-    }
-
-    /* 位置圖標樣式 */
-    .location-icon {
-        background: #dbeafe;
-        /* 背景色 */
-        color: #3b82f6;
-        /* 圖標顏色 */
-    }
-
-    /* 日期圖標樣式 */
-    .date-icon {
-        background: #dcfce7;
-        /* 背景色 */
-        color: #10b981;
-        /* 圖標顏色 */
-    }
-
-    /* 票價圖標樣式 */
-    .ticket-icon {
-        background: #fef3c7;
-        /* 背景色 */
-        color: #f59e0b;
-        /* 圖標顏色 */
-    }
-
-    /* 響應式設計 */
+    /* RWD 響應式設計 */
     @media (max-width: 768px) {
 
-        /* 移動端頂部區域樣式 */
+        /* 手機版頂端區域 */
         .n-layout-header {
             padding: 0.75rem 1rem 0.5rem;
             /* 調整內邊距 */
         }
 
-        /* 移動端標題容器樣式 */
+        /* 手機版標題容器 */
         .header-container {
             padding: 0.5rem 1rem;
             /* 調整內邊距 */
@@ -323,7 +286,7 @@
             /* 自適應高度 */
         }
 
-        /* 移動端按鈕區域樣式 */
+        /* 手機版按鈕區域 */
         .header-actions {
             margin-left: 0;
             /* 移除左側間距 */
@@ -331,7 +294,7 @@
             /* 全寬 */
         }
 
-        /* 移動端標題文字樣式 */
+        /* 手機版標題文字 */
         .page-title {
             font-size: 1.125rem;
             /* 調整字體大小 */
@@ -339,13 +302,13 @@
             /* 調整底部間距 */
         }
 
-        /* 移動端描述文字樣式 */
+        /* 手機版描述文字 */
         .page-description {
             font-size: 0.75rem;
             /* 調整字體大小 */
         }
 
-        /* 移動端按鈕樣式 */
+        /* 手機版按鈕 */
         .n-button {
             width: 100%;
             /* 全寬按鈕 */
@@ -359,70 +322,97 @@
 {% endblock %}
 
 {% block content %}
+<!-- Vue應用程式掛載點 -->
 <div id="app">
-    <!-- Vue 應用將在這裡渲染 -->
+    <!-- Vue元件將在此渲染 -->
 </div>
 
-<!-- 引入相關依賴 -->
+<!-- 引入必要的JavaScript函式庫 -->
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="https://unpkg.com/naive-ui@2.34.4/dist/index.js"></script>
 
 <script>
+    // 解構Vue核心功能
     const { createApp, ref, onMounted, h, watch } = Vue;
+    // 解構Naive UI元件
     const { NButton, NSpace, NCard, NDataTable, NIcon, NLayout, NLayoutHeader, NLayoutContent, NGrid, NGridItem } = naive;
 
+    // 建立Vue應用程式
     const app = createApp({
         components: {
             NButton, NSpace, NCard, NDataTable, NIcon, NLayout, NLayoutHeader, NLayoutContent, NGrid, NGridItem
         },
         setup() {
-            const activities = ref([]);
-            const loading = ref(false);
-            const error = ref(null);
+            // 資料狀態定義
+            const activities = ref([]);          // 活動列表
+            const loading = ref(false);          // 載入狀態
+            const error = ref(null);             // 錯誤訊息
+
+            // 分頁設定
             const pagination = ref({
-                page: 1,
-                pageSize: 10,
-                showSizePicker: true,
-                pageSizes: [10, 50, 100, 500, 1000],
+                page: 1,                         // 當前頁碼
+                pageSize: 10,                    // 預設每頁顯示筆數
+                showSizePicker: true,            // 顯示每頁筆數選擇器
+                pageSizes: [10, 50, 100, 500, 1000],  // 可選的每頁筆數
+                itemCount: 0,                    // 總筆數
                 onChange: (page) => {
                     pagination.value.page = page;
+                    fetchActivities();  // 當頁碼改變時重新獲取資料
                 },
                 onUpdatePageSize: (pageSize) => {
                     pagination.value.pageSize = pageSize;
                     pagination.value.page = 1;
+                    fetchActivities();  // 當每頁筆數改變時重新獲取資料
                 }
             });
 
+            // 新增活動按鈕處理
             const handleCreateClick = () => {
                 try {
                     window.location.href = '/admin-dashboard/entertainment/activities/create/';
                 } catch (error) {
-                    console.error('Navigation error:', error);
+                    console.error('導覽錯誤:', error);
                 }
             };
 
-            // 修改獲取活動列表函數以支援分頁
+            // 取得活動列表
             const fetchActivities = async () => {
                 try {
                     loading.value = true;
                     const response = await axios.get('/admin-dashboard/entertainment/activities/list/', {
                         params: {
                             page: pagination.value.page,
-                            page_size: pagination.value.pageSize
+                            page_size: pagination.value.pageSize,
+                            ordering: 'id'  // 確保按照ID排序
                         }
                     });
-                    activities.value = response.data.data;
-                    pagination.value.itemCount = response.data.total; // 假設後端返回總數
+
+                    // 檢查並處理回傳的資料
+                    if (response.data && response.data.data) {
+                        // 確保資料是陣列
+                        activities.value = Array.isArray(response.data.data)
+                            ? response.data.data
+                            : Object.values(response.data.data);
+
+                        // 設定總筆數
+                        pagination.value.itemCount = response.data.total || activities.value.length;
+
+                        // 確保資料排序
+                        activities.value.sort((a, b) => a.id - b.id);
+                    } else {
+                        error.value = '資料格式不正確';
+                        console.error('資料格式錯誤:', response.data);
+                    }
                 } catch (err) {
-                    error.value = '獲取數據失敗';
-                    console.error('Error:', err);
+                    error.value = '取得資料失敗';
+                    console.error('錯誤:', err);
                 } finally {
                     loading.value = false;
                 }
             };
 
-            // 監聽分頁變化
+            // 監聽分頁變更
             watch(() => [pagination.value.page, pagination.value.pageSize], () => {
                 fetchActivities();
             });
@@ -439,40 +429,68 @@
                         }
                     } catch (err) {
                         error.value = '刪除失敗';
-                        console.error('Error:', err);
+                        console.error('錯誤:', err);
                     }
                 }
             };
 
-            // 在組件掛載時獲取數據
+            // 元件掛載時載入資料
             onMounted(() => {
                 fetchActivities();
             });
 
+            // 表格欄位定義
             const columns = [
                 {
-                    title: 'ID',
+                    title: () => h('span', {
+                        style: {
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            display: 'block'
+                        }
+                    }, '編號'),
                     key: 'id',
-                    width: 50,
+                    width: '6.0%',
+                    resizable: true,
                     sorter: 'default',
                     defaultSortOrder: 'ascend',
                     render(row) {
-                        return h('span', { class: 'text-gray-500 font-mono' }, `#${row.id}`);
+                        return h('span', {
+                            class: 'text-gray-500 font-mono',
+                            style: {
+                                textAlign: 'center',
+                                display: 'block'
+                            }
+                        }, row.id);
                     }
                 },
                 {
-                    title: '活動名稱',
+                    title: () => h('span', {
+                        style: {
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            display: 'block'
+                        }
+                    }, '活動名稱'),
                     key: 'activity_name',
-                    width: 350,
+                    width: '38.0%',
+                    resizable: true,
                     sorter: 'default',
                     render(row) {
                         return h('span', { class: 'font-medium' }, row.activity_name);
                     }
                 },
                 {
-                    title: '活動地點',
+                    title: () => h('span', {
+                        style: {
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            display: 'block'
+                        }
+                    }, '活動地點'),
                     key: 'location',
-                    width: 150,
+                    width: '17.0%',
+                    resizable: true,
                     sorter: 'default',
                     render(row) {
                         return h('div', { class: 'text-gray-600' }, [
@@ -482,9 +500,16 @@
                     }
                 },
                 {
-                    title: '活動日期',
+                    title: () => h('span', {
+                        style: {
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            display: 'block'
+                        }
+                    }, '活動起訖'),
                     key: 'date',
-                    width: 150,
+                    width: '17.0%',
+                    resizable: true,
                     sorter: (row1, row2) => new Date(row1.start_date) - new Date(row2.start_date),
                     render(row) {
                         return h('div', { class: 'text-gray-600' }, [
@@ -494,28 +519,76 @@
                     }
                 },
                 {
-                    title: '票價',
+                    title: () => h('span', {
+                        style: {
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            display: 'block'
+                        }
+                    }, '票價'),
                     key: 'ticket_price',
-                    width: 50,
-                    sorter: 'default',
+                    width: '8.0%',
+                    resizable: true,
+                    sorter: (row1, row2) => {
+                        const price1 = row1.ticket_price === '免費' ? 0 : parseFloat(row1.ticket_price) || 0;
+                        const price2 = row2.ticket_price === '免費' ? 0 : parseFloat(row2.ticket_price) || 0;
+                        return price1 - price2;
+                    },
                     render(row) {
-                        return h('div', { class: 'text-gray-600' }, [
-                            h('i', { class: 'fas fa-ticket-alt mr-2' }),
-                            row.ticket_price ? `NT$ ${row.ticket_price}` : '免費'
+                        // 票價顯示邏輯
+                        const price = row.ticket_price;
+                        let displayText = '';
+                        let priceClass = '';
+
+                        if (!price || price === '0' || price.toLowerCase() === 'free' || price === '免費') {
+                            displayText = '免費';
+                            priceClass = 'text-green-600';
+                        } else {
+                            displayText = `${price}`;
+                            priceClass = 'text-blue-600';
+                        }
+
+                        return h('div', {
+                            class: `flex items-center ${priceClass}`,
+                            style: {
+                                display: 'flex',
+                                alignItems: 'center',
+                                paddingLeft: '0px',
+                                gap: '0px'
+                            }
+                        }, [
+                            h('i', {
+                                class: 'fas fa-ticket-alt',
+                                style: {
+                                    marginRight: '0px'
+                                }
+                            }),
+                            h('span', {
+                                style: {
+                                    fontWeight: '500'
+                                }
+                            }, displayText)
                         ]);
                     }
                 },
                 {
-                    title: '操作',
+                    title: () => h('span', {
+                        style: {
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            display: 'block'
+                        }
+                    }, '操作'),
                     key: 'actions',
-                    width: 120,
+                    width: '15.0%',
+                    resizable: true,
                     render(row) {
                         return h(NSpace, null, {
                             default: () => [
                                 h(NButton, {
                                     type: 'primary',
                                     size: 'small',
-                                    onClick: () => window.location.href = `/admin-dashboard/entertainment/activities/${row.id}/`
+                                    onClick: () => window.location.href = `/admin-dashboard/entertainment/activities/${row.id}/edit/`
                                 }, { default: () => '✏️ 編輯' }),
                                 h(NButton, {
                                     type: 'error',
@@ -528,6 +601,7 @@
                 }
             ];
 
+            // 回傳元件所需的資料和方法
             return {
                 activities,
                 loading,
@@ -538,6 +612,7 @@
                 handleCreateClick,
             };
         },
+        // 元件模板
         template: `
             <n-layout>
                 <n-layout-header style="padding: 15px 15px 0px 15px">
@@ -552,8 +627,8 @@
                                     <template #icon>➕</template>
                                     新增活動
                                 </n-button>
-                            </div>
-                        </div>
+                            </n-grid-item>
+                        </n-grid>
                     </n-card>
                 </n-layout-header>
                 <n-layout-content style="padding: 15px">
@@ -577,7 +652,9 @@
         `
     });
 
+    // 設定Vue分隔符號
     app.config.compilerOptions.delimiters = ['[[', ']]'];
+    // 掛載Vue應用程式
     app.mount('#app');
 </script>
 {% endblock %}
