@@ -255,17 +255,18 @@
         // 鄉鎮市區驗證
         const inputTown = document.querySelector('#InputTown');
         const divTown = document.querySelector('#divTown');
-        if(inputTown && inputRegion) {
-            inputTown.addEventListener("blur", async () => {
-                const response = await fetch(`/travel/travelTown/?town=${inputTown.value}&region=${inputRegion.value}`);
-                const townInfo = await response.json();
-                if (townInfo.town_exists) {
-                    divTown.innerText = '鄉鎮市區不存在';
-                } else {
-                    divTown.innerText = '';
-                }
-            });
-        }
+        inputTown.addEventListener("blur", async()=>{
+      const response = await fetch(`/travel/travelTown/?town=${inputTown.value}&region=${inputRegion.value}`)
+      const townInfo = await response.json()
+      if (townInfo.town_exists){
+        divTown.innerText= '鄉鎮市區不存在';
+      }
+      else {
+        divTown.innerText ='';
+      }
+
+      divTown.innerHTML= divTown.innerText
+    })
 
         // 表單提交處理 - 改用表單提交事件
         const form = document.querySelector('#registerForm');

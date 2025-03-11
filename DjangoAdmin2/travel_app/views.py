@@ -519,6 +519,9 @@ def api_test(request):
         'active_menu': 'travel'  # 設置active_menu為travel
     })
 
+
+import random
+
 # Haversine公式，計算兩個經緯度點之間的距離
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371  # 地球半徑，單位：公里
@@ -528,23 +531,143 @@ def haversine(lat1, lon1, lat2, lon2):
     
     a = math.sin(delta_phi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c  # 返回距離，單位：公里
+    return R * c
 
-def find_nearest_neighbor(points, start_point, distances):
-    """使用最近鄰居算法找出一條路徑"""
-    current = start_point
-    unvisited = set(points) - {start_point}
-    path = [current]
-    total_distance = 0
+def calculate_total_distance(path, distances):
+    """計算路徑總距離"""
+    total = 0
+    for i in range(len(path) - 1):
+        total += distances[path[i]][path[i + 1]]
+    return total
+
+def two_opt_swap(path, i, j):
+    """執行2-opt交換"""
+    new_path = path[:i]
+    new_path.extend(reversed(path[i:j + 1]))
+    new_path.extend(path[j + 1:])
+    return new_path
+
+def two_opt(path, distances, max_iterations=1000):
+    """2-opt局部搜索算法"""
+    best_distance = calculate_total_distance(path, distances)
+    improved = True
+    iteration = 0
     
-    while unvisited:
-        next_point = min(unvisited, key=lambda x: distances[(current, x)])
-        total_distance += distances[(current, next_point)]
-        current = next_point
-        unvisited.remove(current)
-        path.append(current)
+    while improved and iteration < max_iterations:
+        improved = False
+        iteration += 1
+        
+        for i in range(1, len(path) - 2):
+            for j in range(i + 1, len(path)):
+                if j - i == 1:
+                    continue
+                new_path = two_opt_swap(path, i, j)
+                new_distance = calculate_total_distance(new_path, distances)
+                
+                if new_distance < best_distance:
+                    path = new_path
+                    best_distance = new_distance
+                    improved = True
+                    break
+            if improved:
+                break
     
-    return path, total_distance
+    return path, best_distance
+
+def simulated_annealing(points, distances, start_index=None, end_index=None, 
+                       temperature=1000, cooling_rate=0.995, min_temperature=0.01):
+    """模擬退火算法"""
+    n = len(points)
+    
+    # 如果只有兩個點，直接返回
+    if n <= 2:
+        path = list(range(n))
+        if start_index is not None and end_index is not None:
+            # 確保兩點時也遵循起點終點順序
+            if path[0] != start_index:
+                path.reverse()
+        return path, calculate_total_distance(path, distances)
+    
+    # 初始化路徑
+    current_path = list(range(n))
+    
+    # 強制確保起點和終點的位置
+    if start_index is not None:
+        current_path.remove(start_index)
+        current_path.insert(0, start_index)
+    if end_index is not None:
+        if end_index in current_path:  # 確保終點還沒被移除
+            current_path.remove(end_index)
+        current_path.append(end_index)
+    
+    current_distance = calculate_total_distance(current_path, distances)
+    best_path = current_path[:]
+    best_distance = current_distance
+    
+    # 主循環
+    temp = temperature
+    while temp > min_temperature:
+        # 確定可以交換的範圍
+        start_range = 1 if start_index is not None else 0
+        end_range = len(current_path) - 1 if end_index is not None else len(current_path)
+        
+        # 確保有足夠的點可以交換
+        if end_range - start_range < 2:
+            break
+            
+        # 隨機選擇兩個位置進行交換
+        i = random.randint(start_range, end_range - 2)
+        j = random.randint(i + 1, end_range - 1)
+        
+        # 生成新解
+        new_path = two_opt_swap(current_path, i, j)
+        
+        # 驗證新路徑是否保持起點和終點不變
+        if (start_index is not None and new_path[0] != start_index) or \
+           (end_index is not None and new_path[-1] != end_index):
+            continue
+            
+        new_distance = calculate_total_distance(new_path, distances)
+        
+        # 計算能量差
+        delta = new_distance - current_distance
+        
+        # Metropolis準則
+        if delta < 0 or random.random() < math.exp(-delta / temp):
+            current_path = new_path
+            current_distance = new_distance
+            
+            # 更新最佳解
+            if current_distance < best_distance:
+                best_path = current_path[:]
+                best_distance = current_distance
+        
+        # 降溫
+        temp *= cooling_rate
+    
+    # 最後使用2-opt進行局部優化，但要保持起點和終點不變
+    improved = True
+    while improved:
+        improved = False
+        for i in range(start_range, end_range - 2):
+            for j in range(i + 1, end_range - 1):
+                if j - i == 1:
+                    continue
+                new_path = two_opt_swap(best_path, i, j)
+                # 檢查是否保持起點和終點不變
+                if (start_index is not None and new_path[0] != start_index) or \
+                   (end_index is not None and new_path[-1] != end_index):
+                    continue
+                new_distance = calculate_total_distance(new_path, distances)
+                if new_distance < best_distance:
+                    best_path = new_path
+                    best_distance = new_distance
+                    improved = True
+                    break
+            if improved:
+                break
+    
+    return best_path, best_distance
 
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
@@ -552,22 +675,10 @@ def find_nearest_neighbor(points, start_point, distances):
 def find_path(request):
     """
     尋找最佳路徑的API endpoint
-    支持 GET 和 POST 請求，允許未認證訪問
-    
-    POST 請求格式:
-    {
-        "path": [
-            [latitude1, longitude1],
-            [latitude2, longitude2],
-            ...
-        ],
-        "start_point": [latitude, longitude],  # 可選
-        "end_point": [latitude, longitude]     # 可選
-    }
+    使用改進的算法：模擬退火 + 2-opt局部搜索
     """
     try:
         if request.method == 'GET':
-            # 返回API使用說明
             return Response({
                 'message': '請使用 POST 請求並提供以下格式的數據',
                 'format': {
@@ -585,14 +696,9 @@ def find_path(request):
         
         # 驗證請求數據
         if not request.data:
-            return Response({
-                'error': '請求數據不能為空'
-            }, status=400)
-            
+            return Response({'error': '請求數據不能為空'}, status=400)
         if 'path' not in request.data:
-            return Response({
-                'error': '請求數據必須包含 "path" 欄位'
-            }, status=400)
+            return Response({'error': '請求數據必須包含 "path" 欄位'}, status=400)
             
         path_points = request.data['path']
         start_point = request.data.get('start_point')
@@ -600,14 +706,9 @@ def find_path(request):
         
         # 驗證路徑點
         if not isinstance(path_points, list):
-            return Response({
-                'error': 'path 必須是一個列表'
-            }, status=400)
-            
+            return Response({'error': 'path 必須是一個列表'}, status=400)
         if len(path_points) < 2:
-            return Response({
-                'error': '至少需要提供兩個路徑點'
-            }, status=400)
+            return Response({'error': '至少需要提供兩個路徑點'}, status=400)
             
         # 驗證每個點的格式並轉換為元組
         validated_points = []
@@ -622,13 +723,13 @@ def find_path(request):
                     return Response({
                         'error': f'無效的經緯度值: [{lat}, {lon}]'
                     }, status=400)
-                validated_points.append((lat, lon))  # 轉換為元組
+                validated_points.append((lat, lon))
             except (ValueError, TypeError):
                 return Response({
                     'error': '路徑點的經緯度必須是數值'
                 }, status=400)
         
-        # 驗證起點和終點（如果有提供）
+        # 驗證起點和終點
         start_index = None
         end_index = None
         
@@ -639,15 +740,12 @@ def find_path(request):
                     return Response({
                         'error': f'無效的起點經緯度值: [{start_lat}, {start_lon}]'
                     }, status=400)
-                # 找到最接近起點的位置
                 start_index = min(range(len(validated_points)), 
                                 key=lambda i: haversine(start_lat, start_lon, 
                                                       validated_points[i][0], 
                                                       validated_points[i][1]))
             except (ValueError, TypeError, IndexError):
-                return Response({
-                    'error': '起點格式無效'
-                }, status=400)
+                return Response({'error': '起點格式無效'}, status=400)
                 
         if end_point:
             try:
@@ -656,17 +754,14 @@ def find_path(request):
                     return Response({
                         'error': f'無效的終點經緯度值: [{end_lat}, {end_lon}]'
                     }, status=400)
-                # 找到最接近終點的位置
                 end_index = min(range(len(validated_points)), 
                               key=lambda i: haversine(end_lat, end_lon, 
                                                     validated_points[i][0], 
                                                     validated_points[i][1]))
             except (ValueError, TypeError, IndexError):
-                return Response({
-                    'error': '終點格式無效'
-                }, status=400)
+                return Response({'error': '終點格式無效'}, status=400)
         
-        # 計算所有點之間的距離矩陣
+        # 計算距離矩陣
         n = len(validated_points)
         distances = [[0] * n for _ in range(n)]
         for i in range(n):
@@ -677,48 +772,15 @@ def find_path(request):
                         validated_points[j][0], validated_points[j][1]
                     )
         
-        # 使用最近鄰居算法找出最佳路徑
-        def find_best_path():
-            best_distance = float('inf')
-            best_path = None
-            
-            # 確定起點範圍
-            start_points = [start_index] if start_index is not None else range(n)
-            
-            # 嘗試每個可能的起點
-            for start in start_points:
-                unvisited = set(range(n))
-                current = start
-                path = [current]
-                total_distance = 0
-                unvisited.remove(current)
-                
-                # 如果有指定終點，確保它是最後訪問的
-                if end_index is not None:
-                    unvisited.remove(end_index)
-                
-                # 不斷找最近的下一個點
-                while unvisited:
-                    next_point = min(unvisited, key=lambda x: distances[current][x])
-                    total_distance += distances[current][next_point]
-                    current = next_point
-                    path.append(current)
-                    unvisited.remove(current)
-                
-                # 如果有指定終點，將其加入路徑末尾
-                if end_index is not None:
-                    total_distance += distances[current][end_index]
-                    path.append(end_index)
-                
-                # 如果這條路徑更短，就更新最佳路徑
-                if total_distance < best_distance:
-                    best_distance = total_distance
-                    best_path = path
-        
-            return best_path, best_distance
-        
-        # 計算最佳路徑
-        best_path_indices, total_distance = find_best_path()
+        # 使用模擬退火算法尋找最佳路徑
+        best_path_indices, total_distance = simulated_annealing(
+            validated_points, 
+            distances,
+            start_index=start_index,
+            end_index=end_index,
+            temperature=1000,
+            cooling_rate=0.995
+        )
         
         if best_path_indices:
             # 將索引轉換回實際的路徑點
@@ -726,14 +788,12 @@ def find_path(request):
             
             return Response({
                 'success': True,
-                'path': [list(point) for point in optimal_path],  # 轉回列表以便 JSON 序列化
-                'total_distance': round(total_distance, 2),  # 四捨五入到小數點後兩位
+                'path': [list(point) for point in optimal_path],
+                'total_distance': round(total_distance, 2),
                 'unit': 'kilometers'
             })
         else:
-            return Response({
-                'error': '無法找到有效路徑'
-            }, status=404)
+            return Response({'error': '無法找到有效路徑'}, status=404)
             
     except Exception as e:
         return Response({

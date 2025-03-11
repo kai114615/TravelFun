@@ -256,7 +256,32 @@
       const formData = new FormData(myForm)
       const divInfo = document.querySelector('#div1')
       
+      // 檢查必填欄位
+      const name = formData.get('name')
+      const txt = formData.get('txt')
+      const address = formData.get('address')
+      const region = formData.get('region')
+      const town = formData.get('town')
+
+      if (!name || !txt || !address || !region || !town) {
+          divInfo.className = 'alert alert-danger mt-3'
+          divInfo.innerHTML = '請填寫所有必要欄位'
+          return
+      }
+
+      // 檢查是否選擇了景點屬性
+      const selectedClasses = formData.getAll('class')
+      if (selectedClasses.length === 0) {
+          divInfo.className = 'alert alert-danger mt-3'
+          divInfo.innerHTML = '請至少選擇一個景點屬性'
+          return
+      }
+      
       try {
+          btnSubmit.disabled = true // 防止重複提交
+          divInfo.className = 'alert alert-info mt-3'
+          divInfo.innerHTML = '資料處理中，請稍候...'
+
           const response = await fetch('/travel/register01/', {
               method: 'POST',
               body: formData,
@@ -264,19 +289,45 @@
                   'X-CSRFToken': '{{ csrf_token }}'
               }
           })
-          const data = await response.json()
-          
-          // 根據狀態設置不同的樣式
-          if (data.status === 'error') {
-              divInfo.className = 'alert alert-danger mt-3'
-          } else {
-              divInfo.className = 'alert alert-success mt-3'
+
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`)
           }
-          divInfo.innerHTML = data.message
+
+          // 檢查回應的內容類型
+          const contentType = response.headers.get('content-type')
+          let data
+          
+          if (contentType && contentType.includes('application/json')) {
+              // 如果是 JSON 格式
+              data = await response.json()
+              if (data.status === 'error') {
+                  divInfo.className = 'alert alert-danger mt-3'
+                  divInfo.innerHTML = data.message
+              } else {
+                  divInfo.className = 'alert alert-success mt-3'
+                  divInfo.innerHTML = data.message
+                  myForm.reset() // 成功後清空表單
+              }
+          } else {
+              // 如果是純文字格式
+              const textResponse = await response.text()
+              if (textResponse.includes('已加入資料庫')) {
+                  divInfo.className = 'alert alert-success mt-3'
+                  divInfo.innerHTML = textResponse
+                  myForm.reset() // 成功後清空表單
+              } else {
+                  divInfo.className = 'alert alert-danger mt-3'
+                  divInfo.innerHTML = textResponse
+              }
+          }
           
       } catch (error) {
+          console.error('提交錯誤:', error)
           divInfo.className = 'alert alert-danger mt-3'
-          divInfo.innerHTML = '發生錯誤，請稍後再試'
+          divInfo.innerHTML = '系統發生錯誤，請稍後再試或聯繫管理員'
+      } finally {
+          btnSubmit.disabled = false // 恢復提交按鈕
       }
   })
 

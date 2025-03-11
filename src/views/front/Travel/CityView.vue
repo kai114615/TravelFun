@@ -209,6 +209,17 @@ const place_data=[
 ];
 const route = useRoute();
 const city = ref(route.params.city);
+
+// 監聽路由變化並重新載入資料
+watchEffect(async () => {
+  city.value = route.params.city;
+
+  currentPage.value = 1;
+  
+  await loadCategories();
+  await loadTowns();
+});
+
 const filteredData = computed(() => {
   return place_data.filter(item => item.place.includes(city.value));
 });
