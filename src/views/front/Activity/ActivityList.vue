@@ -965,7 +965,7 @@ export default defineComponent({
               </div>
 
               <!-- 活動內容 -->
-              <div class="pt-1 px-5 pb-5 relative min-h-[300px] flex flex-col">
+              <div class="pt-1 px-5 pb-5 relative min-h-[280px] flex flex-col">
                 <!-- 活動標題 -->
                 <NTooltip v-if="activity.activity_name?.length > 20" trigger="hover" placement="top">
                   <template #trigger>
@@ -1024,10 +1024,15 @@ export default defineComponent({
                 <div class="my-4 border-t border-gray-200" />
 
                 <!-- 活動描述 -->
-                <p class="text-sm text-gray-500 line-clamp-3 min-h-[4.5em] flex-grow mb-10"
-                  style="text-indent: 2em !important;">
-                  {{ activity.description === '無資料' ? '無活動相關簡介及說明' : (activity.description || '無活動相關簡介及說明') }}
-                </p>
+                <div class="relative text-sm text-gray-500 line-clamp-3 min-h-[4em] flex-grow mb-5 overflow-hidden"
+                  style="max-height: 4.5em; text-indent: 2em !important;">
+                  <p>
+                    {{ activity.description === '無資料' ? '無活動相關簡介及說明' : (activity.description || '無活動相關簡介及說明') }}
+                  </p>
+                  <div
+                    class="absolute bottom-0 left-0 right-0 h-[15px] bg-gradient-to-t from-white to-transparent pointer-events-none">
+                  </div>
+                </div>
 
                 <!-- 按鈕區域 - 固定在底部 -->
                 <div class="absolute bottom-5 right-5">
