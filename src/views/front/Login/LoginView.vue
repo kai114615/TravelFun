@@ -1,4 +1,4 @@
-# 登入頁面主視圖
+<!-- 登入頁面主視圖 -->
 <script setup lang="ts">
 import { NText } from 'naive-ui';
 import Login from './components/Login.vue';
@@ -6,16 +6,21 @@ import Login from './components/Login.vue';
 
 <template>
   <div class="login-view">
-    <div class="login-container">
-      <h1 class="login-title">
-        會員登入
-      </h1>
-      <Login />
-      <div class="register-link">
-        <NText>還不是會員？</NText>
-        <router-link to="/register">
-          立即註冊
-        </router-link>
+    <div class="loginColumns animated fadeInDown">
+      <div class="ibox-content">
+        <h2 class="font-bold">會員登入</h2>
+        <p>歡迎來到 TravelFun 旅遊平台</p>
+        <Login />
+        <div class="register-link">
+          <NText>還不是會員？</NText>
+          <router-link to="/register">
+            立即註冊
+          </router-link>
+        </div>
+      </div>
+      <hr/>
+      <div class="footer-text">
+        <small>TravelFun 會員中心 &copy; 2024</small>
       </div>
     </div>
   </div>
@@ -27,84 +32,89 @@ import Login from './components/Login.vue';
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  background: url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   padding: 20px;
   position: relative;
-  overflow: hidden;
 }
 
-/* 添加背景動畫效果 */
 .login-view::before {
   content: '';
   position: absolute;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 60%);
-  animation: rotate 30s linear infinite;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+      rgba(28, 132, 198, 0.6) 0%, 
+      rgba(35, 198, 200, 0.6) 100%);
   z-index: 1;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  animation: gradientAnimation 10s ease infinite;
 }
 
-@keyframes rotate {
-  from {
-    transform: translate(-50%, -50%) rotate(0deg);
+@keyframes gradientAnimation {
+  0% {
+    background-position: 0% 50%;
   }
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
 
-.login-container {
-  width: 100%;
-  max-width: 580px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-  padding: 48px;
+.loginColumns {
+  max-width: 450px;
+  margin: 50px auto;
+  padding: 20px;
   position: relative;
   z-index: 2;
-  backdrop-filter: blur(10px);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.login-container:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 10px 15px -3px rgba(0, 0, 0, 0.1),
-    0 4px 6px -2px rgba(0, 0, 0, 0.05),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+.ibox-content {
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
 }
 
-.login-title {
+.ibox-content:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+}
+
+.font-bold {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 36px;
+  margin-bottom: 5px;
   text-align: center;
-  font-size: 32px;
+  color: #2f4050;
+  text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.3);
+  letter-spacing: 3px;
   font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 36px;
-  letter-spacing: -0.5px;
-  position: relative;
 }
 
-.login-title::after {
-  content: '';
-  display: block;
-  width: 40px;
-  height: 3px;
-  background: linear-gradient(90deg, #18a058 0%, #36ad6a 100%);
-  margin: 12px auto 0;
-  border-radius: 2px;
+p {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 20px;
+  text-align: center;
+  color: #2f4050;
+  margin-bottom: 30px;
+  letter-spacing: 1px;
+  font-weight: 300;
 }
 
 .register-link {
   margin-top: 24px;
   text-align: center;
   padding: 16px;
-  background: rgba(24, 160, 88, 0.05);
+  background: rgba(255, 255, 255, 0.6);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -113,7 +123,7 @@ import Login from './components/Login.vue';
 }
 
 .register-link :deep(a) {
-  color: #18a058;
+  color: #1c84c6;
   text-decoration: none;
   font-weight: 500;
   position: relative;
@@ -121,35 +131,51 @@ import Login from './components/Login.vue';
 }
 
 .register-link :deep(a:hover) {
-  color: #36ad6a;
+  color: #23c6c8;
+  text-decoration: underline;
 }
 
-.register-link :deep(a::after) {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: currentColor;
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
-  transform-origin: right;
+.animated {
+  animation-duration: 1s;
 }
 
-.register-link :deep(a:hover::after) {
-  transform: scaleX(1);
-  transform-origin: left;
+.fadeInDown {
+  animation-name: fadeInDown;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -30px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+hr {
+  border-color: rgba(255, 255, 255, 0.3);
+  margin: 30px 0;
+}
+
+.footer-text {
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+  font-family: 'Noto Serif TC', serif;
+  opacity: 0.9;
+  font-weight: 300;
+  text-align: center;
 }
 
 /* 響應式設計 */
 @media (max-width: 640px) {
-  .login-container {
-    padding: 36px 24px;
-    margin: 20px;
+  .ibox-content {
+    padding: 30px 20px;
   }
 
-  .login-title {
+  .font-bold {
     font-size: 28px;
   }
 }

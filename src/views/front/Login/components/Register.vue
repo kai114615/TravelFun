@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { NButton, NCard, NDivider, NForm, NFormItem, NIcon, NInput, useMessage } from 'naive-ui';
-import { RefreshOutlined } from '@vicons/material';
+import { NButton, NForm, NFormItem, NInput, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { apiUserRegister } from '@/utils/api';
 import { useUserStore } from '@/stores/user';
@@ -138,44 +137,54 @@ function generateCaptcha () {
   // 清空畫布
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 生成隨機驗證碼
-  const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-  let code = '';
-  for (let i = 0; i < 4; i++)
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  // 設置適中的字體大小
+  const fontSize = 24; // 調整為更小的大小
+  ctx.font = `bold ${fontSize}px Arial`;
 
-  captchaText.value = code;
+  // 生成驗證碼（減少使用容易混淆的字元）
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 移除容易混淆的字元
+  let text = '';
+  for (let i = 0; i < 4; i++) {
+    text += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  captchaText.value = text;
 
-  // 繪製背景
-  ctx.fillStyle = '#f0f0f0';
+  // 設置純色背景
+  ctx.fillStyle = '#f5f5f5';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 繪製文字
-  ctx.font = 'bold 24px Arial';
-  ctx.fillStyle = '#333';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // 在一條直線上繪製字符
-  for (let i = 0; i < code.length; i++) {
-    const x = 20 + i * 25;
-    const y = canvas.height / 2;
-    ctx.fillText(code[i], x, y);
+  // 繪製文字（調整位置使更居中）
+  for (let i = 0; i < text.length; i++) {
+    ctx.save();
+    ctx.translate(30 + i * 30, canvas.height / 2); // 調整間距和位置以適應更小的字體
+    ctx.rotate((Math.random() - 0.5) * 0.2); // 保持較小的旋轉角度
+    ctx.fillStyle = `hsl(${Math.random() * 360}, 80%, 45%)`; // 保持原有的顏色設定
+    ctx.fillText(text[i], 0, 0);
+    ctx.restore();
   }
 
-  // 添加干擾線
+  // 添加較少的干擾線
   for (let i = 0; i < 3; i++) {
     ctx.beginPath();
-    ctx.strokeStyle = `rgba(${Math.random() * 255},${Math.random() * 255},${Math.random() * 255},0.5)`;
+    ctx.strokeStyle = `rgba(${Math.random() * 255},${Math.random() * 255},${Math.random() * 255},0.2)`;
+    ctx.lineWidth = 2;
     ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
     ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
     ctx.stroke();
   }
 
-  // 添加干擾點
-  for (let i = 0; i < 50; i++) {
-    ctx.fillStyle = `rgba(${Math.random() * 255},${Math.random() * 255},${Math.random() * 255},0.5)`;
-    ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
+  // 添加較少的干擾點
+  for (let i = 0; i < 30; i++) {
+    ctx.beginPath();
+    ctx.arc(
+      Math.random() * canvas.width,
+      Math.random() * canvas.height,
+      1,
+      0,
+      2 * Math.PI
+    );
+    ctx.fillStyle = `rgba(${Math.random() * 255},${Math.random() * 255},${Math.random() * 255},0.2)`;
+    ctx.fill();
   }
 }
 
@@ -186,127 +195,230 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <NCard class="max-w-md w-full">
-      <div class="text-center">
-        <h2 class="text-2xl font-bold mb-6">
-          註冊帳號
-        </h2>
-      </div>
-      <NForm
-        ref="formRef"
-        :model="formValue"
-        :rules="rules"
-        label-placement="left"
-        label-width="auto"
-        require-mark-placement="right-hanging"
-        size="large"
-      >
-        <NFormItem label="帳號" path="username">
+  <div class="login-form-container">
+    <NForm
+      ref="formRef"
+      :model="formValue"
+      :rules="rules"
+      class="login-form"
+    >
+      <!-- 帳號輸入 -->
+      <NFormItem path="username" label="帳號">
+        <NInput
+          v-model:value="formValue.username"
+          placeholder="請輸入帳號"
+          :maxlength="30"
+          :disabled="loading"
+          class="form-input"
+        />
+      </NFormItem>
+
+      <!-- 全名輸入 -->
+      <NFormItem path="full_name" label="全名">
+        <NInput
+          v-model:value="formValue.full_name"
+          placeholder="請輸入全名"
+          :maxlength="30"
+          :disabled="loading"
+          class="form-input"
+        />
+      </NFormItem>
+
+      <!-- 電子郵箱輸入 -->
+      <NFormItem path="email" label="電子郵箱">
+        <NInput
+          v-model:value="formValue.email"
+          placeholder="請輸入電子郵箱"
+          :maxlength="50"
+          :disabled="loading"
+          class="form-input"
+        />
+      </NFormItem>
+
+      <!-- 密碼輸入 -->
+      <NFormItem path="password1" label="密碼">
+        <NInput
+          v-model:value="formValue.password1"
+          type="password"
+          placeholder="請輸入密碼"
+          :maxlength="30"
+          show-password-on="click"
+          :disabled="loading"
+          class="form-input"
+        />
+      </NFormItem>
+
+      <!-- 確認密碼輸入 -->
+      <NFormItem path="password2" label="確認密碼">
+        <NInput
+          v-model:value="formValue.password2"
+          type="password"
+          placeholder="請再次輸入密碼"
+          :maxlength="30"
+          show-password-on="click"
+          :disabled="loading"
+          class="form-input"
+        />
+      </NFormItem>
+
+      <!-- 驗證碼區域 -->
+      <NFormItem path="captcha" label="驗證碼">
+        <div class="captcha-container">
           <NInput
-            v-model:value="formValue.username"
-            placeholder="請輸入帳號"
+            v-model:value="formValue.captcha"
+            placeholder="請輸入驗證碼"
+            :maxlength="6"
             :disabled="loading"
+            class="form-input captcha-input"
           />
-        </NFormItem>
-
-        <NFormItem label="全名" path="full_name">
-          <NInput
-            v-model:value="formValue.full_name"
-            placeholder="請輸入全名"
-            :disabled="loading"
+          <canvas
+            ref="captchaCanvas"
+            width="200"
+            height="50"
+            class="captcha-canvas"
+            @click="generateCaptcha"
           />
-        </NFormItem>
-
-        <NFormItem label="電子郵箱" path="email">
-          <NInput
-            v-model:value="formValue.email"
-            placeholder="請輸入電子郵箱"
-            :disabled="loading"
-          />
-        </NFormItem>
-
-        <NFormItem label="密碼" path="password1">
-          <NInput
-            v-model:value="formValue.password1"
-            type="password"
-            placeholder="請輸入密碼"
-            show-password-on="click"
-            :disabled="loading"
-          />
-        </NFormItem>
-
-        <NFormItem label="確認密碼" path="password2">
-          <NInput
-            v-model:value="formValue.password2"
-            type="password"
-            placeholder="請再次輸入密碼"
-            show-password-on="click"
-            :disabled="loading"
-          />
-        </NFormItem>
-
-        <NFormItem label="驗證碼" path="captcha">
-          <div class="flex gap-2">
-            <NInput
-              v-model:value="formValue.captcha"
-              placeholder="請輸入驗證碼"
-              :disabled="loading"
-            />
-            <div class="flex items-center gap-2">
-              <canvas
-                ref="captchaCanvas"
-                width="120"
-                height="40"
-                class="border cursor-pointer"
-                @click="generateCaptcha"
-              />
-              <NButton circle quaternary :disabled="loading" @click="generateCaptcha">
-                <template #icon>
-                  <NIcon>
-                    <RefreshOutlined />
-                  </NIcon>
-                </template>
-              </NButton>
-            </div>
-          </div>
-        </NFormItem>
-
-        <div class="flex flex-col gap-4 mt-6">
-          <NButton
-            type="primary"
-            block
-            secondary
-            strong
-            :loading="loading"
-            :disabled="loading"
-            @click="handleSubmit"
-          >
-            {{ loading ? '註冊中...' : '註冊' }}
-          </NButton>
-
-          <NDivider>或者</NDivider>
-
-          <NButton
-            block
-            strong
-            :disabled="loading"
-            @click="router.push('/login')"
-          >
-            返回登入
-          </NButton>
         </div>
-      </NForm>
-    </NCard>
+      </NFormItem>
+
+      <!-- 註冊按鈕 -->
+      <div class="button-container">
+        <NButton
+          type="primary"
+          size="large"
+          block
+          :loading="loading"
+          :disabled="loading"
+          @click="handleSubmit"
+        >
+          {{ loading ? '註冊中...' : '註冊' }}
+        </NButton>
+      </div>
+
+      <!-- 返回登入選項 -->
+      <div class="google-login">
+        <div class="divider">
+          <span>或</span>
+        </div>
+        <NButton
+          size="large"
+          block
+          :disabled="loading"
+          @click="router.push('/login')"
+          class="login-button"
+        >
+          返回登入
+        </NButton>
+      </div>
+    </NForm>
   </div>
 </template>
 
 <style scoped>
-.text-primary {
-  color: #18a058;
+.login-form-container {
+  width: 100%;
 }
 
-canvas {
-  background-color: white;
+.login-form {
+  width: 100%;
+  font-size: 14px; /* 整體表單字體縮小 */
+}
+
+.form-input {
+  width: 100%;
+  border-radius: 8px;
+  font-size: 14px; /* 輸入框文字縮小 */
+}
+
+.captcha-container {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.captcha-input {
+  flex: 1;
+}
+
+.captcha-canvas {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: transform 0.2s ease;
+}
+
+.captcha-canvas:hover {
+  transform: scale(1.02);
+}
+
+.button-container {
+  margin-top: 24px;
+}
+
+.google-login {
+  margin-top: 24px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 16px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.divider span {
+  padding: 0 16px;
+  color: #6b7280;
+  font-size: 13px; /* 分隔線文字縮小 */
+}
+
+.login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  font-weight: 500;
+  font-size: 14px; /* 登入按鈕文字縮小 */
+}
+
+.login-button:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+:deep(.n-form-item .n-form-item-label) {
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px; /* 表單標籤文字縮小 */
+}
+
+:deep(.n-input) {
+  border-radius: 8px;
+}
+
+:deep(.n-button) {
+  border-radius: 8px;
+  height: 40px; /* 按鈕高度縮小 */
+  font-weight: 500;
+  font-size: 14px; /* 按鈕文字縮小 */
+}
+
+/* 新增樣式，確保所有輸入框內的文字大小一致 */
+:deep(.n-input__input-el) {
+  font-size: 14px !important;
+}
+
+/* 調整占位符文字大小 */
+:deep(.n-input__placeholder) {
+  font-size: 13px !important;
 }
 </style>
