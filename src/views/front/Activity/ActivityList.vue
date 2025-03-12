@@ -809,28 +809,20 @@ export default defineComponent({
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <i class="fas fa-search text-[#0F4BB4]" />
           </div>
-          <input
-            v-model="searchQuery" type="text" placeholder="搜尋活動名稱、地點..."
+          <input v-model="searchQuery" type="text" placeholder="搜尋活動名稱、地點..."
             class="w-full h-[44px] pl-10 pr-4 rounded-lg border border-gray-200 focus:border-[#0F4BB4] focus:ring-2 focus:ring-[#0F4BB4]/20 transition-all duration-200 bg-white text-base font-normal"
-            @focus="showSuggestions = true"
-          >
+            @focus="showSuggestions = true">
 
           <!-- 搜尋建議下拉清單 -->
-          <div
-            v-if="showSuggestions && (searchQuery || searchHistory.length > 0)"
-            class="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-[300px] overflow-y-auto"
-          >
+          <div v-if="showSuggestions && (searchQuery || searchHistory.length > 0)"
+            class="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-[300px] overflow-y-auto">
             <div v-if="filteredSuggestions.length > 0">
-              <div
-                v-for="(suggestion, index) in filteredSuggestions" :key="index"
+              <div v-for="(suggestion, index) in filteredSuggestions" :key="index"
                 class="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center justify-between"
-                @click="handleSuggestionClick(suggestion)"
-              >
+                @click="handleSuggestionClick(suggestion)">
                 <div class="flex items-center">
-                  <i
-                    :class="suggestion.type === 'history' ? 'fas fa-history' : 'fas fa-search'"
-                    class="text-gray-400 mr-2"
-                  />
+                  <i :class="suggestion.type === 'history' ? 'fas fa-history' : 'fas fa-search'"
+                    class="text-gray-400 mr-2" />
                   <span>{{ suggestion.text }}</span>
                 </div>
                 <span v-if="suggestion.count" class="text-sm text-gray-400">
@@ -838,10 +830,8 @@ export default defineComponent({
                 </span>
               </div>
             </div>
-            <div
-              v-if="searchHistory.length > 0"
-              class="px-4 py-2 border-t border-gray-200 flex justify-between items-center"
-            >
+            <div v-if="searchHistory.length > 0"
+              class="px-4 py-2 border-t border-gray-200 flex justify-between items-center">
               <span class="text-sm text-gray-500">搜尋歷史</span>
               <button class="text-sm text-[#0F4BB4] hover:text-[#0d3d91]" @click.stop="clearSearchHistory">
                 清除歷史
@@ -855,28 +845,22 @@ export default defineComponent({
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <i class="far fa-calendar text-[#0F4BB4]" />
           </div>
-          <input
-            v-model="searchDate" type="date"
+          <input v-model="searchDate" type="date"
             class="w-full md:w-48 h-[44px] pl-10 pr-4 rounded-lg border border-gray-200 focus:border-[#0F4BB4] focus:ring-2 focus:ring-[#0F4BB4]/20 transition-all duration-200 bg-white text-base font-normal"
-            :min="minDate" :max="maxDate"
-          >
+            :min="minDate" :max="maxDate">
         </div>
 
         <!-- 活動分類選單 -->
         <div class="relative h-[44px]">
-          <NSelect
-            v-model:value="selectedStatus" :options="statusOptions" placeholder="選擇活動狀態"
-            class="w-full md:w-48 status-select text-base font-normal" :consistent-menu-width="false"
-          />
+          <NSelect v-model:value="selectedStatus" :options="statusOptions" placeholder="選擇活動狀態"
+            class="w-full md:w-48 status-select text-base font-normal" :consistent-menu-width="false" />
           <i class="fas fa-filter text-[#0F4BB4] absolute left-4 top-1/2 -translate-y-1/2 z-10 text-md" />
         </div>
 
         <!-- 搜尋按鈕 -->
-        <NButton
-          type="primary"
+        <NButton type="primary"
           class="search-button h-[44px] px-8 rounded-lg transition-all duration-200 hover:shadow-lg flex items-center justify-center gap-3 w-full md:w-auto bg-[#0F4BB4] text-base font-normal"
-          @click="handleSearch"
-        >
+          @click="handleSearch">
           <i class="fas fa-search text-base" />
           <span class="ml-1">搜尋活動</span>
         </NButton>
@@ -902,87 +886,67 @@ export default defineComponent({
     <template v-else>
       <!-- 上方分頁 -->
       <div class="flex justify-center mb-8">
-        <NPagination
-          v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
+        <NPagination v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
           :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker class="pagination-custom"
-          @update:page="changePage" @update:page-size="handlePageSizeChange"
-        />
+          @update:page="changePage" @update:page-size="handlePageSizeChange" />
       </div>
 
       <div class="container mx-auto px-2 sm:px-4 lg:px-0">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <template v-for="activity in paginatedActivities" :key="activity.id">
-            <NCard
-              class="activity-card transform transition-all duration-300 hover:-translate-y-1" :bordered="false"
+            <NCard class="activity-card transform transition-all duration-300 hover:-translate-y-1" :bordered="false"
               size="medium" :segmented="{ content: true }" :hoverable="true"
-              style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
-            >
+              style="box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
               <!-- 圖片容器 -->
               <div class="relative aspect-[16/9] overflow-hidden rounded-t-lg mt-0" @click.stop>
-                <img
-                  :src="getImageUrl(activity)" :alt="activity.activity_name"
-                  class="w-full h-full object-cover transition-opacity duration-300" @error="handleImageError"
-                >
+                <img :src="getImageUrl(activity)" :alt="activity.activity_name"
+                  class="w-full h-full object-cover transition-opacity duration-300" @error="handleImageError">
 
                 <!-- 輪播控制按鈕 - 只在多張圖片時顯示 -->
-                <div
-                  v-if="hasMultipleImages[activity.id]"
+                <div v-if="hasMultipleImages[activity.id]"
                   class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-opacity duration-300"
-                  @click.stop
-                >
-                  <button
-                    class="carousel-button transform hover:scale-110 transition-transform"
-                    @click.stop="prevImage(activity, $event)"
-                  >
+                  @click.stop>
+                  <button class="carousel-button transform hover:scale-110 transition-transform"
+                    @click.stop="prevImage(activity, $event)">
                     <i class="fas fa-chevron-left" />
                   </button>
-                  <button
-                    class="carousel-button transform hover:scale-110 transition-transform"
-                    @click.stop="nextImage(activity, $event)"
-                  >
+                  <button class="carousel-button transform hover:scale-110 transition-transform"
+                    @click.stop="nextImage(activity, $event)">
                     <i class="fas fa-chevron-right" />
                   </button>
                 </div>
 
                 <!-- 圖片指示器 - 只在多張圖片時顯示 -->
-                <div
-                  v-if="hasMultipleImages[activity.id]"
-                  class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10" @click.stop
-                >
-                  <button
-                    v-for="(_, index) in getActivityImageUrls(activity)" :key="index"
+                <div v-if="hasMultipleImages[activity.id]"
+                  class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10" @click.stop>
+                  <button v-for="(_, index) in getActivityImageUrls(activity)" :key="index"
                     class="w-2 h-2 rounded-full transition-all duration-300 bg-white/50 hover:bg-white/80" :class="[
                       index === (currentImageIndexes[activity.id] || 0) ? 'bg-white scale-125' : '',
-                    ]" @click.stop="currentImageIndexes[activity.id] = index"
-                  />
+                    ]" @click.stop="currentImageIndexes[activity.id] = index" />
                 </div>
 
                 <!-- 活動狀態標籤 -->
                 <div
                   class="absolute top-3 right-3 px-4 py-1.5 min-w-[80px] text-center rounded-md text-sm font-medium text-white transition-transform duration-300"
-                  :class="getStatusClass(activity)"
-                >
+                  :class="getStatusClass(activity)">
                   {{ getStatusText(activity) }}
                 </div>
               </div>
 
               <!-- 活動內容 -->
-              <div class="pt-1 px-5 pb-5">
+              <div class="pt-1 px-5 pb-5 relative min-h-[300px] flex flex-col">
                 <!-- 活動標題 -->
                 <NTooltip v-if="activity.activity_name?.length > 20" trigger="hover" placement="top">
                   <template #trigger>
                     <h3
-                      class="text-xl font-semibold text-gray-900 mb-4 whitespace-nowrap overflow-hidden text-ellipsis"
-                    >
+                      class="text-xl font-semibold text-gray-900 mb-4 whitespace-nowrap overflow-hidden text-ellipsis">
                       {{ activity.activity_name }}
                     </h3>
                   </template>
                   {{ activity.activity_name }}
                 </NTooltip>
-                <h3
-                  v-else
-                  class="text-xl font-semibold text-gray-900 mb-4 whitespace-nowrap overflow-hidden text-ellipsis"
-                >
+                <h3 v-else
+                  class="text-xl font-semibold text-gray-900 mb-4 whitespace-nowrap overflow-hidden text-ellipsis">
                   {{ activity.activity_name }}
                 </h3>
 
@@ -1029,17 +993,16 @@ export default defineComponent({
                 <div class="my-4 border-t border-gray-200" />
 
                 <!-- 活動描述 -->
-                <p class="text-sm text-gray-500 line-clamp-3" style="text-indent: 2em !important;">
+                <p class="text-sm text-gray-500 line-clamp-3 min-h-[4.5em] flex-grow mb-10"
+                  style="text-indent: 2em !important;">
                   {{ activity.description === '無資料' ? '無活動相關簡介及說明' : (activity.description || '無活動相關簡介及說明') }}
                 </p>
 
-                <!-- 按鈕區域 -->
-                <div class="mt-4 flex justify-end">
-                  <NButton
-                    type="success" size="small"
+                <!-- 按鈕區域 - 固定在底部 -->
+                <div class="absolute bottom-5 right-5">
+                  <NButton type="success" size="small"
                     class="hover:shadow-md transition-shadow bg-[#417690] hover:bg-[#205067] text-white font-medium"
-                    @click="viewDetails(activity)"
-                  >
+                    @click="viewDetails(activity)">
                     查看詳情
                   </NButton>
                 </div>
@@ -1051,11 +1014,9 @@ export default defineComponent({
 
       <!-- 下方分頁 -->
       <div class="flex justify-center mt-8 mb-12">
-        <NPagination
-          v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
+        <NPagination v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
           :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker class="pagination-custom"
-          @update:page="changePage" @update:page-size="handlePageSizeChange"
-        />
+          @update:page="changePage" @update:page-size="handlePageSizeChange" />
       </div>
     </template>
   </div>
@@ -1225,6 +1186,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: 6px;
   height: 36px;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
 }
 
 /* 分頁選擇器懸停效果 */
@@ -1236,6 +1199,31 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .pagination-custom :deep(.n-base-selection--active) {
   border-color: #0F4BB4;
   box-shadow: 0 0 0 2px rgba(15, 75, 180, 0.2);
+}
+
+/* 分頁選擇器標籤文字樣式 */
+.pagination-custom :deep(.n-base-selection-label) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-right: 22px;
+  height: 100%;
+}
+
+/* 分頁選擇器佔位符文字樣式 */
+.pagination-custom :deep(.n-base-selection-placeholder) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-right: 22px;
+  height: 100%;
+}
+
+/* 分頁選擇器箭頭圖標位置調整 */
+.pagination-custom :deep(.n-base-suffix) {
+  right: 8px;
 }
 
 /* 分頁選擇器下拉菜單樣式 */
