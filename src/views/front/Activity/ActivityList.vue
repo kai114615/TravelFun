@@ -124,6 +124,19 @@ export default defineComponent({
       searchHistory: [] as string[],
       maxHistoryItems: 10,
       isInputFocused: false,
+      // 分頁組件中文本地化設定
+      paginationLocale: {
+        goto: '前往',
+        selectionSuffix: '頁',
+        prev: '上一頁',
+        next: '下一頁',
+        total: {
+          type: 'info',
+          before: '共',
+          after: '頁'
+        },
+        pageSize: '每頁'
+      },
     };
   },
   computed: {
@@ -239,6 +252,11 @@ export default defineComponent({
   beforeUnmount() {
     // 移除事件監聽器
     document.removeEventListener('click', this.handleClickOutside);
+  },
+  created() {
+    // 設置日期範圍
+    this.minDate = this.getMinDate();
+    this.maxDate = this.getMaxDate();
   },
   methods: {
     initializeComponent() {
@@ -886,9 +904,22 @@ export default defineComponent({
     <template v-else>
       <!-- 上方分頁 -->
       <div class="flex justify-center mb-8">
-        <NPagination v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
-          :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker class="pagination-custom"
-          @update:page="changePage" @update:page-size="handlePageSizeChange" />
+        <div class="text-center">
+          <NPagination v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
+            :page-sizes="pageSizeOptions" :page-slot="7" show-quick-jumper show-size-picker show-size-picker-trigger
+            class="pagination-custom" @update:page="changePage" @update:page-size="handlePageSizeChange"
+            :locale="paginationLocale">
+            <template #goto>
+              前往
+            </template>
+            <template #prev>
+              <span>上一頁</span>
+            </template>
+            <template #next>
+              <span>下一頁</span>
+            </template>
+          </NPagination>
+        </div>
       </div>
 
       <div class="container mx-auto px-2 sm:px-4 lg:px-0">
@@ -1013,10 +1044,25 @@ export default defineComponent({
       </div>
 
       <!-- 下方分頁 -->
-      <div class="flex justify-center mt-8 mb-12">
-        <NPagination v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
-          :page-sizes="pageSizeOptions" :page-slot="7" show-size-picker class="pagination-custom"
-          @update:page="changePage" @update:page-size="handlePageSizeChange" />
+      <div class="flex justify-center mt-8">
+        <div class="text-center">
+          <p class="text-gray-600 mb-3">顯示第 {{ (currentPage - 1) * itemsPerPage + 1 }} 至
+            {{ Math.min(currentPage * itemsPerPage, activities.length) }} 項，共 {{ activities.length }} 項</p>
+          <NPagination v-model:page="currentPage" v-model:page-size="itemsPerPage" :page-count="totalPages"
+            :page-sizes="pageSizeOptions" :page-slot="7" show-quick-jumper show-size-picker show-size-picker-trigger
+            class="pagination-custom" @update:page="changePage" @update:page-size="handlePageSizeChange"
+            :locale="paginationLocale">
+            <template #goto>
+              前往
+            </template>
+            <template #prev>
+              <span>上一頁</span>
+            </template>
+            <template #next>
+              <span>下一頁</span>
+            </template>
+          </NPagination>
+        </div>
       </div>
     </template>
   </div>
@@ -1030,13 +1076,13 @@ export default defineComponent({
   padding: 0 1rem;
 }
 
-/* 搜尋區塊的新樣式 */
+/* 搜尋區塊樣式 */
 .search-container {
   background: #ffffff;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-/* 輸入框焦點效果 */
+/* 輸入框相關樣式 */
 input:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(15, 75, 180, 0.2);
@@ -1064,7 +1110,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   width: auto;
 }
 
-/* 輪播容器樣式 */
+/* 輪播相關樣式 */
 .carousel {
   position: relative;
   height: 100%;
@@ -1141,24 +1187,80 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transform: scale(1.2);
 }
 
-/* 分頁組件樣式 */
+/* 分頁組件整體樣式 */
 .pagination-custom {
   background-color: white;
   border-radius: 0.5rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  padding: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  transition: box-shadow 0.3s ease;
 }
 
-/* 分頁項目樣式 */
+.pagination-custom:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 分頁組件布局設置 */
+.pagination-custom :deep(.n-pagination-quick-jumper),
+.pagination-custom :deep(.n-pagination-prefix),
+.pagination-custom :deep(.n-pagination-suffix),
+.pagination-custom :deep(.n-pagination-size-picker) {
+  margin: 8px 20px;
+}
+
+/* 組件排序 */
+.pagination-custom :deep(.n-pagination-quick-jumper) {
+  order: 1;
+  position: relative;
+}
+
+.pagination-custom :deep(.n-pagination-size-picker) {
+  order: 2;
+  min-width: 110px;
+}
+
+.pagination-custom :deep(.n-pagination-prefix) {
+  order: 3;
+}
+
+.pagination-custom :deep(.n-pagination-suffix) {
+  order: 4;
+}
+
+/* 跳轉頁碼輸入框樣式 */
+.pagination-custom :deep(.n-pagination-quick-jumper input) {
+  height: 40px;
+  font-weight: bold;
+  /* border-radius: 8px; */
+  text-align: center;
+}
+
+.pagination-custom :deep(.n-pagination-quick-jumper .n-input),
+.pagination-custom :deep(.n-pagination-quick-jumper .n-input__wrapper),
+.pagination-custom :deep(.n-pagination-quick-jumper .n-input-wrapper) {
+  border-radius: 8px;
+}
+
+/* 恢復懸停和聚焦效果 */
+.pagination-custom :deep(.n-pagination-quick-jumper input:hover),
+.pagination-custom :deep(.n-pagination-quick-jumper input:focus) {
+  border-color: #0F4BB4;
+  box-shadow: 0 0 0 2px rgba(15, 75, 180, 0.2);
+}
+
+/* 分頁項目樣式統一 */
 .pagination-custom :deep(.n-pagination-item) {
-  min-width: 36px;
-  height: 36px;
-  line-height: 36px;
-  margin: 0 4px;
-  border-radius: 6px;
+  min-width: 40px;
+  height: 40px;
+  line-height: 40px;
+  margin: 0 6px;
+  border-radius: 8px;
   color: #666;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  border: 1px solid transparent;
 }
 
 /* 分頁目前項目樣式 */
@@ -1166,25 +1268,50 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background-color: #0F4BB4;
   color: white;
   font-weight: 600;
+  transform: translateY(-2px);
+  box-shadow: none;
 }
 
 /* 分頁項目懸停效果 */
 .pagination-custom :deep(.n-pagination-item:hover:not(.n-pagination-item--active)) {
   background-color: #e9f2ff;
   color: #0F4BB4;
+  border-color: #0F4BB4;
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+/* 分頁按鈕樣式 */
+.pagination-custom :deep(.n-pagination-item.n-pagination-item--button) {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+  min-width: 100px;
+  border-radius: 8px;
+}
+
+.pagination-custom :deep(.n-pagination-item.n-pagination-item--button:hover:not(:disabled)) {
+  background-color: #e9f2ff;
+  border-color: #0F4BB4;
+  color: #0F4BB4;
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.pagination-custom :deep(.n-pagination-item.n-pagination-item--button:disabled) {
+  background-color: #f8f9fa;
+  border-color: #e2e8f0;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* 分頁選擇器樣式 */
-.pagination-custom :deep(.n-pagination-size-picker) {
-  min-width: 110px;
-}
-
-/* 分頁選擇器基礎樣式 */
 .pagination-custom :deep(.n-base-selection) {
   background-color: white;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  height: 36px;
+  border-radius: 8px;
+  height: 40px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -1193,6 +1320,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* 分頁選擇器懸停效果 */
 .pagination-custom :deep(.n-base-selection:hover) {
   border-color: #0F4BB4;
+  transform: translateY(-1px);
 }
 
 /* 分頁選擇器聚焦效果 */
@@ -1201,17 +1329,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 0 0 2px rgba(15, 75, 180, 0.2);
 }
 
-/* 分頁選擇器標籤文字樣式 */
-.pagination-custom :deep(.n-base-selection-label) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding-right: 22px;
-  height: 100%;
-}
-
-/* 分頁選擇器佔位符文字樣式 */
+.pagination-custom :deep(.n-base-selection-label),
 .pagination-custom :deep(.n-base-selection-placeholder) {
   display: flex;
   align-items: center;
@@ -1219,6 +1337,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   text-align: center;
   padding-right: 22px;
   height: 100%;
+  font-weight: 500;
 }
 
 /* 分頁選擇器箭頭圖標位置調整 */
@@ -1232,13 +1351,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 4px;
+  overflow: hidden;
 }
 
 /* 分頁選擇器選項樣式 */
 .pagination-custom :deep(.n-base-select-option) {
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
   transition: all 0.2s ease;
+  margin: 2px 4px;
 }
 
 /* 分頁選擇器選項懸停效果 */
@@ -1247,39 +1368,48 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #0F4BB4;
 }
 
-/* 分頁按鈕樣式 */
-.pagination-custom :deep(.n-pagination-item.n-pagination-item--button) {
-  background-color: white;
-  border: 1px solid #e2e8f0;
+/* 分頁文字中文化 */
+.pagination-custom :deep(.n-pagination-item--prev button) {
+  font-size: 0;
 }
 
-/* 分頁按鈕懸停效果 */
-.pagination-custom :deep(.n-pagination-item.n-pagination-item--button:hover:not(:disabled)) {
-  background-color: #e9f2ff;
-  border-color: #0F4BB4;
-  color: #0F4BB4;
+.pagination-custom :deep(.n-pagination-item--prev button)::before {
+  content: "上一頁";
+  font-size: 15px;
 }
 
-/* 分頁按鈕禁用效果 */
-.pagination-custom :deep(.n-pagination-item.n-pagination-item--button:disabled) {
-  background-color: #f8f9fa;
-  border-color: #e2e8f0;
-  color: #9ca3af;
-  cursor: not-allowed;
+.pagination-custom :deep(.n-pagination-item--next button) {
+  font-size: 0;
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .pagination-custom :deep(.n-pagination-item) {
-    min-width: 32px;
-    height: 32px;
-    line-height: 32px;
-    margin: 0 2px;
-  }
+.pagination-custom :deep(.n-pagination-item--next button)::before {
+  content: "下一頁";
+  font-size: 15px;
+}
 
-  .pagination-custom :deep(.n-pagination-size-picker) {
-    min-width: 90px;
-  }
+.pagination-custom :deep(.n-pagination-quick-jumper) {
+  font-size: 0;
+}
+
+.pagination-custom :deep(.n-pagination-quick-jumper)::before {
+  content: "前往";
+  font-size: 15px;
+}
+
+.pagination-custom :deep(.n-pagination-quick-jumper)::after {
+  content: "頁";
+  font-size: 15px;
+  margin-left: 8px;
+}
+
+.pagination-custom :deep(.n-base-selection-placeholder) {
+  font-size: 0;
+}
+
+.pagination-custom :deep(.n-base-selection-placeholder)::before {
+  content: "每頁";
+  font-size: 15px;
+  font-weight: 500;
 }
 
 /* 動畫效果定義 */
@@ -1316,39 +1446,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   animation: pulse-urgent 1s ease-in-out infinite;
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
-
-  /* 搜索容器響應式調整 */
-  .search-container {
-    padding: 1rem;
-  }
-
-  /* 日期選擇器響應式調整 */
-  input[type="date"] {
-    width: 100%;
-  }
-
-  /* 狀態選擇器響應式調整 */
-  .status-select {
-    width: 100%;
-  }
-
-  /* 搜索按鈕響應式調整 */
-  .search-button {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-/* 觸控設備適配 */
-@media (hover: none) {
-  .carousel-controls {
-    opacity: 1 !important;
-  }
-}
-
-/* 卡片內容區域樣式 */
+/* 卡片相關樣式 */
 :deep(.n-card__content) {
   padding: 0rem 0rem;
   /* 上下，左右 */
@@ -1375,25 +1473,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 :deep(.n-card__content:first-child) {
   padding: 0;
   margin: 0;
-}
-
-/* 響應式調整 */
-@media (max-width: 768px) {
-  :deep(.n-card__content) {
-    padding: 0rem 0rem;
-    /* 手機版縮小內邊距 */
-  }
-}
-
-/* 確保內容區域的間距 */
-.card-content>* {
-  margin-bottom: 0.75rem;
-  /* 內容元素間距 */
-}
-
-.card-content>*:last-child {
-  margin-bottom: 0;
-  /* 最後一個元素不要底部間距 */
 }
 
 /* Tooltip 相關樣式 */
@@ -1506,5 +1585,63 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .search-suggestions::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+
+  /* 分頁組件響應式調整 */
+  .pagination-custom :deep(.n-pagination-item) {
+    min-width: 32px;
+    height: 32px;
+    line-height: 32px;
+    margin: 0 2px;
+  }
+
+  .pagination-custom :deep(.n-pagination-size-picker) {
+    min-width: 90px;
+  }
+
+  /* 搜索容器響應式調整 */
+  .search-container {
+    padding: 1rem;
+  }
+
+  /* 日期選擇器響應式調整 */
+  input[type="date"] {
+    width: 100%;
+  }
+
+  /* 狀態選擇器響應式調整 */
+  .status-select {
+    width: 100%;
+  }
+
+  /* 搜索按鈕響應式調整 */
+  .search-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* 卡片響應式調整 */
+  :deep(.n-card__content) {
+    padding: 0;
+  }
+}
+
+/* 觸控設備適配 */
+@media (hover: none) {
+  .carousel-controls {
+    opacity: 1 !important;
+  }
+}
+
+/* 卡片內容區域樣式 */
+.card-content>* {
+  margin-bottom: 0.75rem;
+}
+
+.card-content>*:last-child {
+  margin-bottom: 0;
 }
 </style>
