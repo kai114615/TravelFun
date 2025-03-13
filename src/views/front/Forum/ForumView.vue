@@ -78,7 +78,7 @@ function getAuthorAvatar(author: any) {
 }
 
 const title = ref('討論區');
-const activeCategory = ref('國內旅遊');
+const activeCategory = ref('全部');  // 修改預設分類為"全部"
 
 // 分類列表
 const categories = ref([]);
@@ -223,15 +223,26 @@ async function loadCategories() {
         return;
       }
 
-      categoryOptions.value = validCategories.map(category => ({
-        label: category.name,
-        value: category.id,
-        description: category.description || '',
-        post_count: category.post_count || 0,
-      }));
+      // 添加"全部"選項
+      categoryOptions.value = [
+        {
+          label: '全部',
+          value: 0,
+          description: '顯示所有分類的文章',
+          post_count: validCategories.reduce((total, cat) => total + (cat.post_count || 0), 0),
+        },
+        ...validCategories.map(category => ({
+          label: category.name,
+          value: category.id,
+          description: category.description || '',
+          post_count: category.post_count || 0,
+        }))
+      ];
 
       categories.value = categoryOptions.value;
-      topButtons.value = categories.value.map(c => c.label);
+      // 修改這裡，移除重複的"全部"
+      topButtons.value = validCategories.map(c => c.name);
+      topButtons.value.unshift('全部');  // 在開頭加入"全部"選項
 
       console.log('分類列表已更新:', categoryOptions.value);
     }
@@ -960,17 +971,6 @@ async function goToPostDetail(post) {
         <div class="flex flex-wrap items-center mb-3">
           <div class="mr-3 font-medium text-gray-700">主題分類：</div>
           <div class="flex flex-wrap gap-2">
-            <button 
-              class="px-3 py-1.5 rounded-full text-sm border transition-colors"
-              :class="[
-                activeCategory === '全部' 
-                  ? 'bg-gradient-to-r from-blue-400 to-teal-400 text-white border-transparent shadow-sm'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              ]"
-              @click="handleCategoryChange('全部')"
-            >
-              全部
-            </button>
             <button 
               v-for="category in topButtons" 
               :key="category"

@@ -1,0 +1,275 @@
+{% extends 'admin-dashboard/base.html' %}
+{% block title %}評論管理{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>評論列表 (總數: {{ comments|length }} 條評論)</h5>
+                </div>
+                <div class="ibox-content">
+                    <div id="globalMessage" class="mb-3"></div>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <strong>提示：</strong> 如果使用「刪除」按鈕無法刪除評論，請嘗試使用「直接刪除」按鈕。
+                            </div>
+                        </div>
+                    </div>
+                    <table id="comments-table" class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>評論內容</th>
+                                <th>作者</th>
+                                <th>文章</th>
+                                <th>評論時間</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comment in comments %}
+                            <tr>
+                                <td>{{ comment.content|truncatechars:100 }}</td>
+                                <td>{{ comment.author.username }}</td>
+                                <td>{{ comment.post.title|truncatechars:30 }}</td>
+                                <td>{{ comment.created_at|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    {% if comment.post and not comment.post.is_deleted %}
+                                    <a href="{% url 'admin-post-detail' comment.post.id %}" class="btn btn-xs btn-info">
+                                        <i class="fa fa-eye"></i> 查看文章
+                                    </a>
+                                    {% else %}
+                                    <button class="btn btn-xs btn-default disabled" title="文章已刪除">
+                                        <i class="fa fa-eye-slash"></i> 文章不可見
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-xs btn-danger delete-comment" data-id="{{ comment.id }}">
+                                        <i class="fa fa-trash"></i> 刪除
+                                    </button>
+                                    <a href="/api/direct-delete-comment/{{ comment.id }}/" class="btn btn-xs btn-warning" onclick="return confirm('確定要直接刪除這個評論嗎？')">
+                                        <i class="fa fa-trash-o"></i> 直接刪除
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 刪除確認對話框 -->
+<div class="modal fade" id="deleteCommentModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">刪除評論</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>確定要刪除這個評論嗎？</p>
+                <form id="deleteCommentForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="deleteCommentId">
+                </form>
+                <div id="deleteStatusMsg" class="mt-2"></div>
+                <div id="requestDebugInfo" class="mt-2 small text-muted" style="word-break: break-all;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">確定刪除</button>
+                <button type="button" class="btn btn-info" id="tryAlternativeBtn">嘗試表單方式</button>
+                <div class="custom-control custom-switch ml-3">
+                    <input type="checkbox" class="custom-control-input" id="debugMode">
+                    <label class="custom-control-label" for="debugMode">Debug模式</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 初始化數據表格
+    $('#comments-table').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Chinese.json"
+        },
+        "order": [[3, "desc"]],  // 按創建時間降序排列
+        "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "全部"]],  // 顯示條數選項
+        "pageLength": 50,  // 默認每頁顯示數量
+        "dom": '<"top"lf>rt<"bottom"ip><"clear">',  // 控制元素顯示位置
+        "stateSave": true,  // 保存用戶的顯示設置
+        "processing": true,  // 顯示處理中的提示
+        "info": true,  // 顯示頁面信息
+        "pagingType": "full_numbers"  // 使用完整數字分頁
+    });
+    
+    // 檢查是否啟用Debug模式
+    function isDebugMode() {
+        return $('#debugMode').is(':checked');
+    }
+    
+    // 處理刪除按鈕點擊
+    $('.delete-comment').click(function() {
+        var id = $(this).data('id');
+        $('#deleteCommentId').val(id);
+        $('#deleteStatusMsg').html('');
+        $('#requestDebugInfo').html('');
+        $('#deleteCommentModal').modal('show');
+        
+        if (isDebugMode()) {
+            $('#requestDebugInfo').html(
+                '<strong>準備刪除評論:</strong><br>' +
+                '評論ID: ' + id
+            );
+        }
+    });
+    
+    // 處理確認刪除按鈕點擊
+    $('#confirmDeleteBtn').click(function() {
+        deleteComment('json');
+    });
+    
+    // 嘗試備用刪除方法
+    $('#tryAlternativeBtn').click(function() {
+        deleteComment('form');
+    });
+    
+    // 刪除評論函數
+    function deleteComment(method) {
+        var $btn = $('#confirmDeleteBtn');
+        var $altBtn = $('#tryAlternativeBtn');
+        var id = $('#deleteCommentId').val();
+        
+        console.log('準備刪除評論:', { id, method, debug: isDebugMode() });
+        $('#deleteStatusMsg').html('<div class="alert alert-info">正在處理刪除請求...</div>');
+        
+        $btn.prop('disabled', true);
+        $altBtn.prop('disabled', true);
+        
+        // 獲取CSRF Token
+        var csrftoken = $('#deleteCommentForm [name=csrfmiddlewaretoken]').val();
+        
+        // 設置請求選項
+        var ajaxOptions = {
+            url: '/api/test-delete-comment/',
+            method: 'POST',
+            dataType: 'json',
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader('X-CSRFToken', csrftoken);
+            },
+            success: function(response) {
+                console.log('刪除成功:', response);
+                $('#deleteStatusMsg').html('<div class="alert alert-success">評論刪除成功！</div>');
+                
+                if (isDebugMode()) {
+                    $('#requestDebugInfo').append(
+                        '<br><strong>成功響應:</strong><br>' +
+                        JSON.stringify(response, null, 2)
+                    );
+                } else {
+                    setTimeout(function() {
+                        $('#deleteCommentModal').modal('hide');
+                        location.reload();
+                    }, 1000);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('刪除錯誤:', error);
+                console.error('錯誤狀態:', xhr.status);
+                console.error('回應文本:', xhr.responseText);
+                
+                var errorMsg = '刪除失敗，請重試';
+                try {
+                    var response = JSON.parse(xhr.responseText);
+                    errorMsg = response.detail || response.message || errorMsg;
+                } catch(e) {
+                    errorMsg = xhr.responseText || errorMsg;
+                }
+                
+                $('#deleteStatusMsg').html('<div class="alert alert-danger">' + errorMsg + '</div>');
+                
+                // 顯示更多調試信息
+                $('#requestDebugInfo').append(
+                    '<br><strong>請求失敗:</strong><br>' +
+                    '方法: ' + method + '<br>' +
+                    '狀態碼: ' + xhr.status + '<br>' +
+                    '回應文本: ' + xhr.responseText + '<br>' +
+                    '<button class="btn btn-sm btn-outline-secondary mt-2" onclick="window.location=\'/api/direct-delete-comment/' + id + '/\'">嘗試直接刪除</button>'
+                );
+            },
+            complete: function() {
+                console.log('刪除請求完成');
+                $btn.prop('disabled', false);
+                $altBtn.prop('disabled', false);
+            }
+        };
+        
+        // 根據不同方法設置不同的請求數據和內容類型
+        if (method === 'json') {
+            // JSON 格式
+            ajaxOptions.contentType = 'application/json';
+            ajaxOptions.data = JSON.stringify({ id: id });
+            
+            if (isDebugMode()) {
+                $('#requestDebugInfo').html(
+                    '<strong>請求詳情 (JSON 方式):</strong><br>' +
+                    'URL: ' + ajaxOptions.url + '<br>' +
+                    'Method: ' + ajaxOptions.method + '<br>' +
+                    'ContentType: application/json<br>' +
+                    'Data: ' + JSON.stringify({ id: id }) + '<br>' +
+                    'CSRF Token: ' + (csrftoken ? '已設置' : '未設置')
+                );
+            }
+        } else {
+            // 表單數據格式
+            ajaxOptions.data = { id: id };
+            
+            if (isDebugMode()) {
+                $('#requestDebugInfo').html(
+                    '<strong>請求詳情 (表單方式):</strong><br>' +
+                    'URL: ' + ajaxOptions.url + '<br>' +
+                    'Method: ' + ajaxOptions.method + '<br>' +
+                    'ContentType: application/x-www-form-urlencoded<br>' +
+                    'Data: id=' + id + '<br>' +
+                    'CSRF Token: ' + (csrftoken ? '已設置' : '未設置')
+                );
+            }
+        }
+        
+        console.log('發送刪除請求', {
+            url: ajaxOptions.url,
+            method: ajaxOptions.method,
+            contentType: ajaxOptions.contentType || 'application/x-www-form-urlencoded',
+            data: ajaxOptions.data,
+            csrftoken: csrftoken ? '已設置' : '未設置'
+        });
+        
+        // 發送 AJAX 請求
+        $.ajax(ajaxOptions);
+    }
+
+    // 添加全局錯誤處理
+    $(document).ajaxError(function(event, jqxhr, settings, thrownError) {
+        console.error('全局 AJAX 錯誤:', thrownError);
+        console.error('請求URL:', settings.url);
+        console.error('回應狀態:', jqxhr.status);
+        console.error('回應文本:', jqxhr.responseText);
+        $('#globalMessage').html(
+            '<div class="alert alert-danger">' +
+            '<strong>請求錯誤:</strong> ' + thrownError + '<br>' +
+            '狀態碼: ' + jqxhr.status + '<br>' +
+            '請求URL: ' + settings.url +
+            '</div>'
+        );
+    });
+});
+</script>
+{% endblock %} 

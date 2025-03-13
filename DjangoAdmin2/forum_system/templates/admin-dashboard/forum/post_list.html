@@ -23,6 +23,20 @@
         </div>
     </div>
 
+    <!-- 訊息提示區域 -->
+    {% if messages %}
+    <div class="row">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 文章列表 -->
     <div class="card mb-4">
         <div class="card-header">
@@ -57,12 +71,19 @@
                         <td>{{ post.created_at|date:"Y-m-d H:i" }}</td>
                         <td>
                             <div class="btn-group" role="group">
-                                <a href="#" class="btn btn-sm btn-primary" title="查看">
+                                <a href="{% url 'admin-post-detail' post.id %}" class="btn btn-sm btn-primary" title="查看">
                                     <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'admin-post-edit' post.id %}" class="btn btn-sm btn-warning" title="編輯">
+                                    <i class="fas fa-edit"></i>
                                 </a>
                                 <button type="button" class="btn btn-sm btn-danger delete-post" data-id="{{ post.id }}" title="刪除">
                                     <i class="fas fa-trash"></i>
                                 </button>
+                                <a href="?delete={{ post.id }}" class="btn btn-sm btn-danger" title="直接刪除" 
+                                   onclick="return confirm('確定要刪除「{{ post.title }}」這篇文章嗎？此操作無法撤銷。');">
+                                    <i class="fas fa-times"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -135,13 +156,45 @@
 
         // 刪除文章功能
         let postIdToDelete = null;
+        let postTitleToDelete = '';
+        
+        // 處理垃圾桶圖標按鈕點擊
         $('.delete-post').click(function() {
             postIdToDelete = $(this).data('id');
+            postTitleToDelete = $(this).closest('tr').find('td:nth-child(2)').text();
+            $('#deleteModal .modal-body').html(`確定要刪除「${postTitleToDelete}」這篇文章嗎？此操作無法撤銷。`);
+            $('#deleteModal').modal('show');
+        });
+        
+        // 處理文字刪除按鈕點擊 (針對截圖中的紅色文字按鈕)
+        $(document).on('click', 'tbody a.btn-danger:contains("刪除")', function(e) {
+            // 排除已有處理邏輯的按鈕
+            if ($(this).attr('onclick')) {
+                return;
+            }
+            
+            e.preventDefault();
+            console.log('捕獲文字刪除按鈕點擊');
+            
+            // 獲取文章ID和標題
+            let tr = $(this).closest('tr');
+            postIdToDelete = tr.find('td:eq(0)').text().trim();  // 第一列是ID
+            postTitleToDelete = tr.find('td:eq(1)').text().trim();  // 第二列是標題
+            
+            console.log('準備刪除文章:', postIdToDelete, postTitleToDelete);
+            
+            // 更新模態框內容並顯示確認對話框
+            $('#deleteModal .modal-body').html(`確定要刪除「${postTitleToDelete}」這篇文章嗎？此操作無法撤銷。`);
             $('#deleteModal').modal('show');
         });
 
+        // 確認刪除按鈕點擊
         $('#confirmDelete').click(function() {
             if (postIdToDelete) {
+                // 顯示載入提示
+                $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 處理中...');
+                
+                // 使用AJAX方式刪除文章
                 $.ajax({
                     url: `/api/admin/posts/${postIdToDelete}/delete_post/`,
                     method: 'POST',
@@ -149,14 +202,37 @@
                         'X-CSRFToken': getCookie('csrftoken')
                     },
                     success: function(response) {
-                        location.reload();
+                        console.log('刪除文章響應：', response);
+                        
+                        if (response.status === 'success') {
+                            // 顯示成功消息
+                            alert(`已成功刪除文章：${response.data.title}`);
+                            // 重新加載頁面
+                            location.reload();
+                        } else {
+                            // 顯示錯誤消息
+                            alert('刪除操作未完成：' + (response.message || '請稍後重試'));
+                        }
                     },
                     error: function(xhr) {
-                        alert('刪除失敗：' + xhr.responseJSON?.detail || '未知錯誤');
+                        console.error('刪除文章出錯：', xhr.responseText);
+                        let errorMsg = '刪除失敗';
+                        
+                        if (xhr.responseJSON) {
+                            errorMsg += '：' + (xhr.responseJSON.message || xhr.responseJSON.detail || '未知錯誤');
+                        }
+                        
+                        alert(errorMsg);
+                    },
+                    complete: function() {
+                        // 恢復按鈕狀態
+                        $('#confirmDelete').prop('disabled', false).text('確定刪除');
+                        $('#deleteModal').modal('hide');
                     }
                 });
+            } else {
+                $('#deleteModal').modal('hide');
             }
-            $('#deleteModal').modal('hide');
         });
 
         // 獲取 CSRF Token
@@ -174,6 +250,12 @@
             }
             return cookieValue;
         }
+        
+        // 調試信息
+        console.log('頁面載入完成，檢查所有刪除按鈕');
+        $('.btn-danger').each(function(i) {
+            console.log(`按鈕 ${i}:`, $(this).text().trim(), $(this).attr('class'));
+        });
     });
 </script>
 {% endblock %} 

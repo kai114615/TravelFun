@@ -496,6 +496,22 @@ export const apiForumIncrementViews = async (postId: number) => {
   }
 };
 
+// 刪除文章
+export function apiForumDeletePost(postId: number) {
+  return handleRequest({
+    url: `/api/forum/posts/${postId}/delete/`,
+    method: 'POST',
+  });
+}
+
+// 另一種刪除文章方式（使用 DELETE 方法）
+export function apiForumDeletePostDirect(postId: number) {
+  return handleRequest({
+    url: `/api/forum/posts/${postId}/`,
+    method: 'DELETE',
+  });
+}
+
 export {
   api,
   apiAdminGetAllProducts,

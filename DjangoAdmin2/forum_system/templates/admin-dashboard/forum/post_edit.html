@@ -1,0 +1,92 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}編輯文章 | 管理員儀表板{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">編輯文章</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">儀表板</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'forum_article_list' %}">文章管理</a></li>
+        <li class="breadcrumb-item active">編輯文章</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-edit me-1"></i>
+            編輯文章
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="id_title" class="form-label">標題</label>
+                    <input type="text" class="form-control" id="id_title" name="title" value="{{ post.title }}" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="id_category" class="form-label">分類</label>
+                    <select class="form-select" id="id_category" name="category" required>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if post.category.id == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="id_content" class="form-label">內容</label>
+                    <textarea class="form-control" id="id_content" name="content" rows="10" required>{{ post.content }}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="id_tags" class="form-label">標籤</label>
+                    <select class="form-select" id="id_tags" name="tags" multiple>
+                        {% for tag in tags %}
+                        <option value="{{ tag.id }}" {% if tag in post.tags.all %}selected{% endif %}>
+                            {{ tag.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">按住 Ctrl 鍵可以選擇多個標籤</div>
+                </div>
+                
+                <div class="mb-3 d-flex justify-content-between">
+                    <a href="{% url 'admin-post-detail' post.id %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> 取消
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // 初始化富文本編輯器
+        if (typeof ClassicEditor !== 'undefined') {
+            ClassicEditor
+                .create(document.querySelector('#id_content'))
+                .catch(error => {
+                    console.error(error);
+                });
+        }
+        
+        // 初始化 Select2 增強標籤選擇器
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('#id_tags').select2({
+                placeholder: '請選擇標籤',
+                allowClear: true
+            });
+        }
+    });
+</script>
+{% endblock %} 

@@ -44,9 +44,9 @@
                                         <a href="{% url 'forum_article_list' %}?edit={{ post.id }}" class="btn btn-warning btn-sm">
                                             編輯
                                         </a>
-                                        <button class="btn btn-danger btn-sm delete-post" data-post-id="{{ post.id }}">
+                                        <a href="{% url 'forum_article_list' %}?delete={{ post.id }}" class="btn btn-danger btn-sm" onclick="return confirm('確定要刪除文章「{{ post.title }}」嗎？此操作無法撤銷。')">
                                             刪除
-                                        </button>
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
@@ -54,25 +54,6 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 刪除確認對話框 -->
-<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">確認刪除</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>確定要刪除這篇文章嗎？此操作無法撤銷。</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-danger" id="confirmDelete">確定刪除</button>
             </div>
         </div>
     </div>
@@ -90,49 +71,6 @@ $(document).ready(function() {
         },
         "order": [[0, "desc"]]
     });
-
-    // 刪除文章的處理
-    let postIdToDelete = null;
-    
-    $('.delete-post').click(function() {
-        postIdToDelete = $(this).data('post-id');
-        $('#deleteModal').modal('show');
-    });
-
-    $('#confirmDelete').click(function() {
-        if (postIdToDelete) {
-            $.ajax({
-                url: `/api/admin/posts/${postIdToDelete}/delete_post/`,
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                success: function() {
-                    location.reload();
-                },
-                error: function(xhr) {
-                    alert('刪除失敗：' + xhr.responseJSON?.detail || '未知錯誤');
-                }
-            });
-        }
-        $('#deleteModal').modal('hide');
-    });
-
-    // 獲取 CSRF Token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
 });
 </script>
 {% endblock %} 

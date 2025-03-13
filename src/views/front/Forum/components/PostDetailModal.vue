@@ -292,12 +292,6 @@ async function handleLike() {
 
       <!-- 評論區域 -->
       <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-        <div class="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex items-center">
-          <NIcon size="18" class="mr-2"><ChatBubbleOutlined /></NIcon>
-          <h3 class="font-medium text-gray-700">
-            評論區 ({{ commentCount }})
-          </h3>
-        </div>
         <!-- 評論列表組件 -->
         <div class="p-5">
           <CommentSection 

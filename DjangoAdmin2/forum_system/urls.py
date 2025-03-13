@@ -33,9 +33,15 @@ urlpatterns = [
     # 後台管理頁面路由
     path('user-dashboard/forum/articles/', views.AdminPostListView.as_view(), name='forum_article_list'),
     path('user-dashboard/forum/articles/<int:pk>/', views.AdminPostDetailView.as_view(), name='admin-post-detail'),
+    path('user-dashboard/forum/articles/<int:pk>/edit/', views.AdminPostEditView.as_view(), name='admin-post-edit'),
     path('user-dashboard/forum/categories/', views.AdminCategoryListView.as_view(), name='forum_category_list'),
     path('user-dashboard/forum/comments/', views.AdminCommentListView.as_view(), name='forum_comment_list'),
     path('user-dashboard/forum/tags/', views.AdminTagListView.as_view(), name='forum_tag_list'),
+    
+    # 文章刪除API端點
+    path('api/forum/posts/<int:pk>/delete/', views.PublicForumViewSet.as_view({'post': 'delete_post'}), name='delete-post'),
+    # 另一個刪除API端點 - 使用標準DELETE方法（會調用destroy方法）
+    path('api/forum/posts/<int:pk>/', views.PublicForumViewSet.as_view({'delete': 'destroy'}), name='post-delete'),
     
     # API測試頁面路由
     path('user-dashboard/forum/api-test/', views.AdminApiTestView.as_view(), name='forum_api_test'),
@@ -53,8 +59,17 @@ urlpatterns = [
     # 測試無權限分類創建API
     path('api/test-create-category/', views.test_category_create, name='test_create_category'),
     
+    # 測試無權限分類更新API
+    path('api/test-update-category/', views.test_category_update, name='test_update_category'),
+    
     # 測試無權限分類刪除API
     path('api/test-delete-category/', views.test_category_delete, name='test_delete_category'),
+    
+    # 測試無權限評論刪除API
+    path('api/test-delete-comment/', views.test_comment_delete, name='test_delete_comment'),
+    
+    # 添加一個直接的評論刪除路由 (透過GET請求)
+    path('api/direct-delete-comment/<int:comment_id>/', views.direct_comment_delete, name='direct_comment_delete'),
     
     # 評論相關的 API 端點
     path('api/forum/posts/<int:pk>/comments/', views.PostViewSet.as_view({'get': 'get_comments'}), name='post-comments'),
