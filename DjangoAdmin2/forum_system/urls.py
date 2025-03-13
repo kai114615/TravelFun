@@ -50,8 +50,17 @@ urlpatterns = [
     path('api/test/categories/<int:pk>/', views.TestCategoryApiView.as_view(), name='test_category_api_detail'),
     path('api/test/comments/<int:pk>/', views.TestCommentApiView.as_view(), name='test_comment_api_detail'),
     
+    # 測試無權限分類創建API
+    path('api/test-create-category/', views.test_category_create, name='test_create_category'),
+    
+    # 測試無權限分類刪除API
+    path('api/test-delete-category/', views.test_category_delete, name='test_delete_category'),
+    
     # 評論相關的 API 端點
     path('api/forum/posts/<int:pk>/comments/', views.PostViewSet.as_view({'get': 'get_comments'}), name='post-comments'),
     path('api/forum/posts/<int:pk>/add_comment/', views.PostViewSet.as_view({'post': 'add_comment'}), name='add-comment'),
     path('api/forum/comments/<int:pk>/delete_comment/', views.CommentViewSet.as_view({'post': 'delete_comment'}), name='delete-comment'),
+    
+    # 增加觀看數 API 端點
+    path('api/f/increment-views/<int:post_id>', views.increment_views, name='increment-views'),
 ]

@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from django.utils import timezone
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """討論區分類視圖集"""
@@ -1016,3 +1017,104 @@ class AdminPostDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['comments'] = self.object.comments.filter(is_deleted=False).select_related('author')
         return context
+
+@api_view(['POST'])
+@permission_classes([])  # 不需要任何權限
+def test_category_create(request):
+    """測試創建分類的API - 無需權限驗證"""
+    try:
+        print("收到測試分類創建請求:", request.data)
+        
+        # 檢查請求數據
+        if not request.data.get('name'):
+            return Response({"success": False, "message": "分類名稱不能為空"}, status=400)
+        
+        # 創建分類
+        category = Category.objects.create(
+            name=request.data.get('name'),
+            description=request.data.get('description', '')
+        )
+        
+        print(f"成功創建分類: ID={category.id}, 名稱={category.name}")
+        
+        return Response({
+            "success": True, 
+            "message": "分類創建成功", 
+            "data": {
+                "id": category.id,
+                "name": category.name,
+                "description": category.description,
+                "created_at": category.created_at
+            }
+        })
+    except Exception as e:
+        print("測試創建分類時出錯:", str(e))
+        return Response({"success": False, "message": f"創建失敗: {str(e)}"}, status=500)
+
+@api_view(['POST'])
+@permission_classes([])  # 不需要任何權限
+def test_category_delete(request):
+    """測試刪除分類的API - 無需權限驗證"""
+    try:
+        print("收到測試分類刪除請求")
+        
+        # 檢查請求數據
+        category_id = request.data.get('id')
+        if not category_id:
+            return Response({"success": False, "message": "分類ID不能為空"}, status=400)
+        
+        # 嘗試查找分類
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response({"success": False, "message": "找不到指定的分類"}, status=404)
+        
+        # 檢查是否有關聯的文章
+        posts_count = Post.objects.filter(category=category).count()
+        if posts_count > 0:
+            return Response({
+                "success": False, 
+                "message": f"無法刪除此分類，因為它包含 {posts_count} 篇文章"
+            }, status=400)
+        
+        # 刪除分類
+        category_name = category.name
+        category.delete()
+        
+        print(f"成功刪除分類: ID={category_id}, 名稱={category_name}")
+        
+        return Response({
+            "success": True, 
+            "message": "分類刪除成功"
+        })
+    except Exception as e:
+        print("測試刪除分類時出錯:", str(e))
+        return Response({"success": False, "message": f"刪除失敗: {str(e)}"}, status=500)
+
+@csrf_exempt  # 允許跨域請求
+def increment_views(request, post_id):
+    """增加文章觀看數的 API"""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': '只接受 POST 請求'}, status=405)
+    
+    try:
+        # 查找文章
+        post = Post.objects.get(pk=post_id)
+        
+        # 增加文章的觀看數
+        post.views += 1
+        post.save()
+        
+        # 返回更新後的數據
+        return JsonResponse({
+            'status': 'success',
+            'message': '觀看數已增加',
+            'data': {
+                'id': post.id,
+                'views': post.views,
+            }
+        })
+    except Post.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': '文章不存在'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

@@ -1,5 +1,5 @@
-/* Google Fonts - Noto Sans TC */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+/* Google Fonts - Noto Serif TC */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@200;300;400;500;600;700;900&display=swap');
 
 /* jf-openhuninn 字體 */
 @font-face {
@@ -10,30 +10,32 @@
 
 :root {
   /* 其他 CSS 變數 */
+  --main-font: 'Noto Serif TC', serif;
 }
 
 /* 全域字體設定 */
 body {
-  font-family: 'jf-openhuninn', 'Noto Sans TC', sans-serif;
+  font-family: var(--main-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: #2f4050;
 }
 
 /* 標題特別設定 */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'jf-openhuninn', 'Noto Sans TC', sans-serif;
-  font-weight: 700;
+  font-family: var(--main-font);
+  font-weight: 600;
 }
 
 /* 按鈕文字設定 */
 button, 
 .n-button {
-  font-family: 'jf-openhuninn', 'Noto Sans TC', sans-serif !important;
+  font-family: var(--main-font) !important;
 }
 
 /* 輸入框文字設定 */
 input, 
 textarea,
 .n-input {
-  font-family: 'Noto Sans TC', sans-serif !important;
+  font-family: var(--main-font) !important;
 } 

@@ -305,7 +305,7 @@ function generateCaptcha() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // 設置適中的字體大小
-  const fontSize = 36; // 調整為更適中的大小
+  const fontSize = 24; // 調整為更小的大小
   ctx.font = `bold ${fontSize}px Arial`;
 
   // 生成驗證碼（減少使用容易混淆的字元）
@@ -323,7 +323,7 @@ function generateCaptcha() {
   // 繪製文字（調整位置使更居中）
   for (let i = 0; i < text.length; i++) {
     ctx.save();
-    ctx.translate(40 + i * 40, canvas.height / 2 + 2); // 調整間距和位置
+    ctx.translate(30 + i * 30, canvas.height / 2); // 調整間距和位置以適應更小的字體
     ctx.rotate((Math.random() - 0.5) * 0.2); // 保持較小的旋轉角度
     ctx.fillStyle = `hsl(${Math.random() * 360}, 80%, 45%)`; // 保持原有的顏色設定
     ctx.fillText(text[i], 0, 0);
@@ -369,81 +369,86 @@ onMounted(() => {
       :rules="rules"
       class="login-form"
     >
-      <!-- 帳號輸入 -->
-      <NFormItem path="username" label="帳號">
-        <NInput
-          v-model:value="formValue.username"
-          placeholder="請輸入帳號"
-          :maxlength="30"
-          class="form-input"
-        />
-      </NFormItem>
-
-      <!-- 密碼輸入 -->
-      <NFormItem path="password" label="密碼">
-        <NInput
-          v-model:value="formValue.password"
-          type="password"
-          placeholder="請輸入密碼"
-          :maxlength="30"
-          show-password-on="click"
-          class="form-input"
-        />
-      </NFormItem>
-
-      <!-- 驗證碼區域 -->
-      <NFormItem path="captcha" label="驗證碼">
-        <div class="captcha-container">
+      <div class="form-item">
+        <i class="fas fa-user"></i>
+        <NFormItem label="帳號" path="username">
           <NInput
-            v-model:value="formValue.captcha"
-            placeholder="請輸入驗證碼"
-            :maxlength="6"
-            class="form-input captcha-input"
+            v-model:value="formValue.username"
+            placeholder="請輸入帳號"
+            maxlength="50"
+            clearable
+            class="form-input"
           />
-          <canvas
-            ref="captchaCanvas"
-            width="200"
-            height="50"
-            class="captcha-canvas"
-            @click="generateCaptcha"
-          />
-        </div>
-      </NFormItem>
+        </NFormItem>
+      </div>
 
-      <!-- 登入按鈕 -->
+      <div class="form-item">
+        <i class="fas fa-lock"></i>
+        <NFormItem label="密碼" path="password">
+          <NInput
+            v-model:value="formValue.password"
+            type="password"
+            placeholder="請輸入密碼"
+            maxlength="50"
+            clearable
+            show-password-on="click"
+            class="form-input"
+          />
+        </NFormItem>
+      </div>
+
+      <div class="forgot-password-link">
+        <router-link to="/forgot-password">忘記密碼？</router-link>
+      </div>
+
+      <div class="form-item captcha-container">
+        <i class="fas fa-shield-alt"></i>
+        <NFormItem label="驗證碼" path="captcha">
+          <div class="captcha-wrapper">
+            <NInput
+              v-model:value="formValue.captcha"
+              placeholder="請輸入驗證碼"
+              maxlength="6"
+              class="form-input"
+            />
+            <div class="captcha-image">
+              <canvas ref="captchaCanvas" width="150" height="50" @click="generateCaptcha"></canvas>
+              <div class="refresh-button" @click="generateCaptcha">
+                <i class="fas fa-sync-alt"></i>
+              </div>
+            </div>
+          </div>
+        </NFormItem>
+      </div>
+
       <div class="button-container">
         <NButton
           type="primary"
           size="large"
-          block
           :loading="loading"
           :disabled="loading"
           @click="handleSubmit"
+          class="login-button"
+          block
         >
-          {{ loading ? '登入中...' : '登入' }}
+          {{ loading ? '登入中...' : '會員登入' }}
         </NButton>
-      </div>
 
-      <!-- Google 登入按鈕 -->
-      <div class="google-login">
-        <div class="divider">
-          <span>或</span>
-        </div>
         <NButton
           size="large"
-          block
+          class="google-button"
+          @click="handleGoogleLogin"
           :loading="googleLoading"
           :disabled="googleLoading"
-          @click="handleGoogleLogin"
-          class="google-button"
+          block
         >
-          <template #icon>
-            <img src="@/assets/images/google-icon.svg" alt="Google" class="google-icon" />
+          <template v-if="!googleLoading">
+            <i class="fab fa-google" style="margin-right: 8px;"></i> 使用 Google 帳號登入
           </template>
-          {{ googleLoading ? '處理中...' : '使用 Google 帳號登入' }}
+          <template v-else>
+            處理中...
+          </template>
         </NButton>
-        <!-- 添加 Google 登入容器 -->
-        <div id="googleLoginContainer" class="google-login-container"></div>
       </div>
     </NForm>
   </div>
@@ -456,101 +461,140 @@ onMounted(() => {
 
 .login-form {
   width: 100%;
+  font-size: 14px; /* 整體表單字體縮小 */
 }
 
 .form-input {
-  width: 100%;
-  border-radius: 8px;
+  height: 45px; /* 輸入框高度縮小 */
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(47, 64, 80, 0.1);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  padding-left: 45px !important;
+  font-family: 'Noto Serif TC', serif;
+  font-weight: 400;
+  font-size: 14px; /* 輸入框文字縮小 */
 }
 
-.captcha-container {
-  display: flex;
-  gap: 16px;
-  align-items: center;
+.form-input:focus {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: #1c84c6;
+  box-shadow: 0 0 10px rgba(28, 132, 198, 0.2);
 }
 
-.captcha-input {
-  flex: 1;
+.form-item {
+  margin-bottom: 20px; /* 縮小間距 */
+  position: relative;
 }
 
-.captcha-canvas {
-  cursor: pointer;
-  border-radius: 8px;
-  transition: transform 0.2s ease;
+.form-item :deep(.n-form-item-label) {
+  font-family: 'Noto Serif TC', serif;
+  color: #2f4050;
+  font-weight: 500;
+  font-size: 14px; /* 表單標籤字體縮小 */
 }
 
-.captcha-canvas:hover {
-  transform: scale(1.02);
+.form-item i {
+  position: absolute;
+  left: 15px;
+  top: 38px; /* 調整圖示位置 */
+  color: #2f4050;
+  opacity: 0.7;
+  font-size: 14px; /* 圖示縮小 */
+  z-index: 1;
 }
 
-.button-container {
-  margin-top: 24px;
+.login-button {
+  height: 45px; /* 按鈕高度縮小 */
+  background: linear-gradient(135deg, #1c84c6 0%, #23c6c8 100%);
+  border: none;
+  border-radius: 10px;
+  font-size: 16px; /* 按鈕文字縮小 */
+  font-weight: 500;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(28, 132, 198, 0.3);
+  font-family: 'Noto Serif TC', serif;
 }
 
-.google-login {
-  margin-top: 24px;
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 16px 0;
-}
-
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.divider span {
-  padding: 0 16px;
-  color: #6b7280;
-  font-size: 14px;
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(28, 132, 198, 0.4);
+  background: linear-gradient(135deg, #23c6c8 0%, #1c84c6 100%);
 }
 
 .google-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  color: #374151;
+  height: 45px; /* 按鈕高度縮小 */
+  border-radius: 10px;
+  font-size: 14px; /* 按鈕文字縮小 */
   font-weight: 500;
+  transition: all 0.3s ease;
+  margin-top: 15px;
+  font-family: 'Noto Serif TC', serif;
 }
 
-.google-button:hover {
-  background-color: #f9fafb;
-  border-color: #d1d5db;
+.forgot-password-link {
+  text-align: right;
+  margin-top: -5px; /* 縮小間距 */
+  margin-bottom: 14px; /* 縮小間距 */
+  display: block;
+  width: 100%;
+  visibility: visible;
 }
 
-.google-icon {
-  width: 20px;
-  height: 20px;
+.forgot-password-link a {
+  color: #1c84c6;
+  text-decoration: none;
+  font-size: 13px; /* 忘記密碼文字縮小 */
+  transition: color 0.2s ease;
+  font-family: 'Noto Serif TC', serif;
+  display: inline-block;
 }
 
-.google-login-container {
+.forgot-password-link a:hover {
+  color: #23c6c8;
+  text-decoration: underline;
+}
+
+.captcha-container {
   margin-top: 16px;
+  position: relative;
+}
+
+.captcha-wrapper {
   display: flex;
-  justify-content: center;
-  min-height: 40px;
+  gap: 10px;
+  align-items: center;
 }
 
-:deep(.n-form-item .n-form-item-label) {
-  font-weight: 500;
-  color: #374151;
+.refresh-button {
+  flex-shrink: 0;
+  color: #1c84c6;
+  cursor: pointer;
+  transition: transform 0.3s ease;
 }
 
-:deep(.n-input) {
-  border-radius: 8px;
+.refresh-button:hover {
+  transform: rotate(180deg);
+  color: #23c6c8;
 }
 
-:deep(.n-button) {
-  border-radius: 8px;
-  height: 44px;
-  font-weight: 500;
+.captcha-image {
+  position: relative;
+}
+
+.button-container {
+  margin-top: 20px; /* 縮小間距 */
+}
+
+/* 新增樣式，確保所有輸入框內的文字大小一致 */
+:deep(.n-input__input-el) {
+  font-size: 14px !important;
+}
+
+/* 調整占位符文字大小 */
+:deep(.n-input__placeholder) {
+  font-size: 13px !important;
 }
 </style>

@@ -170,6 +170,7 @@ const api = {
     comment: (postId: number) => `/api/forum/${postId}/add_comment/`,
     categories: '/api/forum/categories/',
     moderators: '/api/forum/moderators/',
+    incrementViews: (postId: number) => `/api/f/increment-views/${postId}`,
   },
 };
 
@@ -452,6 +453,48 @@ export async function apiGoogleSignin(data: {
     throw error;
   }
 }
+
+/**
+ * 增加文章觀看數
+ * @param postId 文章ID
+ * @returns Promise 返回API響應
+ */
+export const apiForumIncrementViews = async (postId: number) => {
+  try {
+    console.log('調用增加觀看數API，文章ID:', postId);
+    
+    // 構建完整的 API 路徑
+    const apiPath = api.forum.incrementViews(postId);
+    const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${apiPath}`;
+    
+    console.log('API完整路徑:', fullUrl);
+    
+    const token = localStorage.getItem('access_token');
+    const headers: any = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    // 使用 axios 發送請求
+    return await axios.post(
+      fullUrl,
+      {},
+      { headers },
+    );
+  } catch (error) {
+    console.error('增加觀看數失敗:', error);
+    console.error('詳細錯誤:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      url: api.forum.incrementViews(postId)
+    });
+    throw error;
+  }
+};
 
 export {
   api,

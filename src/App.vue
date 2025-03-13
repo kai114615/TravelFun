@@ -26,10 +26,12 @@ const getThemeOverrides = computed(() => {
       primaryColorPressed: '#072A81',
       primaryColorSuppl: '#CDE4FB',
       borderRadius: '5px',
-      textColorBase: '#181818',
-      textColor1: '#181818',
-      textColor2: '#181818',
-      textColor3: '#181818',
+      textColorBase: '#2f4050',
+      textColor1: '#2f4050',
+      textColor2: '#2f4050',
+      textColor3: '#2f4050',
+      fontFamily: "'Noto Serif TC', serif",
+      fontFamilyMono: "'Noto Serif TC', serif",
     },
     Breadcrumb: {
       itemTextColor: '#0F4BB4',
@@ -41,6 +43,26 @@ const getThemeOverrides = computed(() => {
       itemColorActive: '#EE5220',
     },
     Card: isAdmin ? adminCardOverrides : {},
+    Button: {
+      textColor: '#2f4050',
+      fontWeight: 500,
+    },
+    Input: {
+      fontFamily: "'Noto Serif TC', serif",
+    },
+    Typography: {
+      fontFamily: "'Noto Serif TC', serif",
+    },
+    Dialog: {
+      titleFontSize: '20px',
+      titleTextColor: '#2f4050',
+      titleFontWeight: 600,
+      fontFamily: "'Noto Serif TC', serif",
+    },
+    Form: {
+      labelFontWeight: 500,
+      labelTextColor: '#2f4050',
+    }
   };
 });
 
@@ -68,14 +90,51 @@ onMounted(() => {
 </template>
 
 <style>
+/* 引入 Google Fonts - Noto Serif TC */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@200;300;400;500;600;700;900&display=swap');
+
+:root {
+  --main-font: 'Noto Serif TC', serif;
+  --main-color: #2f4050;
+  --main-bg-color: rgba(255, 255, 255, 0.85);
+  --main-gradient: linear-gradient(135deg, #1c84c6 0%, #23c6c8 100%);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: var(--main-font);
+  color: var(--main-color);
+}
+
 #app {
   width: 100%;
   height: 100vh;
+  font-family: var(--main-font);
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, div, button, input, textarea, select, option {
+  font-family: var(--main-font);
+}
+
+/* Naive UI 組件全局覆蓋 */
+.n-base-selection-input__content,
+.n-input__input,
+.n-button__content,
+.n-form-item-label,
+.n-alert-body,
+.n-text,
+.n-dialog-title,
+.n-dialog-content {
+  font-family: var(--main-font) !important;
 }
 </style>

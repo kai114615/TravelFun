@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineEmits, defineProps, ref, watch } from 'vue';
+import { defineEmits, defineProps, ref, watch, nextTick } from 'vue';
 import { NButton, NIcon, NInput, NModal, useMessage } from 'naive-ui';
 import {
   ChatBubbleOutlined,
@@ -30,22 +30,48 @@ const message = useMessage();
 const isLiked = ref(false);
 const likeCount = ref(0);
 const commentCount = ref(0);
+const viewCount = ref(0);
+const isViewUpdated = ref(false);
 
 // 監聽 post 變化
 watch(() => props.post, (newPost) => {
   if (newPost) {
     console.log('Post data updated:', newPost);
+    
+    // 檢查觀看數是否更新
+    const oldViewCount = viewCount.value;
+    const newViewCount = newPost.views || 0;
+    
+    // 更新各項數據
     isLiked.value = newPost.is_liked || false;
     likeCount.value = newPost.like_count || 0;
     commentCount.value = newPost.comment_count || 0;
+    viewCount.value = newViewCount;
+    
+    // 如果觀看數增加了，標記為已更新以觸發動畫
+    if (oldViewCount > 0 && newViewCount > oldViewCount) {
+      console.log('觀看數已更新:', oldViewCount, '->', newViewCount);
+      isViewUpdated.value = true;
+      
+      // 短暫延遲後重置標記，以便下次更新也能觸發動畫
+      setTimeout(() => {
+        isViewUpdated.value = false;
+      }, 2500); // 略長於動畫時間，確保動畫完成
+    }
   }
 }, { immediate: true, deep: true });
 
 // 處理評論數量更新
 const handleCommentUpdate = (count: number) => {
-  console.log('評論數量更新:', count);
+  console.log('評論數量更新:', count, '文章ID:', props.post?.id);
+  // 始終使用最新值更新本地狀態
   commentCount.value = count;
-  emit('comment-count-update', count);
+  
+  // 確保事件始終正確發送到父組件
+  setTimeout(() => {
+    emit('comment-count-update', count);
+    console.log('已發送評論數量更新事件:', count);
+  }, 0);
 };
 
 // 格式化日期
@@ -58,43 +84,98 @@ function formatDate(date: string) {
 // 處理按讚
 async function handleLike() {
   if (!userStore.loginStatus) {
-    message.warning('請先登入');
+    message.warning('請先登入後才能點讚');
     return;
   }
 
   try {
-    // 先更新本地狀態
-    const currentIsLiked = isLiked.value;
-    const currentLikeCount = likeCount.value;
+    console.log('文章詳情中點讚 - 文章ID:', props.post.id, '當前狀態:', isLiked.value, '點讚數:', likeCount.value);
     
-    // 樂觀更新
-    isLiked.value = !currentIsLiked;
-    likeCount.value = currentLikeCount + (currentIsLiked ? -1 : 1);
-
-    // 發送請求到後端
+    // 保存原始狀態以便恢復
+    const wasLiked = isLiked.value;
+    const originalCount = likeCount.value;
+    
+    // 立即在UI中更新狀態（樂觀更新）
+    isLiked.value = !wasLiked;
+    likeCount.value += wasLiked ? -1 : 1;
+    
+    console.log('UI已樂觀更新 - 新狀態:', isLiked.value, '新點讚數:', likeCount.value);
+    
+    // 立即通知父組件更新
+    emit('like', {
+      post_id: props.post.id,
+      is_liked: isLiked.value,
+      like_count: likeCount.value
+    });
+    
+    // 強制Vue更新視圖
+    await nextTick();
+    
+    // 調用API
     const response = await apiForumToggleLike(props.post.id);
-    console.log('Like API response:', response);
-
+    console.log('點讚API響應:', response.data);
+    
     if (response.data.status === 'success') {
       // 使用後端返回的實際數據更新
-      const { is_liked, like_count } = response.data.data;
-      isLiked.value = is_liked;
-      likeCount.value = like_count;
+      isLiked.value = response.data.data.is_liked;
+      likeCount.value = response.data.data.like_count;
       
-      // 發送事件到父組件
-      emit('like', { is_liked, like_count });
-      message.success(response.data.message);
-    }
-    else {
+      console.log('API更新完成 - 最終狀態:', isLiked.value, '最終點讚數:', likeCount.value);
+      
+      // 再次發送事件，確保父組件同步更新
+      emit('like', {
+        post_id: props.post.id,
+        is_liked: isLiked.value,
+        like_count: likeCount.value
+      });
+      
+      // 強制多次更新，確保視圖刷新
+      await nextTick();
+      setTimeout(() => {
+        // 再次觸發動畫效果
+        isLiked.value = isLiked.value;
+        console.log('UI延遲強制刷新完成');
+      }, 50);
+      
+      // 顯示成功消息
+      message.success(response.data.message || (isLiked.value ? '已點讚！' : '已取消點讚'));
+    } else {
       // 如果請求失敗，恢復原始狀態
-      isLiked.value = currentIsLiked;
-      likeCount.value = currentLikeCount;
-      throw new Error(response.data.message);
+      isLiked.value = wasLiked;
+      likeCount.value = originalCount;
+      
+      console.log('恢復原狀 - 恢復狀態:', wasLiked, '恢復點讚數:', originalCount);
+      
+      // 通知父組件恢復原狀
+      emit('like', {
+        post_id: props.post.id,
+        is_liked: wasLiked,
+        like_count: originalCount
+      });
+      
+      // 強制視圖更新
+      await nextTick();
+      
+      // 顯示錯誤消息
+      message.error(response.data.message || '操作失敗，請稍後重試');
     }
-  }
-  catch (error: any) {
+  } catch (error) {
     console.error('按讚失敗:', error);
-    message.error('操作失敗，請稍後重試');
+    // 恢復UI中的原始狀態
+    isLiked.value = wasLiked;
+    likeCount.value = originalCount;
+    
+    // 通知父組件恢復原狀
+    emit('like', {
+      post_id: props.post.id,
+      is_liked: wasLiked,
+      like_count: originalCount
+    });
+    
+    // 強制視圖更新
+    await nextTick();
+    
+    message.error('按讚失敗，請稍後重試');
   }
 }
 </script>
@@ -103,112 +184,126 @@ async function handleLike() {
   <NModal
     :show="show"
     preset="card"
-    style="width: 800px; max-width: 90vw;"
+    style="width: 1000px; max-width: 95vw;"
     @update:show="(value) => emit('update:show', value)"
   >
     <div class="post-detail-modal">
       <!-- 文章標題區域 -->
-      <div class="border-b border-gray-200 pb-4 mb-6">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="px-2 py-1 bg-primary/10 text-primary rounded text-sm">{{ post?.category?.name || '未分類' }}</span>
-          <span class="text-gray-400">•</span>
-          <span class="text-sm text-gray-500">發表於 {{ formatDate(post?.created_at) }}</span>
+      <div class="border-b border-gray-200 pb-6 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-md text-sm font-medium">{{ post?.category?.name || '旅遊討論' }}</span>
+            <span class="text-gray-500 text-sm">•</span>
+            <span class="text-sm text-gray-500">發表於 {{ formatDate(post?.created_at) }}</span>
+          </div>
+          <div class="flex items-center gap-4 text-gray-500 text-sm">
+            <span class="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 rounded-md transition-all duration-500" :class="{'view-highlight': isViewUpdated}">
+              <NIcon size="18"><VisibilityOutlined /></NIcon>
+              {{ viewCount }} 觀看
+            </span>
+            <div class="flex items-center text-gray-700">
+              <button @click="handleLike" 
+                class="flex items-center space-x-1 px-3 py-1.5 rounded-md transition-colors focus:outline-none"
+                :class="[
+                  isLiked 
+                    ? 'text-green-600 bg-green-50 hover:bg-green-100 border border-green-200' 
+                    : 'text-gray-500 hover:text-green-600 hover:bg-green-50 hover:border-green-200 border border-gray-200'
+                ]"
+              >
+                <NIcon>
+                  <component :is="isLiked ? FavoriteOutlined : FavoriteBorderOutlined" 
+                             :class="['like-icon', { 'like-animation': isLiked }]" />
+                </NIcon>
+                <span class="font-medium" :key="`likes-${likeCount}-${isLiked}`">{{ likeCount }}</span>
+              </button>
+            </div>
+            <span class="flex items-center gap-1.5">
+              <NIcon size="18"><ChatBubbleOutlined /></NIcon>
+              {{ commentCount }}
+            </span>
+          </div>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+        <h1 class="text-2xl font-bold text-gray-900 mb-4">
           {{ post?.title }}
         </h1>
         <div class="flex flex-wrap gap-2">
           <span
             v-for="tag in post?.tags"
             :key="tag.id"
-            class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs"
+            class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs border border-gray-200"
           >
             # {{ tag.name }}
           </span>
         </div>
       </div>
 
-      <div class="flex gap-6">
-        <!-- 左側作者資訊 -->
-        <div class="w-48 flex-shrink-0">
-          <div class="bg-gray-50 rounded-lg p-4 sticky top-4">
-            <div class="flex flex-col items-center text-center">
-              <img
-                :src="post?.author?.avatar || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'"
-                :alt="post?.author?.username"
-                class="w-20 h-20 rounded-full object-cover mb-3 ring-2 ring-primary/20"
-              >
-              <div class="mb-4">
-                <div class="font-medium text-gray-900 mb-1">
-                  {{ post?.author?.username }}
-                </div>
-                <div class="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
-                  {{ post?.author?.title || '一般會員' }}
-                </div>
-              </div>
-              <!-- 互動統計 -->
-              <div class="w-full space-y-3 text-sm text-gray-500">
-                <div class="flex items-center justify-center gap-2 p-2 rounded bg-gray-100/50">
-                  <NIcon size="18">
-                    <VisibilityOutlined />
-                  </NIcon>
-                  <span class="font-medium">{{ post?.views || 0 }}</span>
-                  <span class="text-xs">瀏覽</span>
-                </div>
-                <div class="flex items-center justify-center gap-2 p-2 rounded bg-gray-100/50">
-                  <NIcon size="18">
-                    <component :is="isLiked ? FavoriteOutlined : FavoriteBorderOutlined" />
-                  </NIcon>
-                  <span class="font-medium">{{ likeCount }}</span>
-                  <span class="text-xs">讚</span>
-                </div>
-                <div class="flex items-center justify-center gap-2 p-2 rounded bg-gray-100/50">
-                  <NIcon size="18">
-                    <ChatBubbleOutlined />
-                  </NIcon>
-                  <span class="font-medium">{{ commentCount }}</span>
-                  <span class="text-xs">評論</span>
-                </div>
-              </div>
+      <!-- 作者資訊與內容 -->
+      <div class="flex mb-6 gap-6">
+        <div class="flex-shrink-0">
+          <div class="flex flex-col items-center text-center w-32">
+            <img
+              :src="post?.author?.avatar || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'"
+              :alt="post?.author?.username"
+              class="w-16 h-16 rounded-full object-cover ring-1 ring-gray-200 shadow-sm mb-3"
+            >
+            <div class="text-sm font-medium text-gray-900">
+              {{ post?.author?.username }}
+            </div>
+            <div class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full mt-1.5">
+              {{ post?.author?.title || '旅遊愛好者' }}
             </div>
           </div>
         </div>
-
-        <!-- 右側文章內容和評論區 -->
-        <div class="flex-1">
-          <!-- 文章內容 -->
-          <div class="bg-white rounded-lg p-6 mb-6 shadow-sm border border-gray-100">
-            <div class="prose max-w-none" v-html="post?.content" />
+        
+        <!-- 文章內容 -->
+        <div class="flex-1 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+          <div class="prose prose-lg max-w-none text-gray-700" v-html="post?.content" />
+          
+          <!-- 文章底部可能的旅遊相關資訊 -->
+          <div v-if="post?.meta" class="mt-8 pt-5 border-t border-gray-100">
+            <div v-if="post?.meta.location" class="flex items-center text-sm text-gray-600 mb-2.5">
+              <span class="font-medium mr-3">旅遊地點:</span>
+              <span>{{ post?.meta.location }}</span>
+            </div>
+            <div v-if="post?.meta.travel_date" class="flex items-center text-sm text-gray-600 mb-2.5">
+              <span class="font-medium mr-3">旅遊日期:</span>
+              <span>{{ post?.meta.travel_date }}</span>
+            </div>
           </div>
+        </div>
+      </div>
 
-          <!-- 互動按鈕 -->
-          <div class="flex items-center gap-4 bg-white rounded-lg p-4 shadow-sm border border-gray-100 mb-6">
-            <NButton
-              :type="isLiked ? 'error' : 'default'"
-              ghost
-              class="flex items-center gap-2 flex-1"
-              size="large"
-              @click="handleLike"
-            >
-              <NIcon>
-                <component :is="isLiked ? FavoriteOutlined : FavoriteBorderOutlined" />
-              </NIcon>
-              {{ isLiked ? '取消讚' : '按讚' }}
-            </NButton>
-          </div>
+      <!-- 互動按鈕 -->
+      <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 mb-6">
+        <div class="text-sm text-gray-500">
+          發表於 {{ formatDate(post?.created_at) }}
+        </div>
+        <NButton
+          :type="isLiked ? 'error' : 'default'"
+          class="flex items-center gap-2"
+          @click="handleLike"
+        >
+          <NIcon>
+            <component :is="isLiked ? FavoriteOutlined : FavoriteBorderOutlined" />
+          </NIcon>
+          {{ isLiked ? '已讚 ' + likeCount : '讚 ' + likeCount }}
+        </NButton>
+      </div>
 
-          <!-- 評論區域 -->
-          <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-            <h3 class="font-bold mb-4 flex items-center gap-2">
-              <NIcon><ChatBubbleOutlined /></NIcon>
-              評論區 ({{ commentCount }})
-            </h3>
-            <!-- 評論列表組件 -->
-            <CommentSection 
-              :post-id="post.id" 
-              @comment-count-update="handleCommentUpdate"
-            />
-          </div>
+      <!-- 評論區域 -->
+      <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+        <div class="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex items-center">
+          <NIcon size="18" class="mr-2"><ChatBubbleOutlined /></NIcon>
+          <h3 class="font-medium text-gray-700">
+            評論區 ({{ commentCount }})
+          </h3>
+        </div>
+        <!-- 評論列表組件 -->
+        <div class="p-5">
+          <CommentSection 
+            :post-id="post.id" 
+            @comment-count-update="handleCommentUpdate"
+          />
         </div>
       </div>
     </div>
@@ -217,76 +312,158 @@ async function handleLike() {
 
 <style scoped>
 .post-detail-modal {
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
   background-color: #f9fafb;
+  padding: 1.75rem;
+  position: relative;
+  border-radius: 0.5rem;
 }
 
 .prose {
-  font-size: 1rem;
-  line-height: 1.75;
+  font-size: 1.05rem;
+  line-height: 1.8;
   color: #374151;
 }
 
 .prose p {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .prose img {
   max-width: 100%;
   height: auto;
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
   margin: 1.5rem 0;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
 
+/* 添加滾動條樣式 */
+.post-detail-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.post-detail-modal::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.post-detail-modal::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.post-detail-modal::-webkit-scrollbar-thumb:hover {
+  background: #a5b4fc;
+}
+
+/* 增加文章內容區域的排版 */
 .prose h1, .prose h2, .prose h3 {
-  color: #111827;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
   font-weight: 600;
-  margin: 2rem 0 1rem;
+  color: #1f2937;
 }
 
 .prose h1 {
-  font-size: 2rem;
-}
-
-.prose h2 {
   font-size: 1.5rem;
 }
 
+.prose h2 {
+  font-size: 1.3rem;
+}
+
 .prose h3 {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
 }
 
 .prose ul, .prose ol {
-  margin: 1rem 0;
   padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .prose li {
-  margin: 0.5rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.prose a {
+  color: #4f46e5;
+  text-decoration: underline;
 }
 
 .prose blockquote {
-  border-left: 4px solid #e5e7eb;
+  border-left: 4px solid #d1d5db;
   padding-left: 1rem;
-  color: #6b7280;
   font-style: italic;
+  color: #6b7280;
   margin: 1.5rem 0;
 }
 
-.prose code {
-  background-color: #f3f4f6;
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
+.view-highlight {
+  animation: pulse 2s ease-in-out;
 }
 
-.prose pre {
-  background-color: #1f2937;
-  color: #f3f4f6;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  margin: 1.5rem 0;
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    background-color: rgba(191, 219, 254, 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    background-color: rgba(147, 197, 253, 0.8);
+  }
+  100% {
+    transform: scale(1);
+    background-color: rgba(219, 234, 254, 0.5);
+  }
+}
+
+/* 更強的點讚按鈕動畫效果 */
+.like-icon {
+  transition: transform 0.3s ease;
+}
+
+.like-icon:hover {
+  transform: scale(1.2);
+}
+
+.like-animation {
+  animation: heartBeat 0.6s ease-in-out;
+}
+
+@keyframes heartBeat {
+  0% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.3);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.3);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+/* 原有的 scale 動畫 */
+.animate-scale {
+  animation: scale 0.3s ease-in-out;
+}
+
+@keyframes scale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 </style>
