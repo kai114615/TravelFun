@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from .models import Member, Article, Message, Product, Restaurant, Post, Category
 import logging
-import requests
+import requests as http_requests  # 給 requests 庫起別名，避免與 Google 的 requests 模組衝突
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 import json
@@ -24,7 +24,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 import os
 from .serializers import PostSerializer
 from google.oauth2 import id_token
-from google.auth.transport import requests
+from google.auth.transport import requests as google_requests  # 給 Google 的 requests 模組起別名
 from django.conf import settings
 import uuid
 
@@ -40,7 +40,7 @@ def login_view(request):
         username = request.POST['username']
         password = request.POST['password']
         print(f"嘗試登入: username={username}, password={password}")  # 調試信息
-        
+
         # 檢查用戶是否存在
         try:
             member = Member.objects.get(username=username)
@@ -49,10 +49,10 @@ def login_view(request):
             print(f"用戶 {username} 不存在")
             messages.error(request, "用戶名或密碼不正確")
             return render(request, 'login.html')
-            
+
         user = authenticate(request, username=username, password=password)
         print(f"認證結果: user={user}")  # 調試信息
-        
+
         if user is not None:
             login(request, user)
             print(f"用戶已登入，準備重定向")  # 調試信息
@@ -103,11 +103,11 @@ def signin(request):
 
         # 驗證用戶
         user = authenticate(username=username, password=password)
-        
+
         if user is not None:
             # 生成 JWT token
             refresh = RefreshToken.for_user(user)
-            
+
             response_data = {
                 'success': True,
                 'message': '登入成功',
@@ -128,7 +128,7 @@ def signin(request):
 
             print('登入成功，返回數據:', response_data)
             return Response(response_data, status=status.HTTP_200_OK)
-        
+
         print('登入失敗：用戶名或密碼錯誤')
         return Response({
             'success': False,
@@ -175,7 +175,7 @@ def register_api(request):
         # 獲取並驗證必要字段
         required_fields = ['username', 'email', 'password1', 'password2']
         missing_fields = [field for field in required_fields if not request.data.get(field)]
-        
+
         if missing_fields:
             print(f'缺少必要字段: {missing_fields}')
             return Response({
@@ -307,11 +307,11 @@ def user_dashboard(request):
     api_key = "YOUR_API_KEY"  # 替換為您的 API 密鑰
     city = "Taipei"  # 可以根據用戶的位置動態設置
     weather_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-    
+
     try:
-        weather_response = requests.get(weather_url)
+        weather_response = http_requests.get(weather_url)
         weather_data = weather_response.json()
-    except requests.RequestException:
+    except http_requests.RequestException:
         weather_data = {"name": "N/A", "main": {"temp": "N/A"}, "weather": [{"description": "N/A"}]}
 
     # 獲取用戶的文章
@@ -356,7 +356,7 @@ def profile_update(request):
     if request.method == 'POST':
         profile_form = ProfileUpdateForm(request.POST, request.FILES, instance=request.user)
         password_form = CustomPasswordChangeForm(request.user, request.POST)
-        
+
         # 檢查是否有密碼相關的數據
         has_password_data = any([
             request.POST.get('old_password'),
@@ -366,7 +366,7 @@ def profile_update(request):
 
         if profile_form.is_valid():
             profile_form.save()
-            
+
             # 只有當提交了密碼數據時才驗證密碼表單
             if has_password_data:
                 if password_form.is_valid():
@@ -381,7 +381,7 @@ def profile_update(request):
                     })
             else:
                 messages.success(request, '您的個人資料已更新！')
-            
+
             # 檢查用戶來源頁面
             referer = request.META.get('HTTP_REFERER', '')
             if 'admin-dashboard' in referer:
@@ -391,7 +391,7 @@ def profile_update(request):
     else:
         profile_form = ProfileUpdateForm(instance=request.user)
         password_form = CustomPasswordChangeForm(request.user)
-    
+
     context = {
         'profile_form': profile_form,
         'password_form': password_form,
@@ -455,7 +455,7 @@ def set_admin(request):
     username = 'admin'
     password = 'admin'
     email = 'admin@example.com'
-    
+
     try:
         # 檢查現有用戶
         user = Member.objects.get(username=username)
@@ -463,12 +463,12 @@ def set_admin(request):
         print(f"用戶ID: {user.id}")
         print(f"用戶級別: {user.level}")
         print(f"當前密碼哈希: {user.password}")  # 打印當前密碼哈希
-        
+
         # 使用 set_password 方法設置新密碼
         user.set_password(password)
         user.save()  # 記得保存更改
         print(f"新密碼哈希: {user.password}")  # 打印新的密碼哈希
-        
+
     except Member.DoesNotExist:
         # 創建新用戶
         user = Member.objects.create_user(
@@ -478,14 +478,14 @@ def set_admin(request):
         )
         print(f"創建新用戶: {username}")
         print(f"密碼哈希: {user.password}")  # 打印密碼哈希
-    
+
     # 設置管理員權限
     user.level = 'admin'
     user.is_staff = True
     user.is_superuser = True
     user.save()
     print(f"已設置用戶 {username} 為管理員")
-    
+
     return HttpResponse(
         f'管理員帳號設置成功！<br>'
         f'用戶名: {username}<br>'
@@ -517,7 +517,7 @@ def sent_messages(request):
 def compose_message(request):
     reply_to_id = request.GET.get('reply_to')
     quote = request.GET.get('quote') == 'true'
-    
+
     if request.method == 'POST':
         form = MessageForm(request.POST, sender=request.user)
         if form.is_valid():
@@ -552,7 +552,7 @@ def compose_message(request):
             if quote:
                 initial['content'] = f"\n\n--- 原始訊息 ---\n{replied_message.content}"
         form = MessageForm(initial=initial, sender=request.user)
-    
+
     return render(request, 'messages/compose.html', {'form': form})
 
 @login_required
@@ -578,9 +578,9 @@ def some_view_function(request):
     # 獲取最新的5條訊息
     latest_messages = Message.objects.filter(recipient=request.user).order_by('-created_at')[:5]
     new_messages_count = Message.objects.filter(recipient=request.user, is_read=False).count()
-    
+
     # 其他視圖邏輯...
-    
+
     context = {
         'latest_messages': latest_messages,
         'new_messages_count': new_messages_count,
@@ -697,7 +697,7 @@ def member_api(request, member_id=None):
         try:
             member = Member.objects.get(id=member_id)
             data = json.loads(request.body)
-            
+
             if 'username' in data:
                 member.username = data['username']
             if 'email' in data:
@@ -706,7 +706,7 @@ def member_api(request, member_id=None):
                 member.level = data['level']
             if 'password' in data:
                 member.set_password(data['password'])
-            
+
             member.save()
             return JsonResponse({'message': '會員資料更新成功'})
         except Member.DoesNotExist:
@@ -818,7 +818,7 @@ def product_api(request, product_id=None):
                 'description': p.description
             } for p in products]
         return JsonResponse(data, safe=False)
-    
+
     elif request.method == 'POST':
         data = json.loads(request.body)
         if product_id:
@@ -851,20 +851,20 @@ def logout_api(request):
     try:
         # 執行 Django 的登出
         django_logout(request)
-        
+
         # 準備響應
         response = Response({
             'success': True,
             'message': '登出成功'
         }, status=status.HTTP_200_OK)
-        
+
         # 清除相關的 cookies
         response.delete_cookie('token')
         response.delete_cookie('refresh_token')
         response.delete_cookie('sessionid')  # 清除 Django session cookie
-        
+
         return response
-        
+
     except Exception as e:
         print(f"登出錯誤: {str(e)}")
         return Response({
@@ -881,7 +881,7 @@ def check_auth(request):
     try:
         # 獲取用戶信息
         user = request.user
-        
+
         # 構建用戶數據
         user_data = {
             'id': user.id,
@@ -892,13 +892,13 @@ def check_auth(request):
             'updated_at': user.date_joined,
             'avatar': user.get_avatar_url() if hasattr(user, 'get_avatar_url') else None
         }
-        
+
         return Response({
             'success': True,
             'isAuthenticated': True,
             'user': user_data
         })
-        
+
     except Exception as e:
         return Response({
             'success': False,
@@ -939,7 +939,7 @@ def profile_api(request):
         elif request.method == 'PUT':
             # 獲取更新數據
             data = request.data
-            
+
             # 更新基本信息
             if 'first_name' in data:
                 user.first_name = data['first_name']
@@ -953,7 +953,7 @@ def profile_api(request):
                         'message': '此郵箱已被使用'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 user.email = data['email']
-            
+
             # 如果提供了新密碼
             if 'current_password' in data and 'new_password' in data:
                 if not user.check_password(data['current_password']):
@@ -962,13 +962,13 @@ def profile_api(request):
                         'message': '當前密碼不正確'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 user.set_password(data['new_password'])
-            
+
             # 保存更改
             user.save()
 
             # 如果更新了密碼，需要重新生成 token
             refresh = RefreshToken.for_user(user)
-            
+
             return Response({
                 'success': True,
                 'message': '資料更新成功',
@@ -1004,7 +1004,7 @@ def create_post(request):
             category = Category.objects.get(id=category_id)
         except Category.DoesNotExist:
             return Response({'success': False, 'message': '無效的分類'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # 創建文章
         post = Post.objects.create(
             title=request.data.get('title'),
@@ -1012,19 +1012,19 @@ def create_post(request):
             category=category,
             author=request.user
         )
-        
+
         # 處理標籤
         tags = request.data.get('tags', [])
         if tags:
             post.tags.set(tags)
-        
+
         serializer = PostSerializer(post)
         return Response({
             'success': True,
             'message': '文章發表成功',
             'post': serializer.data
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({
             'success': False,
@@ -1039,20 +1039,20 @@ def profile_update_api(request):
     """
     try:
         user = request.user
-        
+
         # 處理頭像上傳
         if 'avatar' in request.FILES:
             user.avatar = request.FILES['avatar']
-        
+
         # 處理其他資料更新
         if 'full_name' in request.data:
             user.full_name = request.data['full_name']
         if 'address' in request.data:
             user.address = request.data['address']
-        
+
         # 保存更改
         user.save()
-        
+
         return Response({
             'success': True,
             'message': '資料更新成功',
@@ -1060,7 +1060,7 @@ def profile_update_api(request):
             'full_name': user.full_name,
             'address': user.address
         })
-        
+
     except Exception as e:
         print(f"更新用戶資料時出錯: {str(e)}")
         return Response({
@@ -1077,13 +1077,13 @@ def google_signin(request):
     try:
         # 打印請求數據以進行調試
         print("收到 Google 登入請求數據:", request.data)
-        
+
         # 檢查 email 參數（優先使用前端直接傳來的 email）
         email = request.data.get('email')
         name = request.data.get('name')
         google_id = request.data.get('google_id')
         google_token = request.data.get('google_token')
-        
+
         # 記錄參數存在情況
         print("參數存在情況:", {
             "email": bool(email),
@@ -1091,7 +1091,7 @@ def google_signin(request):
             "google_id": bool(google_id),
             "google_token": bool(google_token)
         })
-        
+
         # 如果沒有 email，則嘗試從 token 獲取
         if not email and google_token:
             try:
@@ -1101,14 +1101,14 @@ def google_signin(request):
                         'success': False,
                         'message': 'GOOGLE_CLIENT_ID 未在 settings.py 中定義'
                     }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                    
+
                 print(f"使用 Google Client ID: {settings.GOOGLE_CLIENT_ID}")
-                
+
                 # 嘗試驗證 token（如果是 ID token）
                 try:
                     idinfo = id_token.verify_oauth2_token(
-                        google_token, 
-                        requests.Request(), 
+                        google_token,
+                        google_requests.Request(),
                         settings.GOOGLE_CLIENT_ID
                     )
 
@@ -1116,7 +1116,7 @@ def google_signin(request):
                     google_id = google_id or idinfo.get('sub')
                     email = email or idinfo.get('email')
                     name = name or idinfo.get('name', '')
-                    
+
                     print("從 Token 獲取的信息:", {
                         "google_id": google_id,
                         "email": email,
@@ -1124,17 +1124,17 @@ def google_signin(request):
                     })
                 except Exception as token_error:
                     print("Token 驗證失敗，嘗試從 Google API 獲取用戶信息:", token_error)
-                    
+
                     # 如果是 access_token，則使用它獲取用戶信息
                     try:
                         headers = {'Authorization': f'Bearer {google_token}'}
-                        resp = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers=headers)
+                        resp = http_requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers=headers)
                         if resp.status_code == 200:
                             userinfo = resp.json()
                             google_id = google_id or userinfo.get('sub')
                             email = email or userinfo.get('email')
                             name = name or userinfo.get('name', '')
-                            
+
                             print("從 Google API 獲取的信息:", {
                                 "google_id": google_id,
                                 "email": email,
@@ -1144,16 +1144,16 @@ def google_signin(request):
                         print("從 Google API 獲取用戶信息失敗:", api_error)
             except Exception as e:
                 print(f"處理 Google token 時出錯: {str(e)}")
-        
+
         # 檢查是否有 email
         if not email:
             return Response({
                 'success': False,
                 'message': '未能獲取電子郵件地址，無法登入'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         print(f"最終使用的電子郵件地址: {email}")
-        
+
         # 檢查用戶是否已存在
         try:
             user = User.objects.get(email=email)
@@ -1161,7 +1161,7 @@ def google_signin(request):
         except User.DoesNotExist:
             # 創建新用戶
             username = f"google_{google_id or uuid.uuid4().hex[:8]}"
-            
+
             try:
                 # 檢查用戶名是否已存在
                 User.objects.get(username=username)
@@ -1169,25 +1169,25 @@ def google_signin(request):
                 username = f"{username}_{uuid.uuid4().hex[:4]}"
             except User.DoesNotExist:
                 pass
-                
+
             user = User.objects.create_user(
                 username=username,
                 email=email,
             )
-            
+
             # 設置用戶名稱
             if name:
                 names = name.split(' ', 1)
                 user.first_name = names[0]
                 if len(names) > 1:
                     user.last_name = names[1]
-            
+
             user.save()
             print(f"創建新用戶: {username}, ID: {user.id}, Email: {email}")
 
         # 生成 JWT token
         refresh = RefreshToken.for_user(user)
-        
+
         return Response({
             'success': True,
             'message': 'Google 登入成功',
@@ -1200,7 +1200,7 @@ def google_signin(request):
                 'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
             }
         }, status=status.HTTP_200_OK)
-            
+
     except Exception as e:
         print(f"Google 登入處理發生錯誤: {str(e)}")
         return Response({

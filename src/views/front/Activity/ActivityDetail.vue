@@ -280,20 +280,16 @@ export default defineComponent({
 
     <!-- 活動詳情內容 -->
     <template v-else>
-      <NCard class="overflow-hidden">
+      <NCard v-if="activity" class="overflow-hidden">
         <!-- 活動圖片區域 -->
         <div class="relative aspect-video mb-6 overflow-hidden rounded-lg">
           <!-- 主圖片 -->
-          <img
-            :src="getImageUrl()" :alt="activity.activity_name" class="w-full h-full object-cover"
-            @error="handleImageError"
-          >
+          <img :src="getImageUrl()" :alt="activity.activity_name" class="w-full h-full object-cover"
+            @error="handleImageError">
 
           <!-- 輪播控制按鈕 -->
-          <div
-            v-if="hasMultipleImages"
-            class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-all duration-300"
-          >
+          <div v-if="hasMultipleImages"
+            class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-all duration-300">
             <button class="carousel-button opacity-60 hover:opacity-100" @click="prevImage">
               <i class="fas fa-chevron-left" />
             </button>
@@ -304,10 +300,8 @@ export default defineComponent({
 
           <!-- 輪播指示器 -->
           <div v-if="hasMultipleImages" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-            <button
-              v-for="index in getTotalImages()" :key="index" class="carousel-indicator"
-              :class="index - 1 === currentImageIndex ? 'active' : ''" @click="currentImageIndex = index - 1"
-            />
+            <button v-for="index in getTotalImages()" :key="index" class="carousel-indicator"
+              :class="index - 1 === currentImageIndex ? 'active' : ''" @click="currentImageIndex = index - 1" />
           </div>
         </div>
 
@@ -383,20 +377,24 @@ export default defineComponent({
             </div>
           </div>
 
-          <!-- Google Map 地圖顯示 -->
-          <div v-if="activity.latitude && activity.longitude" class="space-y-4">
+          <!-- Google Map 地圖顯示 - 移除經緯度條件，一律顯示 -->
+          <div class="space-y-4">
             <h2 class="text-xl font-semibold text-gray-900">
               <span class="text-lg mr-2">在 Google Maps 位置</span>
               <i class="fas fa-map-marked-alt text-2xl" />
             </h2>
             <div class="w-full h-[400px] rounded-lg overflow-hidden">
               <iframe
-                :src="`https://maps.google.com/maps?q=${activity.latitude},${activity.longitude}&z=15&t=p&output=embed`"
-                class="w-full h-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-              />
+                :src="`https://maps.google.com/maps?q=${activity?.latitude || '25.0330'}, ${activity?.longitude || '121.5654'}&z=15&t=p&output=embed`"
+                class="w-full h-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade" />
             </div>
             <div>
-              <span class="text-sm text-gray-500">部分地點位置標記係因資料源頭關係而以該活動所在行政區之中心點經、緯度來呈現</span>
+              <span v-if="activity?.latitude && activity?.longitude" class="text-sm text-gray-500">
+                部分地點位置標記係因資料源頭關係而以該活動所在行政區之中心點經、緯度來呈現
+              </span>
+              <span v-else class="text-sm text-gray-500 block">
+                此活動未提供經緯度資訊，預設顯示台北市中心位置
+              </span>
             </div>
           </div>
 
@@ -411,10 +409,8 @@ export default defineComponent({
                 <h3 class="font-medium text-lg text-gray-900 mb-2">
                   相關連結
                 </h3>
-                <a
-                  v-if="activity.source_url" :href="activity.source_url" target="_blank"
-                  class="text-blue-600 hover:underline"
-                >
+                <a v-if="activity.source_url" :href="activity.source_url" target="_blank"
+                  class="text-blue-600 hover:underline">
                   官方網站
                 </a>
                 <p v-else class="text-gray-600">
@@ -429,15 +425,11 @@ export default defineComponent({
                 </h3>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                   <!-- 圖片縮略圖 -->
-                  <div
-                    v-for="(url, index) in getActivityImageUrls()" :key="index"
+                  <div v-for="(url, index) in getActivityImageUrls()" :key="index"
                     class="aspect-square relative overflow-hidden rounded-lg cursor-pointer"
-                    @click="currentImageIndex = index"
-                  >
-                    <img
-                      :src="url" :alt="`${activity.activity_name} 圖片 ${index + 1}`"
-                      class="w-full h-full object-cover hover:opacity-75 transition-opacity" @error="handleImageError"
-                    >
+                    @click="currentImageIndex = index">
+                    <img :src="url" :alt="`${activity.activity_name} 圖片 ${index + 1}`"
+                      class="w-full h-full object-cover hover:opacity-75 transition-opacity" @error="handleImageError">
                     <!-- 圖片編號 -->
                     <div class="absolute bottom-0 right-0 bg-black/50 text-white px-2 py-1 text-xs">
                       {{ index + 1 }}
