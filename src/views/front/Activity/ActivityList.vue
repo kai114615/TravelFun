@@ -137,6 +137,8 @@ export default defineComponent({
         },
         pageSize: '每頁'
       },
+      // 新增收藏相關資料
+      favorites: [] as string[],
     };
   },
   computed: {
@@ -257,6 +259,9 @@ export default defineComponent({
 
     // 新增：處理 URL 查詢參數中的狀態
     this.handleUrlStatusParameter();
+
+    // 新增：載入收藏的活動
+    this.loadFavorites();
   },
   beforeUnmount() {
     // 移除事件監聽器
@@ -846,6 +851,63 @@ export default defineComponent({
         }
       }
     },
+
+    // 修改: 載入收藏的活動 - 改用字串型態的 UUID
+    loadFavorites() {
+      const savedFavorites = localStorage.getItem('activityFavorites');
+      if (savedFavorites) {
+        try {
+          const parsedFavorites = JSON.parse(savedFavorites);
+          // 修改: 不再轉換為數字，直接保留字串形式的 UUID
+          this.favorites = Array.isArray(parsedFavorites) ? parsedFavorites : [];
+          console.log('載入的收藏列表:', this.favorites);
+        } catch (e) {
+          console.error('載入收藏活動失敗:', e);
+          this.favorites = [];
+        }
+      }
+    },
+
+    // 修改: 切換收藏狀態 - 改用 UUID
+    toggleFavorite(activity: Activity, event?: Event) {
+      if (event) event.stopPropagation();
+
+      // 修改: 使用 uid 而非 id
+      const activityUid = activity.uid;
+      if (!activityUid) {
+        console.error('活動UUID無效:', activity);
+        return;
+      }
+
+      console.log('切換收藏狀態:', activityUid, activity.activity_name);
+
+      const index = this.favorites.indexOf(activityUid);
+      const newFavorites = [...this.favorites]; // 創建新數組避免直接修改
+
+      if (index === -1) {
+        // 添加到收藏
+        newFavorites.push(activityUid);
+        console.log('添加收藏:', activityUid);
+      } else {
+        // 從收藏中移除
+        newFavorites.splice(index, 1);
+        console.log('移除收藏:', activityUid);
+      }
+
+      this.favorites = newFavorites; // 替換整個陣列觸發響應式更新
+
+      // 保存到本地儲存空間
+      localStorage.setItem('activityFavorites', JSON.stringify(this.favorites));
+    },
+
+    // 修改: 檢查活動是否被收藏 - 改用 UUID
+    isFavorite(activity: Activity): boolean {
+      // 修改: 使用 uid 而非 id
+      const activityUid = activity.uid;
+      if (!activityUid) return false;
+
+      return this.favorites.includes(activityUid);
+    },
   },
 });
 </script>
@@ -988,12 +1050,20 @@ export default defineComponent({
                     ]" @click.stop="currentImageIndexes[activity.id] = index" />
                 </div>
 
-                <!-- 活動狀態標籤 -->
+                <!-- 活動狀態標籤（已經在左上角） -->
                 <div
-                  class="absolute top-3 right-3 px-4 py-1.5 min-w-[80px] text-center rounded-md text-sm font-medium text-white transition-transform duration-300"
+                  class="absolute top-3 left-3 px-4 py-1.5 min-w-[80px] text-center rounded-md text-sm font-medium text-white transition-transform duration-300"
                   :class="getStatusClass(activity)">
                   {{ getStatusText(activity) }}
                 </div>
+
+                <!-- 收藏按鈕 - 右上角 -->
+                <button
+                  class="absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-105"
+                  @click.stop="toggleFavorite(activity, $event)" :title="isFavorite(activity) ? '取消收藏' : '加入收藏'">
+                  <i class="fas text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]"
+                    :class="[isFavorite(activity) ? 'fa-heart text-red-500 drop-shadow-[0_2px_2px_rgba(150,0,0,0.5)]' : 'fa-heart text-white']"></i>
+                </button>
               </div>
 
               <!-- 活動內容 -->
