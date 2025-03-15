@@ -242,12 +242,21 @@ export default defineComponent({
       },
       immediate: false,
     },
+    '$route.query': {
+      handler() {
+        this.handleUrlStatusParameter();
+      },
+      immediate: false,
+    },
   },
   mounted() {
     this.initializeComponent();
     this.loadSearchHistory();
     // 添加點擊外部關閉建議的事件監聽器
     document.addEventListener('click', this.handleClickOutside);
+
+    // 新增：處理 URL 查詢參數中的狀態
+    this.handleUrlStatusParameter();
   },
   beforeUnmount() {
     // 移除事件監聽器
@@ -813,6 +822,29 @@ export default defineComponent({
     clearSearchHistory() {
       this.searchHistory = [];
       this.saveSearchHistory();
+    },
+
+    /**
+     * 處理 URL 中的狀態參數
+     */
+    handleUrlStatusParameter() {
+      // 從 URL 中獲取 status 參數
+      const statusParam = this.$route.query.status;
+
+      if (statusParam && typeof statusParam === 'string') {
+        // 檢查參數是否在有效的選項中
+        const validStatus = this.statusOptions.find(option => option.label === statusParam);
+
+        if (validStatus) {
+          // 設置選中的狀態
+          this.selectedStatus = validStatus.value;
+
+          // 延遲一下以確保狀態被正確設置後再執行搜尋
+          setTimeout(() => {
+            this.handleSearch();
+          }, 100);
+        }
+      }
     },
   },
 });
