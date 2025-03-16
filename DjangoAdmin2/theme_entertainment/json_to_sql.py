@@ -64,7 +64,19 @@ def format_value(value: Any) -> str:
                 pass
 
         # 處理特殊字元跳脫
-        return f"'{value.replace("'", "''").replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r')}'"
+        # 特別處理可能導致SQL錯誤的字符
+        escaped_value = value.replace("'", "''")  # 先處理單引號
+
+        # 處理SQL註釋符號(雙連字符)
+        escaped_value = escaped_value.replace('--', '\\-\\-')
+
+        # 處理其他特殊字符
+        special_chars = ['\\', '\n', '\r', '+', '%', '_']
+        for char in special_chars:
+            if char in escaped_value:
+                escaped_value = escaped_value.replace(char, '\\' + char)
+
+        return f"'{escaped_value}'"
 
     # 其他型態轉為字串
     return f"'{str(value)}'"
