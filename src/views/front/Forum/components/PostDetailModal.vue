@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { defineEmits, defineProps, ref, watch, nextTick } from 'vue';
-import { NButton, NIcon, NInput, NModal, useMessage } from 'naive-ui';
+import { defineEmits, defineProps, ref, watch, nextTick, computed } from 'vue';
+import { NButton, NIcon, NModal, useMessage } from 'naive-ui';
 import {
   ChatBubbleOutlined,
   FavoriteBorderOutlined,
@@ -8,8 +8,15 @@ import {
   VisibilityOutlined,
 } from '@vicons/material';
 import { useUserStore } from '@/stores';
-import { apiForumAddComment, apiForumToggleLike } from '@/utils/api';
+import { apiForumToggleLike } from '@/utils/api';
 import CommentSection from './CommentSection.vue';
+import { marked } from 'marked';
+
+// 設置 marked 選項
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
 
 const props = defineProps({
   show: {
@@ -80,6 +87,51 @@ function formatDate(date: string) {
     return '';
   return new Date(date).toLocaleString('zh-TW');
 }
+
+// 處理文章內容，移除重複的標題與時間信息
+function preprocessContent(content: string): string {
+  if (!content) return '';
+  
+  // 常見的標題或分類關鍵詞
+  const keywords = ['美食分享', '彰化必吃小吃推薦', '美食', '小吃推薦', '必吃'];
+  
+  // 移除可能存在的重複標題和發表時間
+  let processedContent = content.trim();
+  
+  // 移除標題、分類和時間重複信息 (多種匹配模式)
+  for (const keyword of keywords) {
+    // 1. 移除 "關鍵詞" + 發表於 + 日期時間 的模式
+    const pattern1 = new RegExp(`^(#+ )?${keyword}[\\s\\n]*發表於 \\d{4}\\/\\d{1,2}\\/\\d{1,2}[^\\n]*\\n+`, 'i');
+    processedContent = processedContent.replace(pattern1, '');
+    
+    // 2. 單獨的標題行
+    const pattern2 = new RegExp(`^${keyword}\\n+`, 'i');
+    processedContent = processedContent.replace(pattern2, '');
+    
+    // 3. 標題 + 時間格式 (不帶換行)
+    const pattern3 = new RegExp(`${keyword}[\\s\\n]*發表於 \\d{4}\\/\\d{1,2}\\/\\d{1,2}[^\\n]*`, 'i');
+    processedContent = processedContent.replace(pattern3, '');
+  }
+  
+  // 移除可能的Markdown格式標題 (# 標題格式)
+  processedContent = processedContent.replace(/^#+ .*?發表於.*?\n+/im, '');
+  
+  // 移除純時間行
+  processedContent = processedContent.replace(/^發表於 \d{4}\/\d{1,2}\/\d{1,2}[^\n]*\n+/i, '');
+  
+  // 移除可能的HTML標籤中包含的標題和時間
+  processedContent = processedContent.replace(/<div[^>]*>美食分享<\/div>\s*<div[^>]*>彰化必吃小吃推薦<\/div>\s*<div[^>]*>發表於[^<]*<\/div>/gi, '');
+  
+  // 清理開頭的空行
+  processedContent = processedContent.replace(/^\s*\n+/, '');
+  
+  return processedContent;
+}
+
+// 將預處理過的內容作為計算屬性
+const processedPostContent = computed(() => {
+  return preprocessContent(props.post?.content);
+});
 
 // 處理按讚
 async function handleLike() {
@@ -161,15 +213,20 @@ async function handleLike() {
     }
   } catch (error) {
     console.error('按讚失敗:', error);
-    // 恢復UI中的原始狀態
-    isLiked.value = wasLiked;
-    likeCount.value = originalCount;
+    
+    // 由於在 catch 區域中，無法訪問 try 區塊中定義的變數
+    // 這裡我們回復到初始狀態
+    const currentLiked = isLiked.value;
+    // 切換回原本的狀態
+    isLiked.value = !currentLiked;
+    // 更新點讚數
+    likeCount.value = currentLiked ? likeCount.value - 1 : likeCount.value + 1;
     
     // 通知父組件恢復原狀
     emit('like', {
       post_id: props.post.id,
-      is_liked: wasLiked,
-      like_count: originalCount
+      is_liked: isLiked.value,
+      like_count: likeCount.value
     });
     
     // 強制視圖更新
@@ -258,28 +315,9 @@ async function handleLike() {
         <!-- 文章內容 -->
         <div class="flex-1">
           <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
-            <!-- 文章標題 -->
-            <div class="mb-6">
-              <div class="inline-block px-1.5 py-0.5 rounded-full mb-3 text-xs font-medium"
-                :class="[
-                  post?.category?.name === '交通資訊' ? 'bg-blue-100 text-blue-800' : 
-                  post?.category?.name === '美食推薦' ? 'bg-teal-100 text-teal-800' : 
-                  post?.category?.name === '住宿分享' ? 'bg-sky-100 text-sky-800' : 
-                  post?.category?.name === '行程規劃' ? 'bg-green-100 text-green-800' : 
-                  post?.category?.name === '國內旅遊' ? 'bg-cyan-100 text-cyan-800' : 
-                  post?.category?.name === '海外旅遊' ? 'bg-blue-100 text-blue-800' : 
-                  'bg-blue-100 text-blue-800'
-                ]"
-              >{{ post?.category?.name || '討論' }}</div>
-              <h1 class="text-2xl font-bold text-gray-900">{{ post?.title }}</h1>
-              <div class="text-sm text-gray-500 mt-2">
-                發表於 {{ formatDate(post?.created_at) }}
-              </div>
-            </div>
-            
             <!-- 文章正文 - 包裝在一個固定寬度的容器中 -->
             <div class="w-full article-content-wrapper">
-              <div class="prose prose-lg max-w-none text-gray-700 mb-6 content-container" v-html="post?.content"></div>
+              <div class="prose prose-lg max-w-none text-gray-700 mb-6 content-container" v-html="processedPostContent"></div>
             </div>
             
             <!-- 標籤 -->

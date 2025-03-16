@@ -11,7 +11,7 @@
       <div class="step-indicator mb-8">
         <div class="step-line"></div>
         <div class="step-items">
-          <div v-for="(label, index) in ['輸入郵箱', '驗證身份', '重設密碼']" 
+          <div v-for="(label, index) in ['輸入信箱', '驗證身份', '重設密碼']" 
               :key="index" 
               class="step-item"
               :class="{'active': currentStep >= index, 'completed': currentStep > index}">
@@ -24,11 +24,11 @@
       <!-- 第一步：輸入郵箱 -->
       <div v-if="currentStep === 0" class="space-y-6">
         <div class="form-group">
-          <label class="block text-sm font-medium text-gray-700 mb-1">電子郵箱</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">電子信箱</label>
           <input 
             type="email" 
             v-model="formData.email" 
-            placeholder="請輸入您的註冊郵箱" 
+            placeholder="請輸入您的電子信箱" 
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           />
           <div v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</div>
@@ -187,7 +187,7 @@ export default defineComponent({
     
     // 步驟提示訊息
     const stepMessages = computed(() => ({
-      0: '我們將發送驗證碼到您的郵箱',
+      0: '我們將發送驗證碼到您的信箱Email',
       1: '請輸入收到的6位數驗證碼',
       2: '請設置您的新密碼',
       3: '您已成功重設密碼'
@@ -199,12 +199,12 @@ export default defineComponent({
       
       // 驗證郵箱
       if (!formData.email) {
-        errors.email = '請輸入電子郵箱';
+        errors.email = '請輸入電子信箱';
         return;
       }
       
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        errors.email = '請輸入有效的電子郵箱';
+        errors.email = '請輸入有效的電子信箱';
         return;
       }
       

@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores';
 import { apiForumAddComment, apiForumDeleteComment, apiForumToggleLike } from '@/utils/api';
-import { marked } from 'marked';
+import marked from 'marked';
 
 // 設置marked選項
 marked.setOptions({
@@ -64,7 +64,9 @@ const post = ref({
   postDate: '2024-01-10 10:45',
   views: 1239,
   likes: 156,
+  is_liked: false,
   author: {
+    id: 101,
     name: '背包客阿明',
     title: '旅遊達人',
     avatar: 'https://picsum.photos/201',
@@ -73,6 +75,7 @@ const post = ref({
     {
       id: 1,
       author: {
+        id: 102,
         name: '小茹看世界',
         title: '精選作者',
         avatar: 'https://picsum.photos/202',
@@ -84,6 +87,7 @@ const post = ref({
     {
       id: 2,
       author: {
+        id: 103,
         name: '老王遊台灣',
         title: '在地嚮導',
         avatar: 'https://picsum.photos/203',
@@ -104,12 +108,22 @@ const showLoginModal = ref(false);
 function renderMarkdown(content: string) {
   if (!content) return '';
   
-  // 預處理：處理非標準Markdown文本 (確保換行生效)
+  // 在處理前先檢查並移除頭部可能的標題和時間信息
   let processedContent = content
-    // 基本清理 - 移除多餘的空格，確保首尾沒有多餘空行
     .trim()
-    // 將連續的空格替換為單個空格
-    .replace(/ {2,}/g, ' ')
+    // 移除頭部可能的"美食分享"或類似分類標籤及標題
+    .replace(/^(#+ )?([^#\n]+)\n+發表於 \d{4}\/\d{1,2}\/\d{1,2}[^\n]*\n+/i, '')
+    // 移除可能存在的分類和時間重複信息
+    .replace(/^([^\n]+分享|[^\n]+推薦)\n+發表於 \d{4}\/\d{1,2}\/\d{1,2}[^\n]*\n+/i, '')
+    // 移除單獨的重複標題行
+    .replace(/^彰化必吃小吃推薦\n+/i, '')
+    .replace(/^美食分享\n+/i, '')
+    .replace(/(美食分享|彰化必吃小吃推薦)[\s\n]*發表於 \d{4}\/\d{1,2}\/\d{1,2} [^\n]*/i, '')
+    // 替換連續的空格
+    .replace(/ {2,}/g, ' ');
+  
+  // 其他預處理步驟（保留原有的處理邏輯）
+  processedContent = processedContent
     // 處理帶有emoji(•)的Day格式
     .replace(/•\s*Day\s*(\d+)\s*[:：]\s*([^•\n]+)/g, '\n\n## Day $1：$2')
     // 將 "Day N:" 或 "Day N :" 格式轉換為Markdown標題
@@ -146,7 +160,7 @@ function renderMarkdown(content: string) {
         // 處理有逗號或頓號分隔的項目清單
         if (p2.includes('、') || p2.includes('，') || p2.includes(',')) {
           const items = p2.split(/[、，,]/);
-          const listItems = items.map(item => `- ${item.trim()}`).join('\n');
+          const listItems = items.map((item: string) => `- ${item.trim()}`).join('\n');
           return `\n\n**${p1}**：\n${listItems}`;
         }
         return `\n\n**${p1}**：${p2}`;
