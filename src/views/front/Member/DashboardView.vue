@@ -112,13 +112,79 @@ function formatDate(date: Date | string | undefined) {
 const userForm = ref({
   full_name: '',
   address: '',
+  phone: '',
+  current_password: '',
+  new_password: '',
+  confirm_password: '',
 });
+
+// 表單欄位是否已經輸入過
+const hasInput = ref({
+  address: false,
+  phone: false,
+});
+
+// 是否顯示密碼欄位
+const showPasswordFields = ref(false);
+
+// 切換密碼欄位顯示狀態
+function togglePasswordFields() {
+  showPasswordFields.value = !showPasswordFields.value;
+  if (!showPasswordFields.value) {
+    // 隱藏密碼欄位時清空輸入
+    userForm.value.current_password = '';
+    userForm.value.new_password = '';
+    userForm.value.confirm_password = '';
+  }
+}
 
 // 監聽 userInfo 變化，更新表單數據
 watch(() => userInfo.value, (newUserInfo) => {
   if (newUserInfo) {
+    console.log('用戶數據已更新:', newUserInfo);
+    // 設定姓名
     userForm.value.full_name = newUserInfo.full_name || '';
-    userForm.value.address = newUserInfo.address || '';
+    
+    // 從localStorage或userInfo獲取地址和電話
+    const savedUserData = localStorage.getItem('userData');
+    if (savedUserData) {
+      try {
+        const userData = JSON.parse(savedUserData);
+        if (userData.address && userData.address !== '尚未設定地址') {
+          userForm.value.address = userData.address;
+          hasInput.value.address = true;
+        }
+        if (userData.phone && userData.phone !== '尚未設定手機號碼') {
+          userForm.value.phone = userData.phone;
+          hasInput.value.phone = true;
+        }
+      } catch (e) {
+        console.error('解析本地存儲的用戶數據失敗:', e);
+      }
+    }
+    
+    // 如果沒有從localStorage獲取到資料，則嘗試從userInfo獲取
+    if (!hasInput.value.address) {
+      const address = (newUserInfo as any)?.address;
+      if (address && address !== '尚未設定地址') {
+        userForm.value.address = address;
+        hasInput.value.address = true;
+      } else {
+        userForm.value.address = '';
+      }
+    }
+    
+    if (!hasInput.value.phone) {
+      const phone = (newUserInfo as any)?.phone;
+      if (phone && phone !== '尚未設定手機號碼') {
+        userForm.value.phone = phone;
+        hasInput.value.phone = true;
+      } else {
+        userForm.value.phone = '';
+      }
+    }
+    
+    console.log('表單數據已更新:', userForm.value);
   }
 }, { immediate: true });
 
@@ -134,7 +200,11 @@ async function handleAvatarUpload(options: { file: UploadFileInfo }) {
     if (!token)
       throw new Error('請先登入');
 
-    const response = await axios.post('http://127.0.0.1:8000/api/member/profile/update/', formData, {
+    // 使用更穩定的API調用方式
+    const response = await axios({
+      method: 'post',
+      url: 'http://127.0.0.1:8000/api/member/profile/update/',
+      data: formData,
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
@@ -147,8 +217,8 @@ async function handleAvatarUpload(options: { file: UploadFileInfo }) {
       message.success('頭像上傳成功');
       // 更新用戶資料
       await userStore.checkLoginStatus();
-      // 更新本地頭像顯示
-      userInfo.value.avatar = response.data.avatar;
+      // 使用可選鏈操作避免null錯誤
+      userInfo.value?.avatar && (userInfo.value.avatar = response.data.avatar);
     }
     else {
       throw new Error(response.data.message || '上傳失敗');
@@ -160,50 +230,341 @@ async function handleAvatarUpload(options: { file: UploadFileInfo }) {
   }
 }
 
-// 保存個人資料
+// 在元件掛載時獲取最新數據
+onMounted(async () => {
+  try {
+    console.log('組件掛載，初始表單數據:', userForm.value);
+    
+    // 首先確保檢查登入狀態，獲取最新的用戶數據
+    await userStore.checkLoginStatus();
+    console.log('登入狀態檢查完成，用戶數據:', userInfo.value);
+    
+    // 從localStorage獲取之前保存的數據
+    const savedUserData = localStorage.getItem('userData');
+    if (savedUserData) {
+      try {
+        const userData = JSON.parse(savedUserData);
+        console.log('從localStorage獲取到用戶數據:', userData);
+        
+        // 優先使用localStorage中的數據
+        if (userData.full_name) userForm.value.full_name = userData.full_name;
+        
+        if (userData.address && userData.address !== '尚未設定地址') {
+          userForm.value.address = userData.address;
+          hasInput.value.address = true;
+        }
+        
+        if (userData.phone && userData.phone !== '尚未設定手機號碼') {
+          userForm.value.phone = userData.phone;
+          hasInput.value.phone = true;
+        }
+        
+        console.log('從localStorage更新後的表單數據:', userForm.value);
+      } catch (e) {
+        console.error('解析本地存儲的用戶數據失敗:', e);
+      }
+    }
+    
+    // 若沒有從localStorage獲取到手機號碼和地址，嘗試從API獲取完整用戶資料
+    if ((!hasInput.value.address || !hasInput.value.phone)) {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        try {
+          console.log('嘗試從API獲取完整用戶資料');
+          // 獲取完整用戶資料
+          const response = await axios({
+            method: 'get',
+            url: 'http://127.0.0.1:8000/api/member/profile/',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+            withCredentials: true,
+          });
+          
+          console.log('API回應:', response.data);
+          
+          if (response.status === 200 && response.data.success) {
+            // 使用API返回的資料更新表單
+            const profileData = response.data.profile || {};
+            console.log('從API獲取的用戶資料:', profileData);
+            
+            // 更新表單數據
+            if (profileData.full_name) userForm.value.full_name = profileData.full_name;
+            
+            if (profileData.address && profileData.address !== '尚未設定地址' && !hasInput.value.address) {
+              userForm.value.address = profileData.address;
+              hasInput.value.address = true;
+            }
+            
+            if (profileData.phone && profileData.phone !== '尚未設定手機號碼' && !hasInput.value.phone) {
+              userForm.value.phone = profileData.phone;
+              hasInput.value.phone = true;
+            }
+            
+            console.log('從API更新後的表單數據:', userForm.value);
+            console.log('欄位輸入狀態:', hasInput.value);
+            
+            // 同時更新localStorage
+            localStorage.setItem('userData', JSON.stringify({
+              full_name: userForm.value.full_name,
+              address: userForm.value.address,
+              phone: userForm.value.phone
+            }));
+          }
+        } catch (error) {
+          console.error('獲取完整用戶資料失敗:', error);
+        }
+      }
+    }
+    
+    console.log('最終表單數據:', userForm.value);
+    console.log('最終欄位輸入狀態:', hasInput.value);
+  }
+  catch (error) {
+    console.error('獲取儀表板數據失敗:', error);
+  }
+});
+
+// 修改保存個人資料函數，同時更新本地存儲
 async function saveProfile() {
   try {
+    // 檢查表單數據有效性
+    if (!userForm.value.full_name.trim()) {
+      message.error('姓名不能為空');
+      return;
+    }
+    
+    // 如果啟用了密碼變更，則使用專門的API端點更新密碼
+    if (showPasswordFields.value) {
+      await updatePassword();
+    }
+    
+    // 標記表單欄位已有輸入
+    if (userForm.value.address.trim()) {
+      hasInput.value.address = true;
+    }
+    if (userForm.value.phone.trim()) {
+      hasInput.value.phone = true;
+    }
+    
+    // 創建FormData對象，添加表單數據
     const formData = new FormData();
     formData.append('full_name', userForm.value.full_name);
     formData.append('address', userForm.value.address);
+    formData.append('phone', userForm.value.phone);
 
+    // 獲取token
     const token = localStorage.getItem('access_token');
     if (!token)
       throw new Error('請先登入');
 
-    const response = await axios.post('http://127.0.0.1:8000/api/member/profile/update/', formData, {
+    // 直接使用FormData發送請求
+    const response = await axios({
+      method: 'post',
+      url: 'http://127.0.0.1:8000/api/member/profile/update/',
+      data: formData,
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
         'X-Requested-With': 'XMLHttpRequest',
       },
       withCredentials: true,
+      timeout: 10000,
     });
 
+    // 處理響應
     if (response.status === 200) {
-      message.success('個人資料更新成功');
+      // 更新用戶資料
       await userStore.checkLoginStatus();
-    }
-    else {
-      throw new Error('更新失敗');
+      
+      // 手動更新本地儲存的資料
+      if (userInfo.value) {
+        userInfo.value.full_name = userForm.value.full_name;
+        // 使用類型轉換處理可能不在數據模型中的欄位
+        (userInfo.value as any).address = userForm.value.address;
+        (userInfo.value as any).phone = userForm.value.phone;
+      }
+      
+      // 將完整用戶資料存儲到本地，以便下次加載時使用
+      localStorage.setItem('userData', JSON.stringify({
+        full_name: userForm.value.full_name,
+        address: userForm.value.address,
+        phone: userForm.value.phone
+      }));
+      
+      // 顯示成功訊息
+      message.success('個人資料已成功保存');
+    } else {
+      throw new Error(response.data?.message || '伺服器回應異常');
     }
   }
   catch (error: any) {
     console.error('更新個人資料失敗:', error);
-    message.error('更新個人資料失敗，請稍後再試');
+    
+    // 顯示具體錯誤訊息
+    if (error.response?.data?.message) {
+      message.error(`保存失敗: ${error.response.data.message}`);
+    } else if (error.message) {
+      message.error(`保存失敗: ${error.message}`);
+    } else {
+      message.error('保存失敗，請稍後再試');
+    }
   }
 }
 
-// 在組件掛載時獲取最新數據
-onMounted(async () => {
+// 專門處理密碼更新的函數
+async function updatePassword() {
+  // 檢查密碼相關欄位
+  // 如果當前密碼為空
+  if (!userForm.value.current_password) {
+    message.error('變更密碼需要輸入當前密碼');
+    throw new Error('變更密碼需要輸入當前密碼');
+  }
+  
+  // 如果新密碼為空
+  if (!userForm.value.new_password) {
+    message.error('請輸入新密碼');
+    throw new Error('請輸入新密碼');
+  }
+  
+  // 如果確認密碼為空
+  if (!userForm.value.confirm_password) {
+    message.error('請確認新密碼');
+    throw new Error('請確認新密碼');
+  }
+  
+  // 確認兩次輸入的新密碼是否一致
+  if (userForm.value.new_password !== userForm.value.confirm_password) {
+    message.error('兩次輸入的新密碼不一致');
+    throw new Error('兩次輸入的新密碼不一致');
+  }
+  
+  // 檢查密碼強度 (至少8個字符且包含字母和數字)
+  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+  if (!passwordRegex.test(userForm.value.new_password)) {
+    message.error('新密碼必須至少8個字符，並包含字母和數字');
+    throw new Error('新密碼必須至少8個字符，並包含字母和數字');
+  }
+  
+  // 獲取token
+  const token = localStorage.getItem('access_token');
+  if (!token)
+    throw new Error('請先登入');
+  
   try {
-    // 這裡可以添加API調用來獲取實際數據
-    // await fetchDashboardData()
+    console.log('開始更新密碼，使用profile_api端點');
+    
+    // 使用profile_api端點更新密碼
+    const response = await axios({
+      method: 'put',  // 使用PUT方法
+      url: 'http://127.0.0.1:8000/api/user/profile/',  // 個人資料API
+      data: {
+        current_password: userForm.value.current_password,
+        new_password: userForm.value.new_password
+      },
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      withCredentials: true,
+      timeout: 15000,  // 增加超時時間
+    });
+    
+    console.log('密碼更新響應:', response.data);
+    
+    if (response.status === 200) {
+      // 清空密碼欄位
+      userForm.value.current_password = '';
+      userForm.value.new_password = '';
+      userForm.value.confirm_password = '';
+      
+      // 隱藏密碼欄位
+      showPasswordFields.value = false;
+      
+      // 顯示密碼更新成功訊息
+      message.success('密碼已成功更新');
+      
+      // 如果響應中包含新token，則更新本地token
+      if (response.data?.access) {
+        localStorage.setItem('access_token', response.data.access);
+        
+        // 如果還包含refresh token，也一併更新
+        if (response.data?.refresh) {
+          localStorage.setItem('refresh_token', response.data.refresh);
+        }
+      }
+      
+      return true;
+    } else {
+      throw new Error(response.data?.message || '密碼更新失敗');
+    }
+  } catch (error: any) {
+    console.error('密碼更新失敗:', error);
+    
+    // 嘗試使用另一個端點
+    try {
+      console.log('嘗試使用備用的密碼更新端點');
+      
+      // 使用專門的密碼更新API
+      const backupResponse = await axios({
+        method: 'post',
+        url: 'http://127.0.0.1:8000/api/user/change-password/',
+        data: {
+          current_password: userForm.value.current_password,
+          new_password: userForm.value.new_password
+        },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        withCredentials: true,
+        timeout: 10000,
+      });
+      
+      console.log('備用端點密碼更新響應:', backupResponse.data);
+      
+      if (backupResponse.status === 200) {
+        // 清空密碼欄位
+        userForm.value.current_password = '';
+        userForm.value.new_password = '';
+        userForm.value.confirm_password = '';
+        
+        // 隱藏密碼欄位
+        showPasswordFields.value = false;
+        
+        // 顯示密碼更新成功訊息
+        message.success('密碼已成功更新');
+        
+        // 檢查是否需要更新token
+        if (backupResponse.data?.access) {
+          localStorage.setItem('access_token', backupResponse.data.access);
+        }
+        
+        return true;
+      } else {
+        throw new Error(backupResponse.data?.message || '密碼更新失敗');
+      }
+    } catch (backupError: any) {
+      console.error('備用端點密碼更新失敗:', backupError);
+      
+      // 顯示具體錯誤訊息
+      if (error.response?.data?.message) {
+        message.error(`密碼更新失敗: ${error.response.data.message}`);
+      } else if (error.response?.data?.detail) {
+        message.error(`密碼更新失敗: ${error.response.data.detail}`);
+      } else if (error.message) {
+        message.error(`密碼更新失敗: ${error.message}`);
+      } else {
+        message.error('密碼更新失敗，請稍後再試');
+      }
+      
+      throw error;
+    }
   }
-  catch (error) {
-    console.error('Failed to fetch dashboard data:', error);
-  }
-});
+}
 </script>
 
 <template>
@@ -442,8 +803,70 @@ onMounted(async () => {
         </NFormItem>
 
         <NFormItem label="地址">
-          <NInput v-model:value="userForm.address" placeholder="請輸入地址" />
+          <NInput 
+            v-model:value="userForm.address" 
+            placeholder="請輸入地址"
+          />
+          <template v-if="!hasInput.address && !userForm.address">
+            <div class="text-gray-400 mt-1 text-sm">尚未設定地址</div>
+          </template>
         </NFormItem>
+
+        <NFormItem label="手機號碼">
+          <NInput 
+            v-model:value="userForm.phone" 
+            placeholder="請輸入手機號碼" 
+          />
+          <template v-if="!hasInput.phone && !userForm.phone">
+            <div class="text-gray-400 mt-1 text-sm">尚未設定手機號碼</div>
+          </template>
+        </NFormItem>
+
+        <!-- 顯示/隱藏密碼變更按鈕 -->
+        <div class="mb-4">
+          <NButton 
+            type="default" 
+            @click="togglePasswordFields"
+            size="small"
+          >
+            {{ showPasswordFields ? '取消變更密碼' : '變更密碼' }}
+          </NButton>
+        </div>
+
+        <!-- 密碼變更欄位 -->
+        <template v-if="showPasswordFields">
+          <div class="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">變更密碼</h3>
+            
+            <NFormItem label="當前密碼" required>
+              <NInput 
+                v-model:value="userForm.current_password" 
+                type="password" 
+                placeholder="請輸入當前密碼"
+                show-password-on="click"
+              />
+            </NFormItem>
+            
+            <NFormItem label="新密碼" required>
+              <NInput 
+                v-model:value="userForm.new_password" 
+                type="password" 
+                placeholder="請輸入新密碼"
+                show-password-on="click"
+              />
+              <div class="text-gray-500 mt-1 text-xs">密碼須至少8個字符，並包含字母和數字</div>
+            </NFormItem>
+            
+            <NFormItem label="確認新密碼" required>
+              <NInput 
+                v-model:value="userForm.confirm_password" 
+                type="password" 
+                placeholder="請再次輸入新密碼"
+                show-password-on="click"
+              />
+            </NFormItem>
+          </div>
+        </template>
 
         <div class="flex justify-end mt-6">
           <NButton type="primary" @click="saveProfile">

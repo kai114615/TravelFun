@@ -294,22 +294,6 @@ onMounted(() => {
           {{ loading ? '註冊中...' : '註冊' }}
         </NButton>
       </div>
-
-      <!-- 返回登入選項 -->
-      <div class="google-login">
-        <div class="divider">
-          <span>或</span>
-        </div>
-        <NButton
-          size="large"
-          block
-          :disabled="loading"
-          @click="router.push('/login')"
-          class="login-button"
-        >
-          返回登入
-        </NButton>
-      </div>
     </NForm>
   </div>
 </template>
