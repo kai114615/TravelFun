@@ -69,9 +69,9 @@
           <NCheckbox v-model:checked="rememberMe">
             記住我
           </NCheckbox>
-          <a href="#" class="text-primary hover:text-primary-dark text-sm">
+          <router-link to="/forgot-password" class="text-primary hover:text-primary-dark text-sm">
             忘記密碼？
-          </a>
+          </router-link>
         </div>
 
         <!-- 登入按鈕 -->

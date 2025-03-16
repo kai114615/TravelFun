@@ -256,18 +256,66 @@ async function handleLike() {
         </div>
         
         <!-- 文章內容 -->
-        <div class="flex-1 bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-          <div class="prose prose-lg max-w-none text-gray-700" v-html="post?.content" />
-          
-          <!-- 文章底部可能的旅遊相關資訊 -->
-          <div v-if="post?.meta" class="mt-8 pt-5 border-t border-gray-100">
-            <div v-if="post?.meta.location" class="flex items-center text-sm text-gray-600 mb-2.5">
-              <span class="font-medium mr-3">旅遊地點:</span>
-              <span>{{ post?.meta.location }}</span>
+        <div class="flex-1">
+          <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+            <!-- 文章標題 -->
+            <div class="mb-6">
+              <div class="inline-block px-1.5 py-0.5 rounded-full mb-3 text-xs font-medium"
+                :class="[
+                  post?.category?.name === '交通資訊' ? 'bg-blue-100 text-blue-800' : 
+                  post?.category?.name === '美食推薦' ? 'bg-teal-100 text-teal-800' : 
+                  post?.category?.name === '住宿分享' ? 'bg-sky-100 text-sky-800' : 
+                  post?.category?.name === '行程規劃' ? 'bg-green-100 text-green-800' : 
+                  post?.category?.name === '國內旅遊' ? 'bg-cyan-100 text-cyan-800' : 
+                  post?.category?.name === '海外旅遊' ? 'bg-blue-100 text-blue-800' : 
+                  'bg-blue-100 text-blue-800'
+                ]"
+              >{{ post?.category?.name || '討論' }}</div>
+              <h1 class="text-2xl font-bold text-gray-900">{{ post?.title }}</h1>
+              <div class="text-sm text-gray-500 mt-2">
+                發表於 {{ formatDate(post?.created_at) }}
+              </div>
             </div>
-            <div v-if="post?.meta.travel_date" class="flex items-center text-sm text-gray-600 mb-2.5">
-              <span class="font-medium mr-3">旅遊日期:</span>
-              <span>{{ post?.meta.travel_date }}</span>
+            
+            <!-- 文章正文 - 包裝在一個固定寬度的容器中 -->
+            <div class="w-full article-content-wrapper">
+              <div class="prose prose-lg max-w-none text-gray-700 mb-6 content-container" v-html="post?.content"></div>
+            </div>
+            
+            <!-- 標籤 -->
+            <div v-if="post?.tags && post?.tags.length > 0" class="mt-6 pt-4 border-t border-gray-100">
+              <div class="flex flex-wrap gap-1.5">
+                <span class="text-sm text-gray-500">標籤：</span>
+                <span 
+                  v-for="tag in post?.tags" 
+                  :key="tag.id" 
+                  class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  {{ tag.name }}
+                </span>
+              </div>
+            </div>
+            
+            <!-- 文章底部可能的旅遊相關資訊 -->
+            <div v-if="post?.meta" class="mt-6 pt-4 border-t border-gray-100">
+              <div v-if="post?.meta.location" class="flex items-center text-sm text-gray-600 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="font-medium mr-2">旅遊地點:</span>
+                <span>{{ post?.meta.location }}</span>
+              </div>
+              <div v-if="post?.meta.travel_date" class="flex items-center text-sm text-gray-600 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="font-medium mr-2">旅遊日期:</span>
+                <span>{{ post?.meta.travel_date }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -300,6 +348,7 @@ async function handleLike() {
           />
         </div>
       </div>
+
     </div>
   </NModal>
 </template>
@@ -308,29 +357,55 @@ async function handleLike() {
 .post-detail-modal {
   max-height: 85vh;
   overflow-y: auto;
-  background-color: #f9fafb;
+  background-color: #f8fafc;
   padding: 1.75rem;
   position: relative;
-  border-radius: 0.5rem;
+  border-radius: 1rem;
 }
 
 .prose {
   font-size: 1.05rem;
   line-height: 1.8;
   color: #374151;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  text-align: justify;
 }
 
 .prose p {
   margin-bottom: 1.25rem;
+  width: 100%;
+  word-break: normal;
+  overflow-wrap: break-word;
+  display: block;
 }
 
 .prose img {
   max-width: 100%;
   height: auto;
-  border-radius: 0.375rem;
+  border-radius: 0.75rem;
   margin: 1.5rem 0;
   border: 1px solid #f0f0f0;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+}
+
+.prose > * {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.flex-1 .bg-white {
+  width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.prose .content {
+  white-space: pre-wrap;
+  word-break: normal;
 }
 
 /* 添加滾動條樣式 */
@@ -459,5 +534,41 @@ async function handleLike() {
   100% {
     transform: scale(1);
   }
+}
+
+/* 文章內容容器 */
+.content-container {
+  max-width: 100%;
+  width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  text-align: justify;
+}
+
+.article-content-wrapper {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* 確保段落文本正確換行 */
+.prose p {
+  white-space: pre-wrap;
+  text-align: justify;
+  margin-bottom: 1rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  width: 100%;
+}
+
+/* 添加段落間距 */
+.prose p + p {
+  margin-top: 1rem;
+}
+
+/* 確保所有內容在容器內 */
+.prose * {
+  max-width: 100%;
+  word-break: break-word;
 }
 </style>

@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django_ckeditor_5',  # 使用新的 CKEditor 5
     'rest_framework_simplejwt',
     'django_celery_results',
+    'password_reset',  # 新增的密碼重設應用
 ]
 
 
@@ -260,3 +261,15 @@ CACHES = {
 
 # Google OAuth2 設定
 GOOGLE_CLIENT_ID = '1063055916047-ic94ldh4ojm4gg18sbcqmenerdc98s2s.apps.googleusercontent.com'
+
+# 添加郵件設定
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'lf2net67983@gmail.com'
+EMAIL_HOST_PASSWORD = 'yoaq xubu djsw eabf'  # 更新的 Gmail 應用程式密碼
+DEFAULT_FROM_EMAIL = 'Travel Fun <lf2net67983@gmail.com>'
+
+# 密碼重設 Token 有效期 (1 小時)
+PASSWORD_RESET_TIMEOUT = 3600

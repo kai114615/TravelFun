@@ -155,6 +155,16 @@ const routes = [
     },
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('../views/front/ForgotPassword.vue'),
+    meta: {
+      title: '忘記密碼 - Travel Fun',
+      keepAlive: false,
+      forceTitle: true
+    },
+  },
+  {
     path: '/admin-dashboard/entertainment/activities',
     name: 'ActivityManagement',
     component: ActivityManagementView,

@@ -21,6 +21,7 @@ def health_check(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('password-reset/', include('password_reset.urls')),
     path('', include('myapp.urls')),
     path('restaurant/', include('restaurant_system.urls')),
     path('shop/', include('shopping_system.urls')),

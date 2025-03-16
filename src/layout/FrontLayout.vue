@@ -117,7 +117,7 @@ async function handleLogout () {
   <section class="flex min-h-screen flex-col">
     <Header />
     <div class="relative flex-1 flex flex-col items-stretch">
-      <RouterView v-if="isDone" />
+      <RouterView />
     </div>
     <Footer />
   </section>

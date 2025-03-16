@@ -294,6 +294,16 @@ const routes: Array<RouteRecordRaw> = [
       },
     ],
   },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('../views/front/ForgotPassword.vue'),
+    meta: {
+      title: '忘記密碼 - Travel Fun',
+      keepAlive: false,
+      forceTitle: true
+    },
+  },
 ];
 
 const router = createRouter({
@@ -318,8 +328,16 @@ router.beforeEach((to, from, next) => {
   }
   else {
     // 更新頁面標題
-    if (to.meta.title)
+    if (to.meta.title) {
       document.title = to.meta.title;
+      
+      // 對於標記為強制更新標題的路由，添加延遲設置以確保標題不被覆蓋
+      if (to.meta.forceTitle) {
+        setTimeout(() => {
+          document.title = to.meta.title;
+        }, 100);
+      }
+    }
 
     next();
   }

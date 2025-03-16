@@ -232,10 +232,10 @@ async function loadCategories() {
           post_count: validCategories.reduce((total, cat) => total + (cat.post_count || 0), 0),
         },
         ...validCategories.map(category => ({
-          label: category.name,
-          value: category.id,
-          description: category.description || '',
-          post_count: category.post_count || 0,
+        label: category.name,
+        value: category.id,
+        description: category.description || '',
+        post_count: category.post_count || 0,
         }))
       ];
 
@@ -584,33 +584,33 @@ onMounted(async () => {
 const carouselImages = [
   {
     url: taiwanMountain,
-    title: '台灣山林美景',
-    description: '台灣豐富多樣的山林景觀，展現自然生態之美',
+    title: '台北101城市之美',
+    description: '台灣豐富多樣的城市景觀，展現自然生態之美 ',
   },
   {
     url: taiwanHouse,
-    title: '台灣古厝風情',
-    description: '保存台灣傳統文化的古厝建築，細膩展現歷史風華',
+    title: '台灣九份老街',
+    description: '保存台灣傳統文化的古厝建築，細膩展現歷史風華"金瓜石"',
   },
   {
     url: sunMoonLake,
     title: '日月潭湖景',
-    description: '台灣最大的天然湖泊，四季皆有不同風貌的絕美景致',
+    description: '台灣最大的天然湖泊，四季皆有不同  風貌的絕美景致',
   },
   {
     url: hualienCoast,
-    title: '花蓮海岸線',
+    title: '花蓮雲海',
     description: '台灣東部壯麗的海岸線風光，藍天碧海相映成趣',
   },
   {
     url: taiwanTeaFarm,
-    title: '台灣茶園風光',
-    description: '層層疊疊的茶園山坡，展現台灣特色農業景觀',
+    title: '台灣日月潭風光',
+    description: '日月潭的湖景，展現台灣獨特的自然風光',
   },
   {
     url: taipeiNight,
     title: '台北都會夜景',
-    description: '繁華都市的璀璨夜景，展現台灣現代化都市風貌',
+    description: '繁華都市的璀璨夜景，展現台灣復古都市風貌',
   },
 ];
 
@@ -1338,7 +1338,7 @@ async function goToPostDetail(post) {
           console.log('UI已強制更新');
           
           // 再次延遲更新，解決某些瀏覽器渲染延遲問題
-          setTimeout(() => {
+    setTimeout(() => {
             if (postIndex !== -1) {
               const forcedRefreshPost = JSON.parse(JSON.stringify(allPosts.value[postIndex]));
               allPosts.value.splice(postIndex, 1, forcedRefreshPost);
