@@ -186,7 +186,42 @@ const routes = [
     name: 'ActivityDetail',
     component: ActivityDetail,
     meta: {
-      title: '活動詳細資訊',
+      title: '活動詳細資訊'
+    }
+  },
+  {
+    path: '/cart',
+    name: 'Cart',
+    component: () => import('../views/front/Cart/CartView.vue'),
+    meta: {
+      title: '購物車',
+    }
+  },
+  {
+    path: '/checkout',
+    name: 'Checkout',
+    component: () => import('../views/front/Checkout/CheckoutView.vue'),
+    meta: {
+      title: '結帳',
+      requiresAuth: true,
+    },
+  },
+  {
+    path: '/order-confirm',
+    name: 'OrderConfirm',
+    component: () => import('../views/front/Checkout/OrderConfirmView.vue'),
+    meta: {
+      title: '確認訂單',
+      requiresAuth: true,
+    },
+  },
+  {
+    path: '/order-complete/:orderNumber',
+    name: 'OrderComplete',
+    component: () => import('../views/front/Checkout/OrderCompleteView.vue'),
+    meta: {
+      title: '訂單完成',
+      requiresAuth: true,
     },
   },
 ];

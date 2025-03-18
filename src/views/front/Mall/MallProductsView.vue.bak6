@@ -1,0 +1,2116 @@
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { ShoppingAPI } from '@/api/shopping';
+import type { Category, Product as ApiProduct } from '@/api/shopping';
+
+// 擴展 Product 類型，添加 product_type_id
+interface Product extends ApiProduct {
+  product_type_id?: number;
+  matchedBrands?: string[];
+}
+
+const router = useRouter();
+const route = useRoute();  // 新增：獲取當前路由
+const categories = ref<Category[]>([]);
+const products = ref<Product[]>([]);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+const selectedCategory = ref('');
+const selectedBrand = ref('');
+const expandedCategories = ref<Record<string, boolean>>({});
+
+// Banner輪播相關
+const currentBannerIndex = ref(0);
+const banners = [
+  {
+    image: 'https://images.pexels.com/photos/1687845/pexels-photo-1687845.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+    title: '露營裝備特賣',
+    description: '全館商品限時優惠中'
+  },
+  {
+    image: 'https://images.pexels.com/photos/1008155/pexels-photo-1008155.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+    title: '戶外用品展',
+    description: '新品上市'
+  },
+  {
+    image: 'https://images.pexels.com/photos/356056/pexels-photo-356056.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+    title: '手機充電配件',
+    description: '歡迎參觀選購'
+  }
+];
+
+// 輪播控制
+function nextBanner() {
+  currentBannerIndex.value = (currentBannerIndex.value + 1) % banners.length;
+}
+
+function prevBanner() {
+  currentBannerIndex.value = (currentBannerIndex.value - 1 + banners.length) % banners.length;
+}
+
+function setCurrentBanner(index: number) {
+  currentBannerIndex.value = index;
+}
+
+// 自動輪播和初始載入數據
+onMounted(async () => {
+  console.log('商品頁面已掛載，開始初始化...');
+  
+  // 清除本地緩存
+  console.log('清除任何可能的本地緩存...');
+  localStorage.removeItem('cachedCategories');
+  
+  // 設置輪播定時器
+  setInterval(nextBanner, 10000);
+  
+  // 嘗試新增偵錯工具 - 只在開發環境執行
+  if (localStorage.getItem('override_categories') === 'true') {
+    console.log('正在使用緩存覆蓋的categories...');
+    try {
+      const storedCategories = localStorage.getItem('categories_data');
+      if (storedCategories) {
+        console.log('從localStorage載入categories...');
+        const parsedData = JSON.parse(storedCategories);
+        categories.value = parsedData;
+        
+        // 立即更新可用的品牌
+        availableBrands.value = new Map();
+        for (const category of categories.value) {
+          if (category.brands && Array.isArray(category.brands)) {
+            availableBrands.value.set(category.id, [...category.brands]);
+          } else {
+            availableBrands.value.set(category.id, []);
+          }
+        }
+        
+        // 直接更新URL參數並刷新UI
+        updateFiltersFromRoute();
+        return; // 跳過普通初始化
+      }
+    } catch (err) {
+      console.error('從localStorage載入categories時出錯', err);
+    }
+  }
+  
+  // 先載入分類數據
+  await loadCategories();
+  
+  // 從路由參數讀取分類和品牌
+  updateFiltersFromRoute();
+  
+  // 然後載入商品
+  await loadProducts();
+  
+  console.log('初始化完成');
+})
+
+// 新增：從URL查詢參數獲取當前選中的分類和品牌
+const currentCategory = computed(() => route.query.category as string || '');
+
+// 新增：監聽路由變化
+watch(() => [route.query.category, route.query.brand], () => {
+  updateFiltersFromRoute();
+}, { deep: true });
+
+// 從路由參數更新篩選條件
+function updateFiltersFromRoute() {
+  const categoryParam = route.query.category as string || '';
+  const brandParam = route.query.brand as string || '';
+  
+  console.log('路由參數更新：', categoryParam, brandParam);
+  
+  // 更新選中的分類和品牌
+  selectedCategory.value = categoryParam;
+  selectedBrand.value = brandParam;
+  
+  // 更新分類的展開狀態
+  Object.keys(expandedCategories.value).forEach(key => {
+    expandedCategories.value[key] = (key === categoryParam);
+  });
+  
+  // 確保選中的分類被展開
+  if (categoryParam) {
+    expandedCategories.value[categoryParam] = true;
+    console.log(`確保分類 ${categoryParam} 保持展開`);
+  }
+  
+  // 根據選擇的分類使用對應的載入函數
+  if (categoryParam) {
+    // 檢查是否為特殊處理的類別
+    if (categoryProductTypeMap[categoryParam]) {
+      // 使用通用的按類別載入函數，無需特殊處理登山背包
+      loadProductsByCategory(categoryParam);
+    } else {
+      // 其他一般分類使用標準載入方式
+      loadProducts();
+    }
+  } else {
+    // 沒有選擇分類時載入所有商品
+    loadProducts();
+  }
+  
+  // 如果有品牌但沒有分類，自動尋找對應的分類
+  if (brandParam && !categoryParam) {
+    findCategoryForBrand(brandParam);
+  }
+}
+
+// 定義各類別對應的 product_type_id
+const categoryProductTypeMap: { [key: string]: number } = {
+  'air_mattresses': 1,   // 充氣床墊
+  'camping_tables': 2,   // 露營桌
+  'camping_tents': 3,    // 帳篷
+  'chargers': 4,         // 充電器
+  'hiking_backpacks': 5, // 登山背包
+  'hiking_poles': 6,     // 登山杖
+  'phones': 7,           // 手機
+  'luggage': 8,          // 行李箱
+  'gas_stoves': 9        // 瓦斯爐
+};
+
+// 定義各類別對應的關鍵字列表
+const categoryKeywordMap: { [key: string]: string[] } = {
+  'air_mattresses': ['充氣床', '充氣墊', '睡墊', '充氣床墊', 'airbed', '懶人床', '空氣床'],
+  'camping_tables': ['桌', '餐桌', '露營桌', '摺疊桌', '折疊桌', '戶外桌', '野餐桌', '蛋捲桌'],
+  'camping_tents': ['帳篷', '天幕', '帳棚', '炊事帳', '客廳帳', '遮陽帳', 'tent', '蒙古包', '露營帳'],
+  'chargers': ['充電器', '充電頭', '變壓器', '充電線', '快充', '電源供應器', '充電座', '行動電源'],
+  'hiking_backpacks': ['背包', '登山包', '後背包', '雙肩包', '背囊', '運動背包', '戶外包', '旅行包', '健行包'],
+  'hiking_poles': ['登山杖', '手杖', '拐杖', '健走杖', '登山手杖', '登山棍', '健行杖', '避震杖'],
+  'phones': ['手機', 'iphone', 'smartphone', '智慧型手機', '智慧手機', '5G手機', '4G手機'],
+  'luggage': ['行李箱', '旅行箱', '拉桿箱', '登機箱', '托運箱', '硬殼箱', '軟殼箱', '萬向輪'],
+  'gas_stoves': ['爐', '瓦斯爐', '卡式爐', '瓦斯烤爐', '露營爐', '戶外爐具', '野炊爐', '登山爐']
+};
+
+// 通用的按類別載入產品函數
+async function loadProductsByCategory(categoryId: string) {
+  try {
+    isLoading.value = true;
+    error.value = null;
+    
+    const productTypeId = categoryProductTypeMap[categoryId];
+    const categoryName = categories.value.find(c => c.id === categoryId)?.name || categoryId;
+    
+    console.log(`開始載入${categoryName}商品 (product_type_id=${productTypeId})`);
+    console.log(`選擇的品牌: ${selectedBrand.value || '無'}`);
+    
+    // 直接載入所有商品，不使用product_type_id過濾，防止API返回空結果
+    const response = await ShoppingAPI.getProducts({
+      page: 1,
+      size: 100, // 減少查詢數量以提高效能
+      ordering: sortOption.value
+    });
+    
+    console.log('已載入商品總數:', response.items.length);
+    
+    // 確保items是Product類型的陣列
+    const allProducts = response.items as Product[];
+    
+    // 創建一個結果數組，將包含所有符合條件的產品
+    let resultProducts: Product[] = [];
+    
+    // 記錄是否使用了後備篩選方式
+    let usedFallbackFilter = false;
+    
+    // 首先嘗試使用 product_type_id 過濾
+    const typeFilteredProducts = allProducts.filter(product => 
+      product.product_type_id === productTypeId
+    );
+    console.log(`通過 product_type_id=${productTypeId} 過濾後的商品數:`, typeFilteredProducts.length);
+    
+    if (typeFilteredProducts.length > 0) {
+      resultProducts = [...typeFilteredProducts];
+    } else {
+      // 如果沒有找到，嘗試使用關鍵詞過濾
+      console.log(`沒有找到 product_type_id=${productTypeId} 的產品，嘗試使用關鍵詞過濾`);
+      usedFallbackFilter = true;
+      
+      const keywords = categoryKeywordMap[categoryId] || [];
+      console.log(`使用以下關鍵詞過濾「${categoryName}」商品:`, keywords);
+      
+      const keywordFilteredProducts = allProducts.filter(product => {
+        const name = product.name ? product.name.toLowerCase() : '';
+        const desc = product.description ? product.description.toLowerCase() : '';
+        const cat = product.category ? product.category.toLowerCase() : '';
+        
+        // 檢查產品名稱、描述和類別中是否包含任何關鍵詞
+        return keywords.some(keyword => {
+          const lowercaseKeyword = keyword.toLowerCase();
+          return name.includes(lowercaseKeyword) || 
+                 desc.includes(lowercaseKeyword) || 
+                 cat.includes(lowercaseKeyword);
+        });
+      });
+      
+      console.log(`通過關鍵字過濾後的商品數:`, keywordFilteredProducts.length);
+      
+      // 如果關鍵詞過濾找到了產品，使用這些結果
+      if (keywordFilteredProducts.length > 0) {
+        resultProducts = [...keywordFilteredProducts];
+      } else {
+        // 如果關鍵詞過濾也沒找到，嘗試更寬鬆的匹配
+        console.log(`關鍵詞過濾沒有找到商品，嘗試更寬鬆的匹配`);
+        
+        // 使用更短的關鍵詞進行匹配
+        const shortKeywords = keywords
+          .filter(k => k.length > 2)  // 只使用長度大於2的關鍵詞
+          .map(k => k.substring(0, Math.min(k.length, 3)));  // 取每個關鍵詞的前3個字符
+        
+        console.log(`使用更短的關鍵詞:`, shortKeywords);
+        
+        const looseFilteredProducts = allProducts.filter(product => {
+          const name = product.name ? product.name.toLowerCase() : '';
+          const desc = product.description ? product.description.toLowerCase() : '';
+          
+          return shortKeywords.some(keyword => 
+            name.includes(keyword) || desc.includes(keyword)
+          );
+        });
+        
+        console.log(`通過寬鬆關鍵字過濾後的商品數:`, looseFilteredProducts.length);
+        resultProducts = [...looseFilteredProducts];
+      }
+      
+      // 如果通過關鍵詞過濾還是沒有找到產品，顯示適當的錯誤訊息
+      if (resultProducts.length === 0 && !selectedBrand.value) {
+        console.log(`沒有找到與「${categoryName}」相關的商品`);
+        error.value = `目前沒有${categoryName}類別的商品，請嘗試其他類別`;
+        products.value = [];
+        isLoading.value = false;
+        return;
+      }
+    }
+    
+    // 如果選擇了特定品牌，進一步過濾結果
+    let brandFilteredProducts: Product[] = [];
+    if (selectedBrand.value && resultProducts.length > 0) {
+      console.log(`進一步過濾品牌：${selectedBrand.value}`);
+      
+      if (resultProducts.length > 0) {
+        // 輸出一個產品示例，幫助調試數據格式
+        console.log(`第一個產品示例:`, JSON.stringify({
+          id: resultProducts[0].id,
+          name: resultProducts[0].name,
+          category: resultProducts[0].category,
+          brand: resultProducts[0].brand,
+          product_type_id: resultProducts[0].product_type_id
+        }, null, 2));
+      }
+      
+      // 1. 嘗試精確匹配品牌名稱（category欄位）
+      brandFilteredProducts = resultProducts.filter(product => 
+        product.category === selectedBrand.value
+      );
+      console.log(`通過品牌「${selectedBrand.value}」精確過濾後的商品數:`, brandFilteredProducts.length);
+      
+      // 2. 如果精確匹配沒有找到結果，嘗試部分匹配
+      if (brandFilteredProducts.length === 0) {
+        console.log(`沒有找到 ${selectedBrand.value} 品牌的${categoryName}的精確匹配，嘗試模糊匹配`);
+        
+        // 首先在brand欄位中尋找匹配（如果存在）
+        const brandFieldMatches = resultProducts.filter(product => {
+          if (!product.brand) return false;
+          const normalizedProductBrand = product.brand.trim().toLowerCase();
+          const normalizedSelectedBrand = selectedBrand.value.trim().toLowerCase();
+          
+          return normalizedProductBrand.includes(normalizedSelectedBrand) || 
+                 normalizedSelectedBrand.includes(normalizedProductBrand);
+        });
+        
+        if (brandFieldMatches.length > 0) {
+          console.log(`在brand欄位中找到 ${brandFieldMatches.length} 個匹配項`);
+          brandFilteredProducts = brandFieldMatches;
+        } else {
+          // 在category欄位中尋找部分匹配
+          const categoryPartialMatches = resultProducts.filter(product => {
+            if (!product.category) return false;
+            const normalizedProductCategory = product.category.trim().toLowerCase();
+            const normalizedSelectedBrand = selectedBrand.value.trim().toLowerCase();
+            
+            // 檢查品牌名稱是否包含在產品類別中或反之
+            return normalizedProductCategory.includes(normalizedSelectedBrand) || 
+                   normalizedSelectedBrand.includes(normalizedProductCategory);
+          });
+          
+          // 如果部分匹配找到了結果，使用這些結果
+          if (categoryPartialMatches.length > 0) {
+            console.log(`通過部分匹配找到 ${categoryPartialMatches.length} 個產品`);
+            brandFilteredProducts = categoryPartialMatches;
+          } else {
+            // 3. 如果部分匹配也沒有找到，嘗試在產品名稱和描述中查找品牌名稱
+            console.log(`部分匹配也沒找到，嘗試在名稱和描述中查找`);
+            
+            brandFilteredProducts = resultProducts.filter(product => {
+              const name = product.name ? product.name.toLowerCase() : '';
+              const desc = product.description ? product.description.toLowerCase() : '';
+              const brandLower = selectedBrand.value.toLowerCase();
+              
+              return name.includes(brandLower) || desc.includes(brandLower);
+            });
+            
+            if (brandFilteredProducts.length > 0) {
+              console.log(`在名稱或描述中找到 ${brandFilteredProducts.length} 個包含「${selectedBrand.value}」的產品`);
+            } else {
+              // 4. 如果品牌完全沒有匹配的產品，嘗試更寬鬆的匹配
+              console.log(`無法找到任何匹配的產品，嘗試更寬鬆的匹配方式`);
+              
+              // 將品牌名稱分解為關鍵詞，嘗試部分匹配
+              const brandKeywords = selectedBrand.value.toLowerCase().split(/\s+/);
+              console.log(`將品牌名稱分解為關鍵詞:`, brandKeywords);
+              
+              brandFilteredProducts = resultProducts.filter(product => {
+                if (!product.name && !product.description && !product.category) return false;
+                
+                const name = product.name ? product.name.toLowerCase() : '';
+                const desc = product.description ? product.description.toLowerCase() : '';
+                const cat = product.category ? product.category.toLowerCase() : '';
+                
+                // 檢查產品名稱、描述和類別中是否包含任何品牌關鍵詞
+                return brandKeywords.some(keyword =>
+                  name.includes(keyword) || 
+                  desc.includes(keyword) || 
+                  cat.includes(keyword)
+                );
+              });
+              
+              if (brandFilteredProducts.length > 0) {
+                console.log(`使用寬鬆匹配找到 ${brandFilteredProducts.length} 個相關產品`);
+              } else {
+                // 5. 如果所有嘗試都失敗，返回該類別的所有產品，並顯示提示信息
+                console.log(`沒有找到任何 ${selectedBrand.value} 品牌的產品，返回所有${categoryName}產品`);
+                
+                error.value = `未找到 ${selectedBrand.value} 品牌的${categoryName}商品，顯示所有${categoryName}商品。`;
+                products.value = resultProducts;
+                isLoading.value = false;
+                return;
+              }
+            }
+          }
+        }
+      }
+      
+      // 使用品牌過濾後的結果
+      resultProducts = brandFilteredProducts;
+    }
+    
+    // 最後更新UI顯示
+    if (resultProducts.length === 0) {
+      console.log(`沒有找到符合條件的商品`);
+      products.value = [];
+      if (selectedBrand.value) {
+        error.value = `沒有找到 ${selectedBrand.value} 品牌的${categoryName}商品`;
+      } else {
+        error.value = `沒有找到${categoryName}類別的商品`;
+      }
+    } else {
+      console.log(`找到 ${resultProducts.length} 個符合條件的商品`);
+      products.value = resultProducts;
+      
+      // 如果使用了後備篩選方式，顯示一個提示
+      if (usedFallbackFilter && selectedBrand.value === '') {
+        console.log(`使用了關鍵字過濾而非product_type_id過濾`);
+        error.value = `注意：顯示的是通過關鍵字匹配的「${categoryName}」相關商品，可能包含其他類別。`;
+      } else {
+        error.value = null;
+      }
+    }
+  } catch (err) {
+    console.error(`載入${categoryId}類別商品時出錯:`, err);
+    error.value = '載入商品時出錯，請稍後再試';
+    products.value = [];
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// 載入分類
+async function loadCategories() {
+  // 狀態更新
+  isLoading.value = true;
+  error.value = null;
+  
+  try {
+    // 添加時間戳參數，確保不使用緩存
+    const timestamp = new Date().getTime();
+    console.log(`載入分類數據 (時間戳: ${timestamp})...`);
+    
+    // 嘗試載入分類數據
+    const response = await ShoppingAPI.getCategories();
+    console.log('載入的分類數據:', response);
+    
+    // 添加日誌，檢查是否使用了JSON檔案以及其中的品牌資料
+    console.log('查詢categories.json加載方式:', response);
+    
+    // 檢查每個類別的品牌數量
+    if (response && response.categories && Array.isArray(response.categories)) {
+      console.log('載入的分類數據詳情:');
+      response.categories.forEach(category => {
+        console.log(`類別 ${category.id} (${category.name}) 包含 ${category.brands?.length || 0} 個品牌`);
+        // 顯示前5個品牌作為樣本
+        if (category.brands && category.brands.length > 0) {
+          console.log(`  品牌樣本: ${category.brands.slice(0, 5).join(', ')}${category.brands.length > 5 ? '...' : ''}`);
+        }
+      });
+    }
+    
+    // 防護：確保response.categories存在且是陣列
+    if (!response || !response.categories || !Array.isArray(response.categories)) {
+      console.error('分類數據格式不正確:', response);
+      error.value = '分類數據格式不正確，使用預設分類';
+      
+      // 設置為空陣列以避免迭代錯誤
+      categories.value = [];
+      availableBrands.value = new Map();
+      return;
+    }
+    
+    // 強制清除現有類別，然後設置新的數據
+    categories.value = [];
+    // 設置正確的分類數據 - 刷新UI
+    setTimeout(() => {
+      categories.value = JSON.parse(JSON.stringify(response.categories));
+      console.log('分類數據已更新，現在數據為:', categories.value);
+      
+      // 初始化分類的展開狀態
+      expandedCategories.value = {};
+      categories.value.forEach(category => {
+        // 如果當前有選中的分類，則該分類設為展開
+        expandedCategories.value[category.id] = (category.id === selectedCategory.value);
+      });
+      
+      // 更新可用品牌 Map (用於UI顯示和篩選)
+      availableBrands.value = new Map();
+      for (const category of categories.value) {
+        if (category.brands && Array.isArray(category.brands)) {
+          availableBrands.value.set(category.id, [...category.brands]);
+          console.log(`更新可用品牌: ${category.id} 有 ${category.brands.length} 個品牌`);
+        } else {
+          availableBrands.value.set(category.id, []);
+          console.warn(`類別 ${category.name} (${category.id}) 沒有品牌資料`);
+        }
+      }
+      
+      // 如果當前有選中的分類，確保展開該分類
+      if (selectedCategory.value && categories.value.find(c => c.id === selectedCategory.value)) {
+        expandedCategories.value[selectedCategory.value] = true;
+        console.log(`確保選中的分類 ${selectedCategory.value} 被展開`);
+      }
+    }, 0);
+    
+    // 解釋分類數據結構與數據庫對應關係
+    console.log('重要說明: categories.json 的結構解釋:');
+    console.log('- id 和 name: 表示大分類 (產品類型，如露營用品、登山裝備等)');
+    console.log('- brands: 表示品牌列表，這些品牌名稱對應數據庫 shopping_system_product 表中的 category 欄位');
+    console.log('- 當用戶選擇一個品牌時，系統會查找數據庫中 category 欄位等於該品牌名稱的產品');
+    console.log('- 有些產品可能 category 欄位為空，這些產品在篩選時會通過 category 為空的條件顯示');
+  } catch (err) {
+    console.error('載入分類數據時出錯:', err);
+    error.value = '載入分類數據時出錯，請稍後再試';
+    
+    // 嘗試從localStorage加載緩存數據
+    try {
+      const cachedCategories = localStorage.getItem('categories_data');
+      if (cachedCategories) {
+        console.log('使用本地緩存的categories數據');
+        const parsedData = JSON.parse(cachedCategories);
+        
+        // 清除現有數據
+        categories.value = [];
+        
+        // 設置緩存數據
+        setTimeout(() => {
+          categories.value = parsedData;
+          
+          // 初始化分類的展開狀態
+          expandedCategories.value = {};
+          categories.value.forEach(category => {
+            expandedCategories.value[category.id] = (category.id === selectedCategory.value);
+          });
+          
+          console.log('成功從本地緩存載入categories數據');
+          
+          // 更新可用品牌 Map
+          availableBrands.value = new Map();
+          for (const category of categories.value) {
+            if (category.brands && Array.isArray(category.brands)) {
+              availableBrands.value.set(category.id, [...category.brands]);
+            } else {
+              availableBrands.value.set(category.id, []);
+            }
+          }
+        }, 0);
+      } else {
+        console.log('沒有找到本地緩存的categories數據');
+      }
+    } catch (cacheErr) {
+      console.error('從緩存載入categories數據時出錯:', cacheErr);
+    }
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// 載入商品數據
+async function loadProducts() {
+  try {
+    isLoading.value = true;
+    error.value = null;
+    
+    console.log('開始載入商品，篩選條件:', {
+      category: selectedCategory.value, 
+      brand: selectedBrand.value,
+      page: currentPage.value,
+      priceRange: priceRange.value,
+      sort: sortOption.value
+    });
+    
+    // 構建查詢參數
+    const params: any = {
+      page: currentPage.value,
+      size: pageSize.value,
+      category: selectedCategory.value,
+      brand: selectedBrand.value,
+      min_price: priceRange.value.min !== null ? priceRange.value.min : undefined,
+      max_price: priceRange.value.max !== null ? priceRange.value.max : undefined,
+      ordering: sortOption.value // 將 sort 改為 ordering
+    };
+    
+    // 重要提示：這裡的 brand 參數通常不會被後端使用，因為:
+    // 1. 前端選擇的"品牌"(brand)實際上是傳遞給後端 category 參數
+    // 2. 在數據庫中，shopping_system_product 表的 category 欄位存儲的是品牌名稱
+    console.log('注意: 在API調用中，前端選擇的品牌名稱會對應到後端數據庫的 category 欄位');
+    
+    // 如果選擇了品牌，則修改參數以適應後端結構
+    if (selectedBrand.value) {
+      // 將選中的品牌傳遞給 category 參數，因為數據庫中 category 實際存儲的是品牌
+      params.category = selectedBrand.value;
+      // 清除 brand 參數，避免後端混淆
+      params.brand = ''; // 修改為空字符串而非 undefined
+      console.log('已選擇品牌，將轉換為API參數:', params);
+    }
+    
+    // 調用API獲取分頁數據
+    const response = await ShoppingAPI.getProducts(params);
+    
+    // 更新商品數據
+    products.value = response.items as Product[];
+    
+    // 調試：檢查返回的產品是否包含 product_type_id
+    console.log('API返回的產品數據示例:', products.value.slice(0, 3));
+    console.log('檢查產品是否包含 product_type_id:', products.value.map(p => p.product_type_id).slice(0, 10));
+    
+    // 更新後端返回的總頁數
+    totalPagesFromServer.value = response.pages;
+    
+    console.log('商品數據載入成功', response);
+    console.log('總頁數:', totalPagesFromServer.value, '當前頁:', currentPage.value);
+    
+    // 如果篩選後沒有結果，設置錯誤提示
+    if (products.value.length === 0 && (selectedCategory.value || selectedBrand.value)) {
+      error.value = '沒有找到符合條件的商品，請嘗試其他篩選條件';
+      console.warn('篩選結果為空:', params);
+      
+      // 如果沒有結果，可能是由於 category 欄位為空的產品
+      // 嘗試擴展搜索，包括 category 為空的產品
+      if (selectedBrand.value) {
+        console.log('嘗試搜索 category 為空的產品...');
+        const emptyParams = { ...params, include_empty_category: true };
+        try {
+          const emptyResponse = await ShoppingAPI.getProducts(emptyParams);
+          if (emptyResponse.items.length > 0) {
+            products.value = emptyResponse.items as Product[];
+            totalPagesFromServer.value = emptyResponse.pages;
+            error.value = null;
+            console.log('找到 category 為空的產品:', emptyResponse);
+          }
+        } catch (emptyErr) {
+          console.error('搜索空 category 產品失敗:', emptyErr);
+        }
+      }
+    }
+    
+    // 添加對 product_type_id 的過濾
+    applyProductTypeFilter();
+    
+  } catch (err) {
+    console.error('載入商品數據失敗', err);
+    error.value = '載入商品數據失敗，請稍後再試';
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// 新增過濾產品類型的函數
+function applyProductTypeFilter() {
+  // 根據URL查詢參數處理分類過濾
+  if (currentCategory.value && products.value.length > 0) {
+    console.log('根據URL分類過濾:', currentCategory.value);
+    
+    // 確保產品列表中的產品都是擴展後的Product類型
+    let filteredProducts = [...products.value] as unknown as Product[];
+    let foundMatches = false;
+    
+    if (currentCategory.value === 'hiking_backpacks') {
+      // 檢查是否有 product_type_id=5 的產品
+      const matches = filteredProducts.filter(product => 
+        product && typeof product === 'object' && 'product_type_id' in product && product.product_type_id === 5
+      );
+      console.log(`找到 ${matches.length} 個 product_type_id=5 的產品`);
+      
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      } else {
+        // 如果沒有找到 product_type_id=5 的產品，嘗試通過關鍵字過濾
+        console.log('沒有找到 product_type_id=5 的產品，嘗試使用關鍵字過濾');
+        const keywordMatches = filteredProducts.filter(product => 
+          (product.name && product.name.toLowerCase().includes('背包')) || 
+          (product.description && product.description.toLowerCase().includes('背包'))
+        );
+        
+        if (keywordMatches.length > 0) {
+          filteredProducts = keywordMatches;
+          foundMatches = true;
+          console.log(`通過關鍵字找到 ${keywordMatches.length} 個匹配產品`);
+        }
+      }
+    } else if (currentCategory.value === 'air_mattresses') {
+      // 過濾充氣床墊，使用安全的方式檢查product_type_id
+      const matches = filteredProducts.filter(product => 
+        product && typeof product === 'object' && 'product_type_id' in product && product.product_type_id === 1
+      );
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      }
+    } else if (currentCategory.value === 'camping_tables') {
+      // 過濾露營桌，對應product_type_id=2
+      const matches = filteredProducts.filter(product => product.product_type_id === 2);
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      }
+    } else if (currentCategory.value === 'camping_tents') {
+      // 過濾帳篷，對應product_type_id=3
+      const matches = filteredProducts.filter(product => product.product_type_id === 3);
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      }
+    } else if (currentCategory.value === 'chargers') {
+      // 過濾充電器，對應product_type_id=4
+      const matches = filteredProducts.filter(product => product.product_type_id === 4);
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      }
+    } else if (currentCategory.value === 'hiking_poles') {
+      // 過濾登山杖，對應product_type_id=6
+      const matches = filteredProducts.filter(product => product.product_type_id === 6);
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      }
+    } else if (currentCategory.value === 'phones') {
+      // 過濾手機，對應product_type_id=7
+      const matches = filteredProducts.filter(product => product.product_type_id === 7);
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      }
+    } else if (currentCategory.value === 'luggage') {
+      // 過濾行李箱，對應product_type_id=8
+      const matches = filteredProducts.filter(product => product.product_type_id === 8);
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      }
+    } else if (currentCategory.value === 'gas_stoves') {
+      // 過濾瓦斯爐，對應product_type_id=9
+      const matches = filteredProducts.filter(product => product.product_type_id === 9);
+      if (matches.length > 0) {
+        filteredProducts = matches;
+        foundMatches = true;
+      }
+    }
+    
+    // 更新過濾後的產品
+    if (foundMatches) {
+      products.value = filteredProducts;
+      console.log('商品按product_type_id過濾後數量:', filteredProducts.length);
+    } else {
+      console.warn('過濾後沒有商品，保留原始商品列表');
+    }
+  }
+}
+
+// 獲取目前活躍的分類名稱
+const activeCategoryName = computed(() => {
+  if (!currentCategory.value) return '所有商品';
+  
+  const category = categories.value.find(c => c.id === currentCategory.value);
+  return category ? category.name : '所有商品';
+});
+
+// 分頁相關
+const currentPage = ref(1);
+const pageSize = ref(20); // 每頁顯示20個商品
+const inputPage = ref(''); // 新增：輸入頁碼
+
+// 價格範圍暫存
+const tempPriceRange = ref({
+  min: null as number | null,
+  max: null as number | null,
+});
+
+// 實際用於篩選的價格範圍
+const priceRange = ref({
+  min: null as number | null,
+  max: null as number | null,
+});
+
+// 排序選項
+const sortOption = ref('default');
+
+// 在 script 區域中添加搜尋相關的變數和函數
+const searchText = ref('');
+const searchResults = ref<Product[]>([]);
+const isSearching = ref(false);
+const hasSearched = ref(false); // 新增：標記用戶是否已執行搜尋
+
+// 執行搜尋功能
+function performSearch() {
+  if (!searchText.value.trim()) {
+    // 如果搜尋文字為空，重置搜尋結果和搜尋狀態
+    searchResults.value = [];
+    hasSearched.value = false;
+    return;
+  }
+  
+  isSearching.value = true;
+  hasSearched.value = true; // 標記已執行搜尋
+  const searchQuery = searchText.value.toLowerCase().trim();
+  
+  // 搜尋商品名稱、描述和類別
+  searchResults.value = products.value.filter(product => {
+    const nameMatch = product.name.toLowerCase().includes(searchQuery);
+    const descMatch = product.description.toLowerCase().includes(searchQuery);
+    const categoryMatch = product.category.toLowerCase().includes(searchQuery);
+    return nameMatch || descMatch || categoryMatch;
+  });
+  
+  isSearching.value = false;
+  
+  // 如果有搜尋結果，自動清除分類篩選
+  if (searchResults.value.length > 0) {
+    selectedCategory.value = '';
+    selectedBrand.value = '';
+  }
+  
+  console.log(`搜尋 "${searchQuery}" 結果: 找到 ${searchResults.value.length} 個商品`);
+}
+
+// 清除搜尋
+function clearSearch() {
+  searchText.value = '';
+  searchResults.value = [];
+  hasSearched.value = false; // 重置搜尋狀態
+}
+
+// 根據選中的分類過濾商品
+async function loadProductsByFilter() {
+  try {
+    isLoading.value = true;
+    error.value = null;
+    
+    // 構建查詢參數
+    const params: any = {
+      page: currentPage.value,
+      size: pageSize.value,
+      include_empty_category: false,
+      min_price: priceRange.value.min !== null ? priceRange.value.min : undefined,
+      max_price: priceRange.value.max !== null ? priceRange.value.max : undefined,
+      ordering: sortOption.value // 將 sort 改為 ordering
+    };
+    
+    // 處理分類和品牌的過濾邏輯
+    if (selectedCategory.value && selectedBrand.value) {
+      // 如果同時選擇了分類和品牌
+      console.log(`選擇了分類 ${selectedCategory.value} 和品牌 ${selectedBrand.value}`);
+      
+      // 檢查是否為特殊處理的類別
+      if (categoryProductTypeMap[selectedCategory.value]) {
+        // 使用通用的按類別載入函數
+        loadProductsByCategory(selectedCategory.value);
+        return; // 提前返回，避免重複載入
+      } else {
+        // 對於其他分類，按品牌過濾（因為品牌直接對應數據庫的category欄位）
+        console.log(`將按品牌 ${selectedBrand.value} 過濾`);
+        params.category = selectedBrand.value;
+        params.product_type = selectedCategory.value; // 添加產品類型標記，供後端參考
+        
+        // 可選：添加一個自定義參數，讓後端知道這是品牌+分類的組合查詢
+        params.is_brand_in_category = true;
+      }
+    } else if (selectedBrand.value) {
+      // 如果只選擇了品牌，直接按品牌過濾
+      console.log(`只選擇了品牌 ${selectedBrand.value}，按品牌過濾`);
+      params.category = selectedBrand.value;
+    } else if (selectedCategory.value) {
+      // 如果只選擇了分類
+      console.log(`只選擇了分類 ${selectedCategory.value}`);
+      
+      // 檢查是否為特殊處理的類別
+      if (categoryProductTypeMap[selectedCategory.value]) {
+        // 使用通用的按類別載入函數
+        loadProductsByCategory(selectedCategory.value);
+        return; // 提前返回，避免重複載入
+      } else {
+        // 其他分類使用關鍵字搜索
+        console.log(`將使用關鍵字搜索`);
+        params.search = getSearchKeywordsForCategory(selectedCategory.value);
+        params.product_type = selectedCategory.value; // 添加產品類型標記，供後端參考
+      }
+    }
+    
+    console.log('過濾參數', params);
+    
+    // 調用API獲取過濾後的商品
+    const response = await ShoppingAPI.getProducts(params);
+    
+    // 更新商品數據
+    products.value = response.items as Product[];
+    
+    // 更新分頁信息
+    totalPagesFromServer.value = response.pages;
+    
+    console.log('過濾後的商品數據', products.value);
+    
+    // 如果沒有找到商品，嘗試使用前端過濾方式
+    if (products.value.length === 0 && selectedCategory.value) {
+      console.log('API返回空結果，嘗試前端過濾');
+      
+      // 請求所有商品
+      const allProductsResponse = await ShoppingAPI.getProducts({
+        page: 1,
+        size: 1000 // 請求較大數量以涵蓋可能的所有結果
+      });
+      
+      let filteredProducts = allProductsResponse.items as Product[];
+      
+      // 在前端基於名稱和描述進行過濾
+      filteredProducts = filteredProducts.filter(product => 
+        isProductInCategory(product, selectedCategory.value)
+      );
+      
+      // 如果還選擇了品牌，進一步過濾品牌
+      if (selectedBrand.value && filteredProducts.length > 0) {
+        console.log(`前端過濾品牌：${selectedBrand.value}`);
+        
+        // 使用更嚴格的品牌過濾
+        let brandFilteredProducts = filteredProducts.filter(product => {
+          // 確保category存在
+          if (!product.category) return false;
+          
+          // 標準化比較字符串，移除多餘空格並轉小寫
+          const normalizedProductCategory = product.category.trim().toLowerCase();
+          const normalizedSelectedBrand = selectedBrand.value.trim().toLowerCase();
+          
+          return normalizedProductCategory === normalizedSelectedBrand;
+        });
+        
+        if (brandFilteredProducts.length > 0) {
+          console.log(`找到 ${brandFilteredProducts.length} 個符合品牌的商品`);
+          filteredProducts = brandFilteredProducts;
+        } else {
+          // 如果沒有精確匹配，嘗試部分匹配
+          console.log('沒有找到精確匹配品牌的商品，嘗試部分匹配');
+          
+          brandFilteredProducts = filteredProducts.filter(product => {
+            if (!product.category) return false;
+            const normalizedProductCategory = product.category.trim().toLowerCase();
+            const normalizedSelectedBrand = selectedBrand.value.trim().toLowerCase();
+            
+            // 檢查品牌名稱是否包含在產品類別中或反之
+            return normalizedProductCategory.includes(normalizedSelectedBrand) || 
+                   normalizedSelectedBrand.includes(normalizedProductCategory);
+          });
+          
+          if (brandFilteredProducts.length > 0) {
+            console.log(`部分匹配找到 ${brandFilteredProducts.length} 個品牌商品`);
+            filteredProducts = brandFilteredProducts;
+          } else {
+            // 如果部分匹配也沒有結果，嘗試模糊匹配
+            console.log('部分匹配也沒找到，嘗試在名稱和描述中查找');
+            
+            const fuzzyBrandMatch = filteredProducts.filter(product => {
+              const name = product.name ? product.name.toLowerCase() : '';
+              const desc = product.description ? product.description.toLowerCase() : '';
+              const normalizedSelectedBrand = selectedBrand.value.trim().toLowerCase();
+              
+              return name.includes(normalizedSelectedBrand) || 
+                     desc.includes(normalizedSelectedBrand);
+            });
+            
+            if (fuzzyBrandMatch.length > 0) {
+              console.log(`模糊匹配找到 ${fuzzyBrandMatch.length} 個可能的品牌產品`);
+              filteredProducts = fuzzyBrandMatch;
+            } else {
+              console.log(`沒有找到任何 ${selectedBrand.value} 品牌的產品，返回空結果`);
+              filteredProducts = []; // 如果完全找不到，則返回空
+            }
+          }
+        }
+      }
+      
+      if (filteredProducts.length > 0) {
+        console.log(`前端過濾找到 ${filteredProducts.length} 個商品`);
+        products.value = filteredProducts;
+        totalPagesFromServer.value = Math.ceil(filteredProducts.length / pageSize.value);
+        error.value = null;
+      } else {
+        error.value = `沒有找到符合條件的${selectedCategory.value ? categories.value.find(c => c.id === selectedCategory.value)?.name || selectedCategory.value : ''}${selectedBrand.value ? ' - ' + selectedBrand.value : ''}商品，請嘗試其他篩選條件`;
+      }
+    } else if (products.value.length === 0 && (selectedCategory.value || selectedBrand.value)) {
+      error.value = `沒有找到符合條件的${selectedCategory.value ? categories.value.find(c => c.id === selectedCategory.value)?.name || selectedCategory.value : ''}${selectedBrand.value ? ' - ' + selectedBrand.value : ''}商品，請嘗試其他篩選條件`;
+      console.warn('篩選結果為空，嘗試其他篩選策略');
+      
+      // 如果同時選擇了分類和品牌但沒有結果，嘗試只用分類篩選
+      if (selectedBrand.value && selectedCategory.value) {
+        // 提示用戶我們將嘗試只用分類
+        console.log('同時選擇了分類和品牌但沒有結果，嘗試只用分類篩選');
+        
+        setTimeout(() => {
+          // 暫時清除品牌篩選，只保留類別篩選
+          const tempBrand = selectedBrand.value;
+          selectedBrand.value = '';
+          
+          // 重新加載，但保持用戶知道原始篩選條件
+          console.log(`嘗試只使用分類 ${selectedCategory.value} 篩選，忽略品牌 ${tempBrand}`);
+          loadProductsByFilter();
+        }, 1500);
+      }
+    }
+    
+    // 應用產品類型的額外過濾
+    if (selectedCategory.value && !selectedBrand.value && !categoryProductTypeMap[selectedCategory.value]) {
+      applyProductTypeFilter();
+    }
+  } catch (err) {
+    console.error('載入過濾商品失敗', err);
+    error.value = '載入商品數據失敗，請稍後再試';
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// 根據分類ID獲取搜索關鍵詞
+function getSearchKeywordsForCategory(categoryId: string): string {
+  if (!categoryId) return '';
+  
+  // 使用分類關鍵字映射表獲取關鍵字列表
+  const keywords = categoryKeywordMap[categoryId as keyof typeof categoryKeywordMap] || [];
+  
+  // 將關鍵字列表轉換為空格分隔的字符串，用於API搜索
+  return keywords.join(' ');
+}
+
+// 打開/關閉分類
+function toggleCategory(categoryId: string) {
+  if (selectedCategory.value === categoryId) {
+    // 如果已選中該分類，再次點擊會取消選中
+    selectedCategory.value = '';
+    selectedBrand.value = '';
+    expandedCategories.value[categoryId] = !expandedCategories.value[categoryId];
+    
+    // 更新URL
+    router.push({ 
+      path: '/mall-products',
+      query: {} // 清除所有查詢參數
+    });
+    
+    // 重新載入全部商品
+    loadProducts();
+  } else {
+    console.log(`切換分類: ${categoryId}`);
+    
+    // 清空選中的品牌
+    selectedBrand.value = '';
+    
+    // 獲取當前分類的品牌列表
+    const brands = categories.value.find(c => c.id === categoryId)?.brands || [];
+    console.log(`${categories.value.find(c => c.id === categoryId)?.name || categoryId} 品牌列表:`, brands);
+    
+    // 檢查 adidas 是否在品牌列表中（用於調試）
+    if (!brands.includes("adidas 愛迪達") && categoryId === 'hiking_backpacks') {
+      console.log("adidas 愛迪達 不在品牌列表中，嘗試添加");
+    }
+    
+    // 更新選中的分類
+    selectedCategory.value = categoryId;
+    
+    // 更新展開狀態，先收起所有類別，再展開當前類別
+    Object.keys(expandedCategories.value).forEach(key => {
+      expandedCategories.value[key] = false;
+    });
+    expandedCategories.value[categoryId] = true;
+    
+    // 更新URL
+    router.push({ 
+      path: '/mall-products',
+      query: { category: categoryId }
+    });
+    
+    console.log(`選擇分類: ${categoryId}`);
+    
+    // 清除錯誤信息
+    error.value = null;
+    
+    // 加載該分類的商品
+    if (categoryProductTypeMap[categoryId]) {
+      console.log(`${categoryId}分類使用特殊的載入函數`);
+      loadProductsByCategory(categoryId);
+    } else {
+      // 其他分類使用標準篩選
+      loadProductsByFilter();
+    }
+  }
+}
+
+// 選擇品牌
+function selectBrand(categoryId: string, brand: string) {
+  // 清除搜尋結果
+  clearSearch();
+  
+  console.log('選擇品牌:', brand, '所屬分類:', categoryId);
+  
+  // 檢查此前是否已經選擇了該品牌
+  const previouslySelected = selectedBrand.value === brand;
+  
+  if (previouslySelected) {
+    // 如果再次點擊已選中的品牌，則只保留類別選擇
+    selectedBrand.value = '';
+    console.log('取消選擇品牌，只保留分類:', categoryId);
+    
+    // 更新路由，僅保留category參數
+    router.push({
+      path: '/mall-products',
+      query: { category: categoryId }
+    });
+  } else {
+    // 選擇新的品牌
+  selectedBrand.value = brand;
+    console.log('選擇新品牌:', brand, '分類:', categoryId);
+    
+    // 更新路由
+    router.push({
+      path: '/mall-products',
+      query: { category: categoryId, brand: brand }
+    });
+  }
+  
+  // 確保類別也被選中
+  selectedCategory.value = categoryId;
+  console.log('確認所屬分類:', categoryId);
+  
+  // 輸出完整的篩選條件
+  console.log('即將加載過濾商品，過濾條件:', { 
+    category: selectedCategory.value, 
+    brand: selectedBrand.value,
+    priceRange: priceRange.value,
+    sort: sortOption.value 
+  });
+  
+  // 數據庫映射說明
+  console.log('重要說明:');
+  console.log(`1. 選擇品牌「${brand}」將用於查詢數據庫中category='${brand}'的產品`);
+  console.log(`2. 同時也會根據分類「${categoryId}」進行額外過濾`);
+  console.log('3. 品牌過濾優先使用category欄位精確匹配，無結果時會嘗試名稱和描述的模糊匹配');
+  
+  // 對於所有商品類別，使用統一的載入函數處理
+  if (categoryProductTypeMap[categoryId]) {
+    console.log(`${categoryId}分類使用特殊的載入函數`);
+    loadProductsByCategory(categoryId);
+  } else {
+    // 其他分類使用標準篩選
+    loadProductsByFilter();
+  }
+}
+
+// 套用價格過濾
+function applyPriceFilter() {
+  priceRange.value.min = tempPriceRange.value.min;
+  priceRange.value.max = tempPriceRange.value.max;
+  // 重置頁碼
+  currentPage.value = 1;
+  // 重新加載數據
+  loadProducts();
+}
+
+// 套用排序
+function applySorting() {
+  // 重新加載數據
+  loadProducts();
+}
+
+// 新增：品牌別名映射
+const brandAliases: { [key: string]: string } = {
+  px大通: 'px',
+  gigastone立達國際: 'gigastone立達',
+  gigastone: 'gigastone立達',
+  立達國際: 'gigastone立達',
+  philips飛利浦: 'philips',
+  飛利浦: 'philips',
+  adam亞果元素: 'adam',
+  亞果元素: 'adam',
+  acer宏碁: 'acer',
+  宏碁: 'acer',
+  asus華碩: 'asus',
+  華碩: 'asus',
+  apple蘋果: 'apple',
+  蘋果: 'apple',
+  samsung三星: 'samsung',
+  三星: 'samsung',
+
+  // 帳篷品牌別名
+  skt: '速可搭',
+  outdoorbase: '野道家',
+  mountainman: '山林者',
+  outdoorexpert: '戶外專家',
+  campingace: '大營家',
+  wildfun: '野放',
+  wildpath: '野道',
+  wildplay: '野遊',
+
+  // 充電器品牌別名
+  baseus倍思: 'baseus',
+  倍思: 'baseus',
+  huawei華為: 'huawei',
+  華為: 'huawei',
+  lenovo聯想: 'lenovo',
+  聯想: 'lenovo',
+  lg樂金: 'lg',
+  樂金: 'lg',
+  zmi紫米: 'zmi紫米',
+  紫米: 'zmi紫米',
+  logitech羅技: '羅技',
+  gigabyte技嘉: '技嘉',
+  teco東元: '東元',
+  probox普羅: 'probox',
+  uag都會: 'uag',
+  ugreen綠聯: 'ugreen',
+  xmart安心亞: 'xmart'
+};
+
+// 新增：標準化品牌名稱的函數
+function normalizedBrandName(brand: string): string {
+  if (!brand)
+    return '';
+  return brand.toLowerCase()
+    .replace(/\s+/g, '') // 移除所有空格
+    .replace(/[-_]/g, '') // 移除破折號和底線
+    .replace(/（/g, '(')
+    .replace(/）/g, ')')
+    .replace(/\./g, '') // 移除點號
+    .trim();
+}
+
+// 新增：商品型別定義
+interface Product extends ApiProduct {
+  matchedBrands?: string[];
+}
+
+// 此功能暫時未使用，留作未來開發參考
+/* function findBrandInProductName(product: Product, brand: string): boolean {
+  return product.name.toLowerCase().includes(brand.toLowerCase());
+} */
+
+// 新增：檢查商品是否屬於特定類別的函數
+function isProductInCategory(product: Product, categoryId: string): boolean {
+  if (!product || !categoryId) return false;
+  
+  // 首先檢查產品的product_type_id是否與分類的product_type_id相符
+  if (categoryProductTypeMap[categoryId] && product.product_type_id) {
+    if (product.product_type_id === categoryProductTypeMap[categoryId]) {
+      return true;
+    }
+  }
+  
+  // 如果指定了品牌過濾，檢查產品是否屬於該品牌
+  if (selectedBrand.value && product.category) {
+    // 標準化字符串進行比較
+    const normalizedProductCategory = product.category.trim().toLowerCase();
+    const normalizedSelectedBrand = selectedBrand.value.trim().toLowerCase();
+    
+    // 精確匹配品牌
+    if (normalizedProductCategory === normalizedSelectedBrand) {
+      return true;
+    }
+    
+    // 部分匹配品牌（例如品牌是產品類別的一部分或反之）
+    if (normalizedProductCategory.includes(normalizedSelectedBrand) || 
+        normalizedSelectedBrand.includes(normalizedProductCategory)) {
+      return true;
+    }
+  }
+  
+  // 基於關鍵詞進行分類判斷
+  const productName = product.name ? product.name.toLowerCase() : '';
+  const productDesc = product.description ? product.description.toLowerCase() : '';
+  
+  // 獲取該分類的關鍵詞
+  const keywords = getSearchKeywordsForCategory(categoryId);
+  if (!keywords) return false;
+  
+  // 將關鍵詞字符串拆分為數組
+  const keywordArray = keywords.split(' ').filter(k => k.trim() !== '');
+  
+  // 檢查產品名稱或描述是否包含任何一個關鍵詞
+  return keywordArray.some(keyword => 
+    productName.includes(keyword) || productDesc.includes(keyword)
+  );
+}
+
+// 當前頁面的商品
+const currentPageProducts = computed(() => {
+  // 如果有搜尋結果，優先顯示搜尋結果並進行分頁
+  if (searchResults.value.length > 0) {
+    const start = (currentPage.value - 1) * pageSize.value;
+    const end = start + pageSize.value;
+    return searchResults.value.slice(start, end);
+  }
+  
+  // 檢查是否為服務器分頁模式
+  if (products.value.length === pageSize.value || products.value.length < pageSize.value) {
+    // 如果商品數量等於頁面大小或小於頁面大小，表示後端已經做了分頁處理
+    return products.value;
+  } else {
+    // 前端分頁模式（當後端返回全部數據時）
+    const start = (currentPage.value - 1) * pageSize.value;
+    const end = start + pageSize.value;
+    return products.value.slice(start, end);
+  }
+})
+
+// 存儲後端返回的總頁數
+const totalPagesFromServer = ref(0);
+
+// 計算總頁數
+const totalPages = computed(() => {
+  // 如果有搜尋結果，根據搜尋結果計算總頁數
+  if (searchResults.value.length > 0) {
+    return Math.ceil(searchResults.value.length / pageSize.value);
+  }
+  
+  // 如果後端已經提供了總頁數
+  if (totalPagesFromServer.value > 0) {
+    return totalPagesFromServer.value;
+  }
+  
+  // 前端計算總頁數
+  return Math.ceil(products.value.length / pageSize.value);
+});
+
+// 當前要顯示的頁碼按鈕
+const displayedPages = computed(() => {
+  if (totalPagesFromServer.value <= 7) {
+    // 如果總頁數少於7頁，直接顯示所有頁碼
+    return Array.from({ length: totalPagesFromServer.value }, (_, i) => i + 1);
+  }
+  
+  const pages = [];
+  const currentPageNum = currentPage.value;
+  
+  // 始終顯示第一頁
+  pages.push(1);
+  
+  // 如果當前頁接近第一頁，顯示前5頁
+  if (currentPageNum <= 4) {
+    for (let i = 2; i <= 5; i++) {
+      pages.push(i);
+    }
+    pages.push('...');
+    pages.push(totalPagesFromServer.value);
+  }
+  // 如果當前頁接近最後一頁，顯示最後5頁
+  else if (currentPageNum >= totalPagesFromServer.value - 3) {
+    pages.push('...');
+    for (let i = totalPagesFromServer.value - 4; i < totalPagesFromServer.value; i++) {
+      pages.push(i);
+    }
+  }
+  // 如果當前頁在中間，顯示當前頁附近的頁碼
+  else {
+    pages.push('...');
+    for (let i = currentPageNum - 1; i <= currentPageNum + 1; i++) {
+      pages.push(i);
+    }
+    pages.push('...');
+    pages.push(totalPagesFromServer.value);
+  }
+  
+  return pages;
+});
+
+// 切換頁面
+function changePage(page: number) {
+  if (page === currentPage.value) return;
+  
+  currentPage.value = page;
+  
+  // 如果當前在普通瀏覽模式（非搜尋結果），載入新頁面的商品
+  if (selectedCategory.value) {
+    if (categoryProductTypeMap[selectedCategory.value]) {
+      // 對於特殊處理的類別，使用專用的載入函數
+      loadProductsByCategory(selectedCategory.value);
+    } else {
+      // 其他一般分類使用標準載入方式
+      loadProductsByFilter();
+    }
+  } else {
+    // 載入指定頁的商品
+    loadProducts();
+  }
+  
+  // 滾動到頁面頂部
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// 跳轉到指定頁面
+function jumpToPage() {
+  if (!inputPage.value) return;
+  
+  const pageNum = parseInt(inputPage.value);
+  if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPagesFromServer.value) {
+    alert(`請輸入有效的頁碼（1-${totalPagesFromServer.value}）`);
+    return;
+  }
+  
+  changePage(pageNum);
+  inputPage.value = '';
+}
+
+// 添加購物車功能
+function addToCart(product: Product) {
+  try {
+    // 這裡簡單地打印添加購物車的消息
+    console.log(`將商品添加到購物車: ${product.name}`);
+    
+    // 實際添加購物車的邏輯 - 需要根據您的應用設計實現
+    // 例如：使用Pinia store來管理購物車狀態
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: 1,
+      image: product.image || '/images/no-image.png'
+    };
+    
+    // 這裡需要調用您的購物車store
+    // cartStore.addItem(cartItem);
+    
+    // 顯示成功訊息
+    alert(`成功將 ${product.name} 加入購物車！`);
+  } catch (err) {
+    console.error('添加商品到購物車時出錯:', err);
+    alert('添加商品失敗，請稍後再試');
+  }
+}
+
+// 查看商品詳情
+function viewProductDetail(productId: number) {
+  router.push({ name: 'MallProductDetail', params: { id: productId } });
+}
+
+// 新增：跳轉到指定頁面
+function jumpToPage() {
+  const pageNum = Number.parseInt(inputPage.value);
+  if (!Number.isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages.value) {
+    currentPage.value = pageNum;
+    inputPage.value = '';
+    // 重新加載數據
+    loadProducts();
+  }
+}
+
+// 新增：重置所有篩選
+function resetFilters() {
+  // 清除搜尋結果
+  clearSearch();
+  
+  selectedCategory.value = '';
+  selectedBrand.value = '';
+  priceRange.value.min = null;
+  priceRange.value.max = null;
+  sortOption.value = 'default';
+  currentPage.value = 1;
+  
+  // 更新URL，移除所有查詢參數
+  router.push({ path: '/mall-products' });
+  
+  // 重新加載數據
+  loadProducts();
+}
+
+// 新增：計算每個類別下有效的品牌列表
+const availableBrands = ref<Map<string, string[]>>(new Map());
+
+// 新增：根據品牌查找對應的分類
+function findCategoryForBrand(brand: string) {
+  console.log(`嘗試為品牌「${brand}」尋找對應的分類`);
+  
+  for (const category of categories.value) {
+    // 檢查品牌是否在當前分類的品牌列表中
+    if (category.brands && Array.isArray(category.brands) && category.brands.includes(brand)) {
+      console.log(`找到品牌「${brand}」所屬的分類：${category.name} (${category.id})`);
+      
+      // 更新選中的分類
+      selectedCategory.value = category.id;
+      
+      // 更新分類的展開狀態，確保該分類被展開
+      Object.keys(expandedCategories.value).forEach(key => {
+        expandedCategories.value[key] = (key === category.id);
+      });
+      expandedCategories.value[category.id] = true;
+      
+      // 更新路由
+      router.push({
+        path: '/mall-products',
+        query: { category: category.id, brand: brand }
+      });
+      
+      return true;
+    }
+  }
+  
+  // 如果直接匹配失敗，嘗試通過品牌別名查找
+  if (brand) {
+    const normalizedBrand = normalizedBrandName(brand);
+    
+    // 遍歷所有分類
+    for (const category of categories.value) {
+      if (!category.brands || !Array.isArray(category.brands)) continue;
+      
+      // 檢查品牌別名
+      for (const [alias, mainBrand] of Object.entries(brandAliases)) {
+        const normalizedAlias = normalizedBrandName(alias);
+        const normalizedMainBrand = normalizedBrandName(mainBrand as string);
+        
+        // 檢查是否符合別名條件並且主品牌在當前分類中
+        if ((normalizedAlias === normalizedBrand || normalizedMainBrand === normalizedBrand) && 
+            category.brands.includes(mainBrand as string)) {
+          console.log(`通過別名找到品牌「${brand}」(對應「${mainBrand}」)所屬的分類：${category.name} (${category.id})`);
+          
+          // 更新選中的分類和品牌
+          selectedCategory.value = category.id;
+          selectedBrand.value = mainBrand as string;
+          
+          // 更新分類的展開狀態
+          Object.keys(expandedCategories.value).forEach(key => {
+            expandedCategories.value[key] = (key === category.id);
+          });
+          expandedCategories.value[category.id] = true;
+          
+          // 更新路由
+          router.push({
+            path: '/mall-products',
+            query: { category: category.id, brand: mainBrand as string }
+          });
+          
+          return true;
+        }
+      }
+    }
+  }
+  
+  console.log(`未能找到品牌「${brand}」所屬的分類`);
+  return false;
+}
+
+// 強制刷新分類數據，直接從服務器獲取而不使用模塊導入
+async function forceRefreshCategories() {
+  try {
+    console.log('開始強制刷新分類數據');
+    
+    // 清除原有數據
+    categories.value = [];
+    availableBrands.value = new Map();
+    
+    // 直接從API獲取最新分類數據，避免使用緩存
+    try {
+      console.log('正在從API請求最新分類數據');
+      const timestamp = new Date().getTime(); // 添加時間戳防止緩存
+      const result = await ShoppingAPI.getCategories();
+      
+      if (result && result.categories && Array.isArray(result.categories) && result.categories.length > 0) {
+        console.log('成功從API獲取分類數據:', result.categories);
+        
+        // 保存數據到 localStorage，以便於開發調試
+        try {
+          localStorage.setItem('categories_data', JSON.stringify(result.categories));
+          localStorage.setItem('override_categories', 'true');
+          console.log('已將從API獲取的categories數據保存到localStorage');
+        } catch (storageErr) {
+          console.error('保存categories到localStorage時出錯', storageErr);
+        }
+        
+        // 強制更新分類數據
+        categories.value = JSON.parse(JSON.stringify(result.categories));
+        
+        // 更新可用品牌
+        availableBrands.value = new Map();
+        for (const category of categories.value) {
+          if (category.brands && Array.isArray(category.brands)) {
+            availableBrands.value.set(category.id, [...category.brands]);
+            console.log(`類別 ${category.name} (${category.id}) 設置了 ${category.brands.length} 個品牌`);
+          } else {
+            availableBrands.value.set(category.id, []);
+            console.warn(`類別 ${category.name} (${category.id}) 沒有品牌資料`);
+          }
+        }
+        
+        // 如果當前有選中的分類，強制刷新UI
+        if (selectedCategory.value) {
+          const tempCategory = selectedCategory.value;
+          selectedCategory.value = '';
+          setTimeout(() => {
+            selectedCategory.value = tempCategory;
+            expandedCategories.value = {};
+            expandedCategories.value[tempCategory] = true;
+          }, 10);
+        }
+        
+        // 更新URL參數
+        updateFiltersFromRoute();
+        
+        // 顯示成功信息
+        alert('分類數據已成功更新！\n數據已緩存到瀏覽器，頁面刷新後將自動使用最新數據。');
+        console.log('分類資料更新完成，顯示成功訊息');
+        
+        // 詳細記錄每個類別的品牌數量
+        console.log('更新後的分類數據詳情:');
+        for (const category of categories.value) {
+          const brandCount = category.brands ? category.brands.length : 0;
+          console.log(`- ${category.name} (${category.id}): ${brandCount} 個品牌`);
+          if (brandCount > 0) {
+            console.log(`  前5個品牌範例: ${category.brands.slice(0, 5).join(', ')}`);
+          }
+        }
+        
+        // 如果需要重新載入商品資料
+        if (selectedCategory.value) {
+          loadProductsByCategory(selectedCategory.value);
+        } else {
+          loadProducts();
+        }
+      } else {
+        console.error('API返回的分類數據無效或為空');
+        throw new Error('分類數據無效');
+      }
+    } catch (apiError) {
+      console.error('從API獲取分類數據時出錯:', apiError);
+      
+      // 嘗試使用本地備份數據
+      console.log('嘗試使用本地JSON數據作為備份');
+      const fallbackData = await ShoppingAPI.loadCategoriesFromJson();
+      
+      if (fallbackData && fallbackData.categories && fallbackData.categories.length > 0) {
+        console.log('成功從本地JSON載入備份數據');
+        categories.value = fallbackData.categories;
+        
+        // 更新可用品牌
+        availableBrands.value = new Map();
+        for (const category of categories.value) {
+          if (category.brands && Array.isArray(category.brands)) {
+            availableBrands.value.set(category.id, [...category.brands]);
+          } else {
+            availableBrands.value.set(category.id, []);
+          }
+        }
+        
+        // 重新載入相關資料
+        updateFiltersFromRoute();
+      } else {
+        console.error('無法從本地JSON載入備份數據');
+        alert('無法獲取最新分類數據，請檢查網絡連接後重試。');
+      }
+    }
+  } catch (err) {
+    console.error('強制刷新分類時發生錯誤:', err);
+    alert('刷新分類數據時出錯，請刷新頁面重試。');
+  }
+}
+
+// 取得產品類型名稱的輔助函數
+function getProductTypeName(productTypeId: number): string {
+  const typeMap: Record<number, string> = {
+    1: '充氣床墊',
+    2: '露營桌',
+    3: '帳篷',
+    4: '充電器',
+    5: '登山背包',
+    6: '登山杖',
+    7: '手機',
+    8: '行李箱',
+    9: '瓦斯爐'
+  };
+  return typeMap[productTypeId] || `類型${productTypeId}`;
+}
+
+// 價格格式化函數
+function formatPrice(price: string | number): string {
+  if (!price) return '0';
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return numPrice.toLocaleString('zh-TW');
+}
+
+// 圖片錯誤處理
+function handleImageError(event: Event, product: Product) {
+  const target = event.target as HTMLImageElement;
+  console.log(`圖片載入失敗：${product.image}`);
+  target.src = '/images/no-image.png';
+}
+</script>
+
+<template>
+  <!-- Banner輪播區 -->
+  <div class="relative h-[400px] overflow-hidden mb-8">
+    <div
+      class="absolute inset-0 flex transition-transform duration-500 ease-in-out"
+      :style="{ transform: `translateX(-${currentBannerIndex * 100}%)` }"
+    >
+      <div
+        v-for="(banner, index) in banners"
+        :key="index"
+        class="relative w-full h-full flex-shrink-0"
+      >
+        <img
+          :src="banner.image"
+          :alt="banner.title"
+          class="w-full h-full object-cover"
+        >
+        <div class="absolute inset-0 bg-black bg-opacity-40 flex flex-col justify-center items-center text-white">
+          <h2 class="text-4xl font-bold mb-4">
+            {{ banner.title }}
+          </h2>
+          <p class="text-xl">
+            {{ banner.description }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 輪播控制按鈕 -->
+    <button
+      class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition-all"
+      @click="prevBanner"
+    >
+      <span class="material-icons">上一項</span>
+    </button>
+    <button
+      class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition-all"
+      @click="nextBanner"
+    >
+      <span class="material-icons">下一項</span>
+    </button>
+
+    <!-- 輪播指示點 -->
+    <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+      <button
+        v-for="(_, index) in banners"
+        :key="index"
+        class="w-3 h-3 rounded-full transition-all"
+        :class="index === currentBannerIndex ? 'bg-white' : 'bg-white bg-opacity-50 hover:bg-opacity-75'"
+        @click="setCurrentBanner(index)"
+      />
+    </div>
+  </div>
+
+  <div class="container mx-auto px-4 py-8">
+    <div class="flex">
+      <!-- 左側分類欄 -->
+      <div class="w-1/4 pr-8 space-y-6">
+        <!-- 新增：商品搜尋框 -->
+        <div class="bg-white rounded-lg shadow p-4">
+          <h2 class="text-xl font-bold mb-3">
+            商品搜尋
+          </h2>
+          <div class="relative">
+            <input
+              v-model="searchText"
+              type="text"
+              class="w-full pl-3 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="輸入商品名稱或關鍵字"
+              @keyup.enter="performSearch"
+            >
+            <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+              <button 
+                v-if="searchText" 
+                @click="clearSearch"
+                class="text-gray-400 hover:text-gray-600 focus:outline-none" 
+                title="清除搜尋"
+              >
+                <span>×</span>
+              </button>
+              <button 
+                v-else 
+                @click="performSearch"
+                class="text-green-600 hover:text-green-800 focus:outline-none" 
+                title="搜尋"
+              >
+                <span>🔍</span>
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center justify-end mt-2">
+            <div v-if="searchResults.length > 0" class="text-sm text-gray-500">
+              找到 {{ searchResults.length }} 個結果
+            </div>
+            <div v-else-if="hasSearched" class="text-sm text-amber-500">
+              未找到結果
+            </div>
+          </div>
+        </div>
+
+        <!-- 商品分類 -->
+        <div class="bg-white rounded-lg shadow p-4">
+          <!-- 商品分類標題和重新整理按鈕 -->
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold">商品分類</h2>
+            <button
+              class="bg-blue-100 text-blue-700 rounded-md px-2 py-0.5 text-xs hover:bg-blue-200 transition-colors duration-200 flex items-center"
+              @click="forceRefreshCategories"
+            >
+              <span class="mr-1">重新整理</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
+          <div class="mb-4">
+          <!-- 所有商品按鈕 -->
+          <button
+              class="text-left px-4 py-2 rounded-lg transition-colors duration-200 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium"
+            @click="resetFilters"
+          >
+            所有商品
+          </button>
+          </div>
+          <!-- 第一階層分類按鈕 -->
+          <div v-for="category in categories" :key="category.id" class="mb-4">
+            <button
+              class="w-full text-left px-4 py-2 rounded-lg transition-colors duration-200"
+              :class="{
+                'bg-green-600 text-white': selectedCategory === category.id,
+                'hover:bg-green-100': selectedCategory !== category.id,
+              }"
+              @click="toggleCategory(category.id)"
+            >
+              {{ category.name }}
+            </button>
+            <!-- 第二階層品牌按鈕 -->
+            <div
+              v-if="expandedCategories[category.id] && category.brands && category.brands.length > 0"
+              class="ml-4 mt-2 space-y-2"
+            >
+              <!-- 添加品牌數量顯示，幫助調試 -->
+              <div class="px-3 py-1 text-xs text-gray-500">
+                共 {{ category.brands.length }} 個品牌
+              </div>
+              <!-- 迴圈會正確更新嗎？添加額外檢查 -->
+              <div v-if="!category.brands || category.brands.length === 0" class="px-3 py-1 text-xs text-amber-500">
+                找不到品牌資料！
+              </div>
+              <button
+                v-for="brand in category.brands"
+                :key="brand"
+                class="w-full text-left px-3 py-1 text-sm rounded transition-colors duration-200"
+                :class="{
+                  'bg-green-200 text-green-800': selectedBrand === brand,
+                  'hover:bg-gray-100': selectedBrand !== brand,
+                }"
+                @click="selectBrand(category.id, brand)"
+              >
+                {{ brand }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 價格範圍 -->
+        <div class="bg-white rounded-lg shadow p-4">
+          <h2 class="text-xl font-bold mb-4">
+            價格範圍
+          </h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">最低價格</label>
+              <input
+                v-model.number="tempPriceRange.min"
+                type="number"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:border-green-500"
+                placeholder="最低價格"
+              >
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">最高價格</label>
+              <input
+                v-model.number="tempPriceRange.max"
+                type="number"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:border-green-500"
+                placeholder="最高價格"
+              >
+            </div>
+            <button
+              class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors duration-200"
+              @click="applyPriceFilter"
+            >
+              套用價格篩選
+            </button>
+          </div>
+        </div>
+
+        <!-- 移除此處的排序方式區塊，保留右上角的排序選單 -->
+      </div>
+
+      <!-- 右側商品列表 -->
+      <div class="w-3/4 pl-4">
+        <!-- 新增：搜尋無結果提示 -->
+        <div v-if="hasSearched && searchResults.length === 0" class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <div class="flex items-center justify-between">
+            <div class="text-amber-800">
+              <span class="font-medium">「{{ searchText }}」</span> 的搜尋結果：未找到符合的商品
+            </div>
+            <button 
+              @click="clearSearch" 
+              class="text-amber-600 hover:text-amber-800 focus:outline-none flex items-center"
+            >
+              <span class="mr-1">清除搜尋</span>
+              <span>×</span>
+            </button>
+          </div>
+          <p class="text-sm mt-1">
+            建議嘗試：
+          </p>
+          <ul class="list-disc list-inside ml-2 mt-1">
+            <li>檢查關鍵字拼寫</li>
+            <li>使用不同的關鍵字</li>
+            <li>使用較短或較通用的詞語</li>
+          </ul>
+        </div>
+
+        <!-- 商品列表頂部控制項 - 保留這個標題 -->
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-2xl font-bold">
+            {{ activeCategoryName }}
+            {{ selectedBrand ? `- ${selectedBrand}` : '' }}
+            <span class="text-base font-normal text-gray-500 ml-2">(本頁共 {{ products.length }} 項商品)</span>
+          </h1>
+
+          <div class="flex space-x-4">
+            <!-- 排序下拉選單 -->
+          <select
+            v-model="sortOption"
+            class="w-full px-3 py-2 border rounded focus:outline-none focus:border-green-500"
+            @change="applySorting"
+          >
+            <option value="default">
+              預設排序
+            </option>
+            <option value="price-asc">
+              價格由低到高
+            </option>
+            <option value="price-desc">
+              價格由高到低
+            </option>
+            <option value="name-asc">
+              名稱 A-Z
+            </option>
+            <option value="name-desc">
+              名稱 Z-A
+            </option>
+          </select>
+        </div>
+      </div>
+
+        <!-- 添加錯誤提示 -->
+        <div v-if="error" class="bg-amber-50 border border-amber-200 rounded-lg p-6 my-4">
+          <div class="flex items-start">
+            <div class="text-amber-500 mr-3 pt-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-amber-800 mb-2">{{ error }}</h3>
+              <p class="text-amber-700">
+                {{ selectedBrand 
+                  ? `嘗試清除「${selectedBrand}」品牌篩選，查看所有${activeCategoryName}類別的商品。` 
+                  : '嘗試選擇其他分類或使用搜尋功能。' }}
+              </p>
+              <button 
+                v-if="selectedCategory || selectedBrand"
+                @click="resetFilters" 
+                class="mt-4 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
+              >
+                重置所有篩選
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 添加載入中狀態 -->
+        <div v-if="isLoading" class="flex justify-center items-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+        </div>
+
+        <!-- 商品網格 -->
+        <div v-else-if="products.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            v-for="product in products"
+            :key="product.id"
+            class="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow duration-300"
+          >
+            <!-- 商品圖片容器 -->
+            <div class="relative h-48 overflow-hidden bg-gray-100">
+            <img
+                v-if="product.image" 
+                :src="product.image" 
+              :alt="product.name"
+                class="w-full h-full object-cover"
+                @error="handleImageError($event, product)"
+              >
+              <img 
+                v-else 
+                src="/images/no-image.png" 
+                alt="No Image Available" 
+                class="w-full h-full object-cover"
+              >
+              
+              <!-- 顯示商品類型標籤 -->
+              <div v-if="product.product_type_id" class="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
+                {{ getProductTypeName(product.product_type_id) }}
+              </div>
+              
+              <!-- 顯示品牌標籤 -->
+              <div v-if="product.category" class="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                {{ product.category }}
+              </div>
+            </div>
+            
+            <!-- 商品資訊 -->
+            <div class="p-4">
+              <h3 class="text-lg font-semibold mb-2 line-clamp-2">
+                {{ product.name }}
+              </h3>
+              <p class="text-gray-600 mb-2 line-clamp-2">
+                {{ product.description }}
+              </p>
+              <div class="flex justify-between items-center">
+                <span class="text-green-600 font-bold">NT$ {{ formatPrice(product.price) }}</span>
+                <button
+                  class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors duration-200"
+                  @click="addToCart(product)"
+                >
+                  加入購物車
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 空結果提示 -->
+        <div v-else-if="!isLoading && products.length === 0 && !error" class="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg mb-8">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="text-xl font-medium text-gray-600 mb-2">沒有找到商品</h3>
+          <p class="text-gray-500 text-center max-w-md">
+            抱歉，我們沒有找到符合條件的商品。
+            {{ selectedBrand ? `嘗試移除「${selectedBrand}」品牌篩選，或選擇其他分類。` : '請嘗試選擇其他分類或使用搜尋功能。' }}
+          </p>
+          <button 
+            @click="resetFilters" 
+            class="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-200"
+          >
+            顯示所有商品
+          </button>
+        </div>
+
+        <!-- 分頁功能 -->
+        <div v-if="products.length > 0 && totalPagesFromServer > 1" class="mt-8">
+          <!-- 分頁控制區 -->
+          <div class="flex justify-center items-center space-x-2">
+            <!-- 上一頁按鈕 -->
+            <button
+              class="px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
+              :class="{
+                'bg-gray-200 text-gray-400 cursor-not-allowed': currentPage === 1,
+                'bg-green-600 text-white hover:bg-green-700': currentPage !== 1,
+              }"
+              :disabled="currentPage === 1"
+              @click="currentPage > 1 && changePage(currentPage - 1)"
+            >
+              上一頁
+            </button>
+
+            <!-- 頁碼按鈕 -->
+                <button
+              v-for="page in displayedPages"
+              :key="page"
+              class="px-4 py-2 rounded-lg transition-colors duration-200"
+                  :class="{
+                'bg-green-600 text-white': page === currentPage,
+                'bg-gray-200 hover:bg-gray-300 text-gray-700': page !== currentPage,
+                  }"
+                  @click="changePage(page)"
+                >
+                  {{ page }}
+                </button>
+
+            <!-- 下一頁按鈕 -->
+            <button
+              class="px-4 py-2 rounded-lg transition-colors duration-200 flex items-center"
+              :class="{
+                'bg-gray-200 text-gray-400 cursor-not-allowed': currentPage === totalPages,
+                'bg-green-600 text-white hover:bg-green-700': currentPage !== totalPages,
+              }"
+              :disabled="currentPage === totalPages"
+              @click="currentPage < totalPages && changePage(currentPage + 1)"
+            >
+              下一頁
+            </button>
+          </div>
+
+          <!-- 跳頁控制 -->
+          <div class="flex justify-center items-center mt-4">
+            <span class="text-gray-600 mr-2">跳至頁數:</span>
+            <input
+              v-model="inputPage"
+              type="number"
+              min="1"
+              :max="totalPages"
+              class="w-16 px-2 py-1 border rounded focus:outline-none focus:border-green-500"
+              @keyup.enter="jumpToPage"
+            >
+            <button
+              class="ml-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-200"
+              @click="jumpToPage"
+            >
+              確定
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>

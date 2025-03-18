@@ -852,6 +852,8 @@ def logout_api(request):
         # 執行 Django 的登出
         django_logout(request)
 
+        logout(request)
+
         # 準備響應
         response = Response({
             'success': True,

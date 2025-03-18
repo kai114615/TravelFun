@@ -4,12 +4,21 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { storeToRefs } from 'pinia';
 import { useCartStore } from '@/stores/cart';
-import api from '@/api/config';
-import type { CartItem } from '@/stores/cart';
 
 const router = useRouter();
 const cartStore = useCartStore();
 const { items, totalAmount } = storeToRefs(cartStore);
+
+// 全形數字轉半形函數
+function toHalfWidth (str: string): string {
+  if (!str) return '';
+
+  // 全形數字的 Unicode 範圍是 U+FF10 到 U+FF19
+  // 半形數字的 Unicode 範圍是 U+0030 到 U+0039
+  return str.replace(/[\uFF10-\uFF19]/g, (match) => {
+    return String.fromCharCode(match.charCodeAt(0) - 0xFEE0);
+  });
+}
 
 // 收件資訊表單
 const form = ref({
@@ -20,11 +29,11 @@ const form = ref({
 });
 
 // 表單驗證規則
-const rules = {
-  name: [{ required: true, message: '請輸入收件人姓名', trigger: 'blur' }],
-  phone: [{ required: true, message: '請輸入聯絡電話', trigger: 'blur' }],
-  address: [{ required: true, message: '請輸入收件地址', trigger: 'blur' }]
-};
+// const rules = {
+//   name: [{ required: true, message: '請輸入收件人姓名', trigger: 'blur' }],
+//   phone: [{ required: true, message: '請輸入聯絡電話', trigger: 'blur' }],
+//   address: [{ required: true, message: '請輸入收件地址', trigger: 'blur' }]
+// };
 
 // 提交訂單
 async function submitOrder () {
@@ -36,32 +45,42 @@ async function submitOrder () {
       return;
     }
 
-    // 建立訂單
-    const response = await api.post('/shop/api/shopping/orders/create/', {
-      items: items.value.map((item: CartItem) => ({
-        product_id: item.id,
-        quantity: item.quantity
-      })),
-      shipping_info: {
+    // 檢查收件資訊是否填寫完整
+    if (!form.value.name || !form.value.phone || !form.value.address) {
+      ElMessage.error('請確認收件資訊已填寫完成');
+      return;
+    }
+
+    // 轉換全形數字為半形
+    form.value.phone = toHalfWidth(form.value.phone);
+    form.value.address = toHalfWidth(form.value.address);
+
+    // 生成臨時訂單編號 (縮短長度，避免超出數據庫限制)
+    const tempOrderNumber = `ORD${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
+
+    // 準備訂單資訊
+    const orderInfo = {
+      orderNumber: tempOrderNumber,
+      items: items.value,
+      shippingInfo: {
         name: form.value.name,
         phone: form.value.phone,
         address: form.value.address,
         note: form.value.note
-      }
-    });
+      },
+      totalAmount: totalAmount.value,
+      discount: 0,
+      shippingFee: 0
+    };
 
-    if (response.data.success) {
-      // 清空購物車
-      cartStore.clearCart();
-      ElMessage.success('訂單建立成功');
-      // 導向訂單詳情頁面
-      router.push(`/orders/${response.data.order_number}`);
-    } else {
-      ElMessage.error(response.data.message || '訂單建立失敗');
-    }
-  } catch (error: any) {
-    console.error('建立訂單時發生錯誤:', error);
-    ElMessage.error(error.response?.data?.message || '訂單建立失敗，請稍後再試');
+    // 保存訂單資訊到 localStorage
+    localStorage.setItem('pendingOrderInfo', JSON.stringify(orderInfo));
+
+    // 導向訂單確認頁面
+    router.push('/order-confirm');
+  } catch (error) {
+    console.error('處理訂單時發生錯誤:', error);
+    ElMessage.error('處理訂單時發生錯誤，請稍後再試');
   }
 }
 </script>
@@ -134,7 +153,8 @@ async function submitOrder () {
                 v-model="form.note"
                 rows="3"
                 class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="有什麼想告訴我們的嗎？"
+                placeholder="有什麼想告訴我們的嗎？(限制300字)"
+                maxlength="300"
               />
             </div>
           </form>

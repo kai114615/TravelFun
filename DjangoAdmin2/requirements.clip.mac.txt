@@ -1,0 +1,5 @@
+-r requirements.clip.txt
+torch
+torchvision
+torchaudio
+faiss-cpu 

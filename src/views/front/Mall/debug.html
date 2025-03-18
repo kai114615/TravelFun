@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分類數據檢查</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 10px 0;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button.secondary {
+      background-color: #3498db;
+    }
+    button.danger {
+      background-color: #e74c3c;
+    }
+    #output {
+      border: 1px solid #ddd;
+      padding: 20px;
+      border-radius: 5px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      background-color: #f9f9f9;
+    }
+    .category {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #eee;
+      border-radius: 5px;
+      background-color: #fff;
+    }
+    .brands {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .brand {
+      background-color: #e7f7e7;
+      padding: 5px 10px;
+      border-radius: 20px;
+      display: inline-block;
+      font-size: 14px;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .status.success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .status.error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <h1>分類數據檢查工具</h1>
+  <p>此工具直接從伺服器獲取最新的categories.json檔案並顯示其內容，以確認檔案是否已正確更新。</p>
+  
+  <div class="actions">
+    <button id="loadButton">載入分類數據</button>
+    <button id="saveButton" class="secondary" disabled>保存到LocalStorage</button>
+    <button id="clearButton" class="danger">清除LocalStorage</button>
+  </div>
+  
+  <div id="status"></div>
+  <div id="output">按下按鈕加載資料...</div>
+  
+  <script>
+    // 加載和顯示分類數據
+    let categoryData = null;
+    
+    // 載入按鈕
+    document.getElementById('loadButton').addEventListener('click', async () => {
+      try {
+        const outputDiv = document.getElementById('output');
+        const statusDiv = document.getElementById('status');
+        const saveButton = document.getElementById('saveButton');
+        
+        statusDiv.className = '';
+        statusDiv.innerHTML = '';
+        outputDiv.innerHTML = '正在載入數據...';
+        saveButton.disabled = true;
+        
+        // 添加時間戳參數以避免緩存
+        const timestamp = new Date().getTime();
+        const response = await fetch(`./data/categories.json?t=${timestamp}`);
+        
+        if (!response.ok) {
+          outputDiv.innerHTML = `載入失敗: HTTP ${response.status}`;
+          statusDiv.className = 'status error';
+          statusDiv.innerHTML = `載入失敗: HTTP ${response.status}`;
+          return;
+        }
+        
+        const data = await response.json();
+        categoryData = data; // 保存數據以供保存按鈕使用
+        
+        if (!data || !data.categories || !Array.isArray(data.categories)) {
+          outputDiv.innerHTML = '數據格式不正確或為空';
+          statusDiv.className = 'status error';
+          statusDiv.innerHTML = '數據格式不正確或為空';
+          return;
+        }
+        
+        // 啟用保存按鈕
+        saveButton.disabled = false;
+        
+        // 顯示分類和品牌
+        let html = `<h2>成功載入分類數據 (${data.categories.length} 個分類)</h2>`;
+        
+        data.categories.forEach(category => {
+          const brandsCount = category.brands ? category.brands.length : 0;
+          
+          html += `
+            <div class="category">
+              <h3>${category.name} (${category.id})</h3>
+              <p>共有 ${brandsCount} 個品牌</p>
+              
+              <div class="brands">
+                ${category.brands ? category.brands.map(brand => `<span class="brand">${brand}</span>`).join('') : '無品牌數據'}
+              </div>
+            </div>
+          `;
+        });
+        
+        outputDiv.innerHTML = html;
+        statusDiv.className = 'status success';
+        statusDiv.innerHTML = `成功載入數據，分類數量: ${data.categories.length}`;
+        
+      } catch (error) {
+        document.getElementById('output').innerHTML = `發生錯誤: ${error.message}`;
+        document.getElementById('status').className = 'status error';
+        document.getElementById('status').innerHTML = `發生錯誤: ${error.message}`;
+      }
+    });
+    
+    // 保存按鈕
+    document.getElementById('saveButton').addEventListener('click', () => {
+      try {
+        if (!categoryData || !categoryData.categories) {
+          alert('沒有可保存的數據，請先載入數據');
+          return;
+        }
+        
+        // 保存到 localStorage
+        localStorage.setItem('categories_data', JSON.stringify(categoryData.categories));
+        localStorage.setItem('override_categories', 'true');
+        
+        const statusDiv = document.getElementById('status');
+        statusDiv.className = 'status success';
+        statusDiv.innerHTML = '數據已成功保存到 localStorage，頁面刷新時將使用此數據';
+        
+        alert('數據已成功保存到瀏覽器本地存儲，刷新頁面時將自動使用此數據。');
+      } catch (error) {
+        document.getElementById('status').className = 'status error';
+        document.getElementById('status').innerHTML = `保存數據時發生錯誤: ${error.message}`;
+        alert(`保存數據失敗: ${error.message}`);
+      }
+    });
+    
+    // 清除按鈕
+    document.getElementById('clearButton').addEventListener('click', () => {
+      try {
+        localStorage.removeItem('categories_data');
+        localStorage.removeItem('override_categories');
+        
+        const statusDiv = document.getElementById('status');
+        statusDiv.className = 'status success';
+        statusDiv.innerHTML = 'localStorage 中的分類數據已清除，頁面刷新後將使用原始數據';
+        
+        alert('localStorage 中的分類數據已清除，頁面刷新後將使用原始數據');
+      } catch (error) {
+        document.getElementById('status').className = 'status error';
+        document.getElementById('status').innerHTML = `清除數據時發生錯誤: ${error.message}`;
+      }
+    });
+    
+    // 頁面載入時檢查是否有localStorage數據
+    window.addEventListener('DOMContentLoaded', () => {
+      const statusDiv = document.getElementById('status');
+      if (localStorage.getItem('override_categories') === 'true') {
+        statusDiv.className = 'status success';
+        statusDiv.innerHTML = '注意: localStorage 中有分類數據覆蓋，頁面將使用這些數據';
+      }
+    });
+  </script>
+</body>
+</html> 
