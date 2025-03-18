@@ -101,7 +101,7 @@ async function fetchEntertainmentData(query: string): Promise<any> {
 
       // 記錄數據概述
       const categories = response.data;
-      const counts = {};
+      const counts: { [key: string]: number } = {};
 
       Object.entries(categories).forEach(([key, value]) => {
         if (Array.isArray(value)) {
@@ -761,7 +761,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fixed bottom-4 right-4 z-50">
+  <div class="fixed bottom-10 right-4 z-50">
     <!-- 聊天按鈕 -->
     <NButton v-if="!isChatOpen" circle type="primary" size="large" class="shadow-xl chat-button border-0 hover-bounce"
       @click="toggleChat">
