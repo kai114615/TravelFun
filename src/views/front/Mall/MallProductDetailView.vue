@@ -5,10 +5,14 @@ import { ElMessage } from 'element-plus';
 import productsData from './data/MallProduct.json';
 import 'element-plus/dist/index.css';
 import { useCartStore } from '@/stores/cart';
+import useFavoriteStore from '@/stores/favorite';
+import useProductStore from '@/stores/product';
 
 const route = useRoute();
 const router = useRouter();
 const cartStore = useCartStore();
+const favoriteStore = useFavoriteStore();
+const productStore = useProductStore();
 const productId = computed(() => Number(route.params.id));
 const quantity = ref(1);
 const selectedTab = ref('description');
@@ -16,7 +20,7 @@ const selectedTab = ref('description');
 // 取得商品資料
 const product = computed(() => {
   return productsData.find(p => p.id === productId.value);
-})
+});
 
 // 相關商品推薦（同類別的其他商品）
 const relatedProducts = computed(() => {
@@ -25,21 +29,62 @@ const relatedProducts = computed(() => {
   return productsData
     .filter(p => p.category === product.value?.category && p.id !== product.value?.id)
     .slice(0, 4);
-})
+});
+
+// 檢查商品是否已收藏
+const isFavorite = computed(() => {
+  return favoriteStore.checkFavorite(productId.value.toString());
+});
+
+// 切換收藏狀態
+function toggleFavorite () {
+  if (!product.value) return;
+
+  const id = productId.value.toString();
+  const title = product.value.name;
+
+  if (isFavorite.value) {
+    favoriteStore.removeFavorite(id, title);
+  } else {
+    favoriteStore.addFavorite(id, title);
+
+    // 確保商品數據在 productStore 中
+    if (!productStore.productList.some(p => p.id === id)) {
+      // 將商品數據轉換為 Product 類型並添加到 productStore
+      productStore.productList.push({
+        id,
+        title: product.value.name,
+        imageUrl: product.value.image_url,
+        price: Number(product.value.price),
+        origin_price: Number(product.value.price) * 1.2,
+        description: product.value.description || '',
+        city: 'taipei', // 默認值
+        address: '',
+        category: product.value.category,
+        unit: '個',
+        evaluate: 5, // 默認值
+        evaluateNum: 0,
+        date: Date.now(),
+        coordinates: { lat: 0, lng: 0 },
+        is_enabled: product.value.is_active
+      });
+    }
+  }
+}
 
 // 數量增減
-function decreaseQuantity() {
+function decreaseQuantity () {
   if (quantity.value > 1)
     quantity.value--;
 }
 
-function increaseQuantity() {
+function increaseQuantity () {
   if (quantity.value < (product.value?.stock || 0))
     quantity.value++;
 }
 
 // 加入購物車
-async function addToCart() {
+async function addToCart () {
   if (!product.value) {
     ElMessage.error('商品資料載入失敗');
     return;
@@ -70,7 +115,7 @@ async function addToCart() {
 }
 
 // 立即購買
-async function buyNow() {
+async function buyNow () {
   if (!product.value) {
     ElMessage.error('商品資料載入失敗');
     return;
@@ -102,7 +147,7 @@ async function buyNow() {
 }
 
 // 新增：點擊品牌按鈕的處理函數
-function openBrandProducts(brand: string) {
+function openBrandProducts (brand: string) {
   // 直接使用品牌名稱作為參數
   const url = `${window.location.origin}/#/mall-products?brand=${encodeURIComponent(brand)}`;
   window.open(url, '_blank');
@@ -111,7 +156,33 @@ function openBrandProducts(brand: string) {
 onMounted(() => {
   // 頁面載入時滾動到頂部
   window.scrollTo(0, 0);
-})
+
+  // 初始化 productStore，確保它有數據
+  if (productStore.productList.length === 0) {
+    // 將 MallProduct.json 中的數據轉換為 Product 類型並添加到 productStore
+    productsData.forEach(p => {
+      if (!productStore.productList.some(product => product.id === p.id.toString())) {
+        productStore.productList.push({
+          id: p.id.toString(),
+          title: p.name,
+          imageUrl: p.image_url,
+          price: Number(p.price),
+          origin_price: Number(p.price) * 1.2,
+          description: p.description || '',
+          city: 'taipei', // 默認值
+          address: '',
+          category: p.category,
+          unit: '個',
+          evaluate: 5, // 默認值
+          evaluateNum: 0,
+          date: Date.now(),
+          coordinates: { lat: 0, lng: 0 },
+          is_enabled: p.is_active
+        });
+      }
+    });
+  }
+});
 </script>
 
 <template>
@@ -192,6 +263,16 @@ onMounted(() => {
                 @click="increaseQuantity"
               >
                 +
+              </button>
+
+              <!-- 加入收藏按鈕 -->
+              <button
+                class="ml-4 flex items-center px-4 py-2 rounded-lg border transition-colors"
+                :class="isFavorite ? 'border-red-300 bg-red-50 text-red-600 hover:bg-red-100' : 'border-gray-300 hover:bg-gray-100'"
+                @click="toggleFavorite"
+              >
+                <i class="mr-2" :class="isFavorite ? 'fas fa-heart text-red-500' : 'far fa-heart'" />
+                {{ isFavorite ? '已收藏' : '加入收藏' }}
               </button>
             </div>
           </div>

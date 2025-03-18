@@ -32,6 +32,7 @@ module.exports = antfu({
     'semi': ['error', 'always'],
     'style/semi': 'off', // 關閉 style/semi 規則，避免與 semi 規則衝突
     'space-before-function-paren': ['error', 'always'],
+    'style/space-before-function-paren': 'off', // 關閉 style/space-before-function-paren 規則，避免與 space-before-function-paren 規則衝突
   },
 
   // Files to ignore

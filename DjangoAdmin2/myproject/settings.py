@@ -43,7 +43,7 @@ INSTALLED_APPS = [
 
 # 添加 MIDDLEWARE 設置
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # 這行須在最前面
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -59,7 +59,7 @@ CORS_ALLOW_CREDENTIALS = True  # 允許攜帶認證信息
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite 開發伺服器
     "http://127.0.0.1:5173",
-    "http://localhost:3333",  # 添加新的端口
+    "http://localhost:3333",  # 加入允許列表
     "http://127.0.0.1:3333",
 ]
 CORS_ALLOW_METHODS = [

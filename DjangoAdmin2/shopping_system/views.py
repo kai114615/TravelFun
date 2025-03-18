@@ -421,28 +421,38 @@ def create_order(request):
         # 記錄請求數據
         print(f"收到建立訂單請求，用戶: {request.user.username}, 數據: {request.data}")
         
-        # 檢查用戶資料
+        # 獲取用戶
         user = request.user
-        if not user.address:
-            return JsonResponse({
-                'success': False,
-                'message': '請先設置收貨地址'
-            }, status=400)
         
-        if not user.phone:
-            return JsonResponse({
-                'success': False,
-                'message': '請先設置聯絡電話'
-            }, status=400)
-
-        # 直接使用 request.data，因為 DRF 已經解析過請求數據
+        # 獲取請求數據
         data = request.data
         items = data.get('items', [])
+        shipping_info = data.get('shipping_info', {})
         
+        # 檢查訂單項目
         if not items:
             return JsonResponse({
                 'success': False,
                 'message': '訂單項目不能為空'
+            }, status=400)
+        
+        # 檢查收件資訊
+        if not shipping_info.get('name'):
+            return JsonResponse({
+                'success': False,
+                'message': '請提供收件人姓名'
+            }, status=400)
+            
+        if not shipping_info.get('phone'):
+            return JsonResponse({
+                'success': False,
+                'message': '請提供聯絡電話'
+            }, status=400)
+            
+        if not shipping_info.get('address'):
+            return JsonResponse({
+                'success': False,
+                'message': '請提供收貨地址'
             }, status=400)
         
         # 生成訂單編號
@@ -488,8 +498,8 @@ def create_order(request):
                 order_number=order_number,
                 total_amount=total_amount,
                 status='pending',
-                shipping_address=user.address,
-                contact_phone=user.phone
+                shipping_address=shipping_info.get('address'),
+                contact_phone=shipping_info.get('phone')
             )
             
             # 建立訂單項目並更新庫存

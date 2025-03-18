@@ -1,0 +1,216 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox">
+                <div class="ibox-title">
+                    <h5>添加訂單項目</h5>
+                    <div class="ibox-tools">
+                        <a href="{% url 'shopping_system:order_detail' order.id %}" class="btn btn-white btn-sm">
+                            <i class="fa fa-arrow-left"></i> 返回訂單詳情
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <form method="post" class="form-horizontal">
+                        {% csrf_token %}
+                        
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">訂單編號</label>
+                            <div class="col-sm-10">
+                                <p class="form-control-static">{{ order.order_number }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">選擇商品</label>
+                            <div class="col-sm-10">
+                                <select name="product_id" id="product-select" class="form-control" required>
+                                    <option value="">-- 請選擇商品 --</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}" 
+                                            data-price="{{ product.price }}" 
+                                            data-image="{{ product.get_image_url }}" 
+                                            data-category="{{ product.category }}"
+                                            data-name="{{ product.name }}">
+                                        {{ product.name }} (NT$ {{ product.price|floatformat:"0" }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="product-info" style="display: none;">
+                            <div class="form-group">
+                                <label class="col-sm-2 control-label">商品資訊</label>
+                                <div class="col-sm-10">
+                                    <div class="media">
+                                        <div class="media-left">
+                                            <img id="product-image" src="" alt="" class="img-thumbnail" style="max-width: 80px;">
+                                        </div>
+                                        <div class="media-body">
+                                            <h4 id="product-name" class="media-heading"></h4>
+                                            <p id="product-category"></p>
+                                            <p id="product-price"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">數量</label>
+                            <div class="col-sm-10">
+                                <input type="number" name="quantity" id="quantity" class="form-control" value="1" min="1" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">單價</label>
+                            <div class="col-sm-10">
+                                <div class="input-group">
+                                    <span class="input-group-addon">NT$</span>
+                                    <input type="text" name="price" id="price" class="form-control" value="0" min="0" required>
+                                </div>
+                                <span class="help-block">預設使用商品當前售價，可以根據需要調整</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="col-sm-2 control-label">小計</label>
+                            <div class="col-sm-10">
+                                <p class="form-control-static">NT$ 0</p>
+                                <span class="help-block">小計會根據數量和單價自動計算</span>
+                            </div>
+                        </div>
+                        
+                        <div class="hr-line-dashed"></div>
+                        
+                        <div class="form-group">
+                            <div class="col-sm-4 col-sm-offset-2">
+                                <a href="{% url 'shopping_system:order_detail' order.id %}" class="btn btn-white">取消</a>
+                                <button class="btn btn-primary" type="submit">添加</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+    // 自動計算小計
+    function updateSubtotal() {
+        var quantity = parseInt($('#quantity').val()) || 0;
+        var price = parseFloat($('#price').val()) || 0;
+        var subtotal = quantity * price;
+        $('.form-control-static').text('NT$ ' + subtotal.toFixed(0));
+        console.log("更新小計: 數量=" + quantity + ", 價格=" + price + ", 小計=" + subtotal);
+    }
+
+    // 更新商品信息
+    function updateProductInfo(selectElement) {
+        console.log("updateProductInfo 被調用");
+        
+        var selectedOption = $(selectElement).find('option:selected');
+        console.log("選中的選項:", selectedOption);
+        
+        if (selectedOption.val()) {
+            // 獲取商品數據
+            var productId = selectedOption.val();
+            var price = selectedOption.attr('data-price');
+            var image = selectedOption.attr('data-image');
+            var category = selectedOption.attr('data-category');
+            var name = selectedOption.attr('data-name');
+            
+            // 輸出調試信息到控制台
+            console.log("選擇商品ID:", productId);
+            console.log("商品名稱:", name);
+            console.log("商品價格:", price);
+            console.log("商品圖片:", image);
+            console.log("商品類別:", category);
+            
+            // 直接設置價格到輸入框
+            $('#price').val(price);
+            console.log("設置價格後的值:", $('#price').val());
+            
+            // 更新商品信息顯示
+            $('#product-image').attr('src', image);
+            $('#product-name').text(name);
+            $('#product-category').text('商品類別: ' + category);
+            $('#product-price').text('目前售價: NT$ ' + price);
+            $('#product-info').show();
+            
+            // 更新小計
+            updateSubtotal();
+        } else {
+            // 清空價格
+            $('#price').val('0');
+            $('#product-info').hide();
+            $('.form-control-static').text('NT$ 0');
+        }
+    }
+    
+    // 頁面加載完成後的初始化
+    $(document).ready(function() {
+        console.log("頁面已加載，開始初始化...");
+        
+        // 檢查元素是否存在
+        console.log("商品選擇框存在:", $('#product-select').length > 0);
+        console.log("價格輸入框存在:", $('#price').length > 0);
+        console.log("數量輸入框存在:", $('#quantity').length > 0);
+        
+        // 為商品選擇下拉框添加change事件
+        $('#product-select').on('change', function() {
+            console.log("商品選擇框change事件觸發");
+            updateProductInfo(this);
+        });
+        
+        // 為數量和價格輸入框添加事件監聽器
+        $('#quantity').on('input', function() {
+            console.log("數量輸入框input事件觸發");
+            updateSubtotal();
+        });
+        
+        $('#price').on('input', function() {
+            console.log("價格輸入框input事件觸發");
+            updateSubtotal();
+        });
+        
+        // 如果已經選擇了商品，則觸發change事件
+        if ($('#product-select').val()) {
+            console.log("頁面加載時已有選中的商品，觸發change事件");
+            updateProductInfo($('#product-select')[0]);
+        }
+        
+        // 添加一個按鈕點擊事件，用於測試
+        $('.btn-primary').on('click', function(e) {
+            // 不阻止表單提交，只是記錄信息
+            console.log("提交按鈕被點擊");
+            console.log("當前選擇的商品ID:", $('#product-select').val());
+            console.log("當前數量:", $('#quantity').val());
+            console.log("當前價格:", $('#price').val());
+        });
+        
+        // 嘗試直接設置價格，測試是否可以修改
+        setTimeout(function() {
+            if ($('#product-select').val()) {
+                var selectedPrice = $('#product-select option:selected').attr('data-price');
+                console.log("嘗試直接設置價格:", selectedPrice);
+                $('#price').val(selectedPrice);
+                console.log("設置後的價格值:", $('#price').val());
+                updateSubtotal();
+            }
+        }, 1000);
+    });
+</script>
+{% endblock %} 
