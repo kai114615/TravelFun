@@ -2,10 +2,12 @@ import os
 import sys
 import django
 import time
+import threading
+import queue
 from datetime import datetime
 import mysql.connector
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, List, Callable, Union
 
 # 設定專案根目錄路徑
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -49,14 +51,53 @@ CONFIG = {
 try:
     from culture_api import CultureAPI  # 文化部 API
     from tfam_api import TaipeiOpenDataAPI  # 北美館 API
-    from taipei_api import fetch_taipei_events as taipei_events  # 台北市政府 API
+    from taipei_api import fetch_taipei_events as taipei_events  # 臺北市政府 API
     from newtaipei_api import fetch_newtaipei_events as newtaipei_events  # 新北市政府 API
-    from json_to_sql import convert_json_to_sql  # JSON 轉 SQL 工具
+    from json_to_sql import convert_json_to_sql, escape_sql_special_chars, fix_sql_command  # JSON 轉 SQL 工具和SQL處理函數
     from address_mapping import update_events_coordinates, match_coordinates, update_coordinates  # 地址對應的經緯度
 except ImportError as e:
     print(f"模組匯入錯誤: {e}")
     print(f"目前的 Python 路徑: {sys.path}")
     sys.exit(1)
+
+# API 相關定義
+API_SOURCES = [
+    {
+        'name': '文化部展演資訊',
+        'function': lambda: CultureAPI().get_events(),
+        'result_path': 'result'
+    },
+    {
+        'name': '文化部整合綜藝活動',
+        'function': lambda: CultureAPI().get_integrated_events(),
+        'result_path': 'result'
+    },
+    {
+        'name': '文化部節慶活動',
+        'function': lambda: CultureAPI().get_festival_events(),
+        'result_path': 'result'
+    },
+    {
+        'name': '臺北市立美術館展覽資訊',
+        'function': lambda: TaipeiOpenDataAPI().fetch_data(limit=10),
+        'result_path': 'result'
+    },
+    {
+        'name': '臺北市立美術館活動資訊',
+        'function': lambda: TaipeiOpenDataAPI("1700a7e6-3d27-47f9-89d9-1811c9f7489c").fetch_data(limit=10),
+        'result_path': 'result'
+    },
+    {
+        'name': '臺北市政府活動資訊',
+        'function': taipei_events,
+        'result_path': 'result'
+    },
+    {
+        'name': '新北市政府活動資訊',
+        'function': newtaipei_events,
+        'result_path': 'result'
+    }
+]
 
 def init_database() -> None:
     """初始化資料庫和資料表"""
@@ -76,7 +117,7 @@ def connect_to_mysql() -> mysql.connector.connection.MySQLConnection:
     """建立 MySQL 資料庫連線"""
     return mysql.connector.connect(**CONFIG['db'])
 
-def parse_date(date_str: str) -> str:
+def parse_date(date_str: Union[str, None]) -> Optional[str]:
     """解析各種日期格式，並轉換為 MySQL 可接受的格式 (西元年-月-日)"""
     if not date_str:
         return None
@@ -117,12 +158,14 @@ def parse_date(date_str: str) -> str:
         print(f"日期解析錯誤 '{date_str}': {str(e)}")
         return None
 
-def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.MySQLConnection) -> None:
+def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.MySQLConnection) -> int:
     """將資料儲存至 MySQL 資料庫"""
     if not data:
-        return
+        return 0
 
     cursor = None
+    inserted_count = 0
+
     try:
         cursor = connection.cursor(buffered=True)
 
@@ -174,12 +217,14 @@ def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.M
                 # 執行資料庫插入
                 cursor.execute(insert_sql, event_data)
                 connection.commit()
+                inserted_count += 1
             except mysql.connector.Error as err:
                 print(f"插入資料時發生錯誤: {err}")
                 print(f"問題資料: {event_data}")
                 connection.rollback()
                 continue
 
+        return inserted_count
     except Exception as e:
         print(f"儲存資料時發生錯誤: {str(e)}")
         connection.rollback()
@@ -196,7 +241,7 @@ def process_image_url(image_url: Any) -> list:
         return image_url
     return []
 
-def process_event_fields(event: Dict[str, Any], is_new_event: bool, existing_event: Optional[Dict[str, Any]], current_time: str) -> Dict[str, Any]:
+def process_event_fields(event: Dict[str, Any], is_new_event: bool, existing_event: Optional[Dict[str, Any]], current_time: str) -> Tuple[Dict[str, Any], bool]:
     """處理活動欄位資料，根據是否為新活動進行不同處理"""
     # 處理日期欄位
     start_time = event.get('start_time') or event.get('startDate')
@@ -268,8 +313,12 @@ def process_event_fields(event: Dict[str, Any], is_new_event: bool, existing_eve
 
     return new_event, coordinates_updated
 
-def save_events_to_json(events_data):
+def save_events_to_json(events_data: List[Dict[str, Any]]) -> None:
     """將活動資料轉換成 JSON 格式並儲存"""
+    if not events_data:
+        print("警告: 沒有活動資料可儲存")
+        return
+
     try:
         formatted_events = []
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -302,7 +351,6 @@ def save_events_to_json(events_data):
             formatted_events.append(new_event)
 
         # 寫入 JSON 檔案
-        # print(f"JSON 檔案路徑: {json_path}")
         print(f"處理的活動數量: {len(formatted_events)}")
         print(f"更新經緯度數量: {coordinates_update_count}")
 
@@ -314,94 +362,275 @@ def save_events_to_json(events_data):
         print(f"錯誤: 儲存 JSON 檔案失敗 - {str(e)}")
 
 def check_events_data_exists() -> bool:
-    """檢查 events_data.json 檔案是否存在"""
-    return os.path.exists(CONFIG['paths']['json'])
+    """檢查資料庫中是否已存在活動資料"""
+    try:
+        connection = connect_to_mysql()
+        cursor = connection.cursor()
 
-def load_existing_events() -> Dict[str, Any]:
+        try:
+            # 檢查資料表中是否有資料
+            cursor.execute("SELECT COUNT(*) FROM theme_events")
+            count = cursor.fetchone()[0]
+            return count > 0
+        finally:
+            cursor.close()
+            connection.close()
+    except Exception as e:
+        print(f"檢查資料時發生錯誤: {str(e)}")
+        return False
+
+def load_existing_events() -> List[Dict[str, Any]]:
     """載入既有的 events_data.json 檔案"""
     try:
-        with open(CONFIG['paths']['json'], 'r', encoding='utf-8') as f:
+        json_path = CONFIG['paths']['json']
+        if not os.path.exists(json_path):
+            print(f"檔案不存在: {json_path}")
+            return []
+
+        with open(json_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"讀取既有活動資料失敗: {str(e)}")
         return []
 
-
-def update_events_data(existing_events: list, new_events: list) -> list:
+def update_events_data(existing_events: List[Dict[str, Any]], new_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """更新活動資料，使用 uid 作為唯一識別碼"""
     # 建立既有活動的 uid 索引
-    existing_uids = {event['uid']: event for event in existing_events}
+    existing_uids = {event['uid']: event for event in existing_events if event.get('uid')}
 
     # 更新或新增活動
     for new_event in new_events:
         uid = new_event.get('uid')
-        if uid:
+        if uid:  # 確保有有效的UID
             existing_uids[uid] = new_event
 
     return list(existing_uids.values())
 
+def import_sql_to_database(connection: mysql.connector.connection.MySQLConnection, sql_file_path: str) -> Tuple[int, int]:
+    """從SQL檔案匯入資料到資料庫，加強處理SQL語法問題"""
+    cursor = connection.cursor()
+    error_count = 0  # 計算錯誤次數
+    activity_count = 0  # 實際匯入的活動數量
 
-def clean_sql_command(command: str) -> str:
-    """清理 SQL 指令中的特殊字元"""
-    # 替換 HTML 實體
-    replacements = {
-        '&nbsp;': ' ',
-        '&amp;': '&',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&quot;': '"',
-        '&apos;': "'",
-    }
-
-    result = command
-    for entity, char in replacements.items():
-        result = result.replace(entity, char)
-
-    # 移除多餘空白
-    result = ' '.join(result.split())
-
-    return result
-
-
-def import_sql_to_database(connection: mysql.connector.connection.MySQLConnection, sql_file_path: str) -> None:
-    """將 SQL 檔案匯入資料庫"""
     try:
-        cursor = connection.cursor()
-
-        # 讀取 SQL 檔案
+        # 讀取SQL檔案
         with open(sql_file_path, 'r', encoding='utf-8') as file:
             sql_content = file.read()
 
-        # 分割並清理 SQL 指令
-        sql_commands = sql_content.split(';')
+        # 使用更可靠的分割方式
+        commands = []
+        current_command = []
+        in_string = False
+        escape_next = False
+        string_char = None
 
-        # 執行每個 SQL 指令
-        for command in sql_commands:
-            if command.strip():
+        # 逐字符處理SQL內容
+        for char in sql_content:
+            if escape_next:
+                current_command.append(char)
+                escape_next = False
+                continue
+
+            if char == '\\':
+                current_command.append(char)
+                escape_next = True
+                continue
+
+            if not in_string and char in ["'", '"']:
+                in_string = True
+                string_char = char
+                current_command.append(char)
+                continue
+
+            if in_string and char == string_char:
+                in_string = False
+                string_char = None
+                current_command.append(char)
+                continue
+
+            if not in_string and char == ';':
+                current_command.append(char)
+                commands.append(''.join(current_command).strip())
+                current_command = []
+                continue
+
+            current_command.append(char)
+
+        # 處理最後一個指令
+        if current_command:
+            commands.append(''.join(current_command).strip())
+
+        # 逐一執行SQL指令
+        total_commands = len(commands)
+        successful_commands = 0
+
+        for i, command in enumerate(commands):
+            # 跳過空指令或只包含註釋的指令
+            if not command or command.strip().startswith('--'):
+                continue
+
+            try:
+                cursor.execute(command)
+                # 檢查是否為INSERT指令，並計算影響的行數
+                if command.strip().upper().startswith('INSERT'):
+                    activity_count += cursor.rowcount
+                connection.commit()
+                successful_commands += 1
+            except Exception as e:
+                error_count += 1
+                connection.rollback()
+                print(f"SQL指令執行錯誤 ({i+1}/{total_commands}): {str(e)}")
+                print(f"問題指令: {command[:100]}...")
+
+                # 嘗試修復並重試指令（替換特殊字符）
                 try:
-                    cleaned_command = clean_sql_command(command)
-                    if cleaned_command:
-                        cursor.execute(cleaned_command)
+                    fixed_command = fix_sql_command(command)
+                    if fixed_command != command:
+                        cursor.execute(fixed_command)
+                        # 同樣檢查是否為INSERT指令
+                        if fixed_command.strip().upper().startswith('INSERT'):
+                            activity_count += cursor.rowcount
                         connection.commit()
-                except mysql.connector.Error as err:
-                    connection.rollback()
+                        successful_commands += 1
+                        print("修復後成功執行")
+                        error_count -= 1
+                except Exception as retry_error:
+                    print(f"修復後仍失敗: {str(retry_error)}")
 
-        print(f"成功匯入 SQL 檔案: {sql_file_path}")
+                # 如果錯誤過多，中斷執行
+                if error_count > 10:
+                    raise Exception(f"執行SQL指令時發生過多錯誤（超過10個），已中止匯入")
 
+        print(f"成功執行 {successful_commands}/{total_commands} 個SQL指令")
+        print(f"共匯入 {activity_count} 筆活動資料")
+
+        return successful_commands, activity_count
     except Exception as e:
-        print(f"匯入 SQL 檔案時發生錯誤: {str(e)}")
+        connection.rollback()
+        print(f"匯入SQL檔案時發生錯誤: {str(e)}")
         raise
     finally:
-        if cursor:
-            cursor.close()
+        cursor.close()
 
+def fetch_api_with_timeout(api_func: Callable, api_name: str, api_timeout: Optional[int] = None) -> Tuple[bool, Any]:
+    """
+    使用逾時控制執行API呼叫的通用函式
 
-def main():
+    Args:
+        api_func: 要執行的API函式
+        api_name: API名稱（用於記錄日誌）
+        api_timeout: 逾時時間（秒），若為None則不限時
+
+    Returns:
+        (success, result) - success表示是否成功，result為API結果或錯誤訊息
+    """
+    # 如果不啟用逾時機制，則直接執行API呼叫
+    if api_timeout is None:
+        try:
+            print(f"正在取得{api_name}（無逾時限制）...")
+            result = api_func()
+            print(f"{api_name}取得完成！\n")
+            return True, result
+        except Exception as e:
+            print(f"{api_name}取得失敗: {str(e)}\n")
+            return False, None
+
+    # 啟用逾時機制
+    # 建立結果佇列
+    result_queue = queue.Queue()
+
+    # 定義執行緒函式
+    def thread_func():
+        try:
+            result = api_func()
+            result_queue.put(("success", result))
+        except Exception as e:
+            result_queue.put(("error", str(e)))
+
+    # 啟動執行緒
+    api_thread = threading.Thread(target=thread_func)
+    api_thread.daemon = True
+    api_thread.start()
+
+    # 等待執行緒完成或逾時
+    api_thread.join(timeout=api_timeout)
+
+    # 檢查結果
+    if not result_queue.empty():
+        result_type, result = result_queue.get()
+        if result_type == "success":
+            print(f"{api_name}取得完成！\n")
+            return True, result
+        else:
+            print(f"{api_name}取得失敗: {result}\n")
+            return False, None
+    else:
+        print(f"{api_name}取得逾時（超過 {api_timeout} 秒），略過此API\n")
+        return False, None
+
+def fetch_all_api_data(api_timeout: Optional[int] = None) -> List[Dict[str, Any]]:
+    """從所有API取得活動資料"""
+    all_events = []
+    api_success_count = 0
+    api_fail_count = 0
+
+    # 處理每個API來源
+    for api_source in API_SOURCES:
+        api_name = api_source['name']
+        api_func = api_source['function']
+        result_path = api_source.get('result_path', '')
+
+        # print(f"正在取得{api_name}...")
+        success, result = fetch_api_with_timeout(api_func, api_name, api_timeout)
+
+        if success:
+            # 根據result_path取得結果資料
+            if result_path and isinstance(result, dict):
+                result_data = result.get(result_path, [])
+            elif isinstance(result, dict) and 'result' in result:
+                result_data = result['result']
+            else:
+                result_data = result
+
+            # 確保結果是列表
+            if not isinstance(result_data, list):
+                result_data = [result_data] if result_data else []
+
+            # 更新活動資料
+            if result_data:
+                all_events = update_events_data(all_events, result_data)
+                api_success_count += 1
+            else:
+                print(f"警告: {api_name}未返回有效資料")
+                api_fail_count += 1
+        else:
+            api_fail_count += 1
+
+    print(f"API呼叫統計: 成功={api_success_count}, 失敗={api_fail_count}")
+    return all_events
+
+def main() -> bool:
     """主程式進入點"""
-    print(f"\n=== 開始執行資料獲取程序 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+    print(f"\n=== 開始執行資料取得程序 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
 
     all_events = []  # 儲存所有活動資料
 
     try:
+        # 檢查是否透過import_data.py執行（環境變數API_TIMEOUT存在）
+        api_timeout_str = os.environ.get('API_TIMEOUT')
+        if api_timeout_str:
+            # 透過import_data.py執行，啟用API逾時機制
+            try:
+                api_timeout = int(api_timeout_str)
+                print(f"以import_data.py模式執行，啟用API逾時機制: {api_timeout}秒")
+            except ValueError:
+                print(f"警告: API_TIMEOUT環境變數值'{api_timeout_str}'非有效整數，無法啟用逾時機制")
+                api_timeout = None
+        else:
+            # 直接執行main.py，不啟用API逾時機制
+            api_timeout = None
+            print("以直接執行模式運行，API呼叫不設逾時限制")
+
         # 檢查既有資料
         if check_events_data_exists():
             print("發現既有活動資料，開始載入...")
@@ -409,83 +638,32 @@ def main():
             print(f"已載入 {len(existing_events)} 筆既有活動資料\n")
             all_events = existing_events
 
-        # 從各 API 獲取最新資料
-        print("開始從各 API 獲取最新資料...")
+        # 從各 API 取得最新資料
+        print("開始從各 API 取得最新資料...")
+        api_events = fetch_all_api_data(api_timeout)
+        if api_events:
+            all_events = update_events_data(all_events, api_events)
 
-        # 1. 文化部展演資訊
-        print("1. 正在獲取文化部展演資訊...")
-        culture_api = CultureAPI()
-        culture_events = culture_api.get_events()
-        all_events = update_events_data(
-            all_events, culture_events.get('result', []))
-        print("文化部展演資訊獲取完成！\n")
+        # 儲存活動資料
+        print("開始處理和儲存活動資料...")
+        if all_events:
+            save_events_to_json(all_events)
+            print("活動資料處理完成！\n")
 
-        integrated_events = culture_api.get_integrated_events()
-        all_events = update_events_data(
-            all_events, integrated_events.get('result', []))
-        print("文化部整合綜藝活動獲取完成！\n")
-
-        festival_events = culture_api.get_festival_events()
-        all_events = update_events_data(
-            all_events, festival_events.get('result', []))
-        print("文化部節慶活動獲取完成！\n")
-
-        # 2. 台北市立美術館資訊
-        print("2. 正在獲取台北市立美術館資訊...")
-        tfam_api_1 = TaipeiOpenDataAPI()  # 展覽資訊
-        tfam_api_2 = TaipeiOpenDataAPI(
-            "1700a7e6-3d27-47f9-89d9-1811c9f7489c")  # 活動資訊
-
-        results_1 = tfam_api_1.fetch_data(limit=10)
-        if results_1:
-            all_events = update_events_data(
-                all_events, results_1.get('result', []))
-
-        results_2 = tfam_api_2.fetch_data(limit=10)
-        if results_2:
-            all_events = update_events_data(
-                all_events, results_2.get('result', []))
-        print("台北市立美術館資訊獲取完成！\n")
-
-        # 3. 台北市政府活動資訊
-        print("3. 正在獲取台北市政府活動資訊...")
-        taipei_data = taipei_events()
-        all_events = update_events_data(
-            all_events, taipei_data.get('result', []))
-        print("台北市政府活動資訊獲取完成！\n")
-
-        # 4. 新北市政府活動資訊
-        print("4. 正在獲取新北市政府活動資訊...")
-        newtaipei_data = newtaipei_events()
-        all_events = update_events_data(
-            all_events, newtaipei_data.get('result', []))
-        print("新北市政府活動資訊獲取完成！\n")
-
-        # 5. 儲存原始 JSON 資料
-        print("5. 開始儲存 JSON檔 資料...")
-        save_events_to_json(all_events)
-        print("活動資料處理完成！\n")
-
-        # 6. 生成 SQL 檔案
-        print("6. 開始將 JSON檔 轉換為 SQL...")
-        convert_json_to_sql(CONFIG['paths']['json'], CONFIG['paths']['sql'])
-        print("成功: SQL 檔案已生成\n")
-
-        # 7. 初始化資料庫
-        print("7. 開始初始化資料庫...")
-        init_database()
-        print("資料庫初始化完成！\n")
-
-        # 8. 建立資料庫連線
-        print("8. 開始建立資料庫連線...")
-        connection = connect_to_mysql()
-        print("資料庫連線建立成功！\n")
+            # 產生 SQL 檔案
+            print("開始將 JSON檔 轉換為 SQL...")
+            convert_json_to_sql(CONFIG['paths']['json'], CONFIG['paths']['sql'])
+            print("成功: SQL 檔案已產生\n")
+            return True
+        else:
+            print("警告: 未取得任何資料，無法產生JSON和SQL檔案\n")
+            return False
 
     except Exception as e:
         print(f"\n執行過程中發生錯誤：{str(e)}")
-    finally:
-        if 'connection' in locals() and connection:
-            connection.close()
+        import traceback
+        traceback.print_exc()
+        return False
 
 if __name__ == "__main__":
     main()

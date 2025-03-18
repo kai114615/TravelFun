@@ -6,7 +6,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import Banner from '@/components/Banner.vue';
 import Know from '@/components/Know.vue';
-import { SwiperCity, SwiperProduct } from '@/components/Swiper';
+import { SwiperCity, SwiperProduct, EventsStatus } from '@/components/Swiper';
 import Container from '@/layout/Container.vue';
 import { useDeviceStore, useProductStore } from '@/stores';
 import { countryMap } from '@/utils/context';
@@ -68,17 +68,9 @@ const goProducts = () => router.push({ name: 'CountryProducts' });
     </div>
   </Container>
   <SwiperProduct title="Top 10 商品" :products="getFilterData(getByPopular)" />
-  <SwiperProduct
-    :title="`精選${getCountryName}活動`"
-    :products="getFilterData(getByPreferred)"
-  />
+  <SwiperProduct :title="`精選${getCountryName}活動`" :products="getFilterData(getByPreferred)" />
   <SwiperProduct title="為您推薦" :products="getFilterData(getByRecommended)" />
-  <SwiperProduct
-    title="最新上架"
-    :btn="{ text: `查看所有${getCountryName}所有活動` }"
-    :products="getFilterData(getByNewest)"
-    @btn-click="goProducts"
-  />
+  <EventsStatus title="最新上架" @click="goProducts" />
   <Know :is-mobile="isMobile" :name="getCountryName" :products="getFilterData(productList)" />
   <SwiperCity :title="`${getCountryName}熱門城市`" />
   <Footer />
