@@ -8,6 +8,7 @@ import {
 import { computed, onMounted, ref } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import Header from '@/components/Header/src/index.vue';
+import GlobalAiChat from '@/components/AiChat/GlobalAiChat.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -83,6 +84,7 @@ onMounted(() => {
         <NDialogProvider>
           <Header />
           <RouterView />
+          <GlobalAiChat />
         </NDialogProvider>
       </NMessageProvider>
     </NLoadingBarProvider>

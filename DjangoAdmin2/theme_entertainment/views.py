@@ -20,9 +20,11 @@ from rest_framework import permissions
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 
 # 本地應用
-from .models import Events
+from .models import Events, QueryResult, QueryEventRelation
 from .serializers import ActivitySerializer
 
 # 工具
@@ -35,6 +37,7 @@ from django.conf import settings
 import os
 from datetime import time, datetime
 import glob
+from django.db.models import Q
 
 # 設置日誌
 logger = logging.getLogger(__name__)
@@ -790,3 +793,140 @@ def edit_event(request, event_id):
         logger.error(f"顯示編輯頁面時出錯: {str(e)}")
         messages.error(request, f'發生錯誤: {str(e)}')
         return redirect('theme_entertainment:activity_management')
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_entertainment_data_for_ai(request):
+    """提供主題育樂資料給AI聊天機器人使用"""
+
+    search_term = request.GET.get('q', '')
+    limit = int(request.GET.get('limit', 20))
+
+    # 獲取當前日期時間，用於時間分類
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    # 定義三天的時間範圍（毫秒）- 用於判斷即將開始和即將結束
+    three_days = timezone.timedelta(days=3)
+
+    # 基本查詢條件
+    base_query = Q(activity_name__icontains=search_term) | Q(description__icontains=search_term)
+
+    # 蒐集各個主題育樂資料
+    # 1. 基本活動資料（依關鍵字搜尋）
+    activities = list(Events.objects.filter(base_query)[:limit].values(
+        'activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 2. 已結束的活動 - 結束日期小於當前時間
+    ended_activities = list(Events.objects.filter(
+        end_date__lt=now
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 3. 只限今日活動 - 開始和結束日期都在今天
+    today_only_activities = list(Events.objects.filter(
+        start_date__date=now.date(),
+        end_date__date=now.date()
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 4. 即將結束活動 - 結束日期在當前時間和3天內的時間之間
+    ending_soon_activities = list(Events.objects.filter(
+        end_date__gt=now,
+        end_date__lte=now + three_days
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 5. 進行中活動 - 開始日期小於當前時間，且結束日期大於當前時間
+    ongoing_activities = list(Events.objects.filter(
+        Q(start_date__lt=now) &
+        Q(end_date__gt=now) &
+        ~Q(start_date__gt=now - three_days)  # 排除最近三天內開始的活動
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 6. 即將開始活動 - 開始日期在當前時間和3天內的時間之間
+    upcoming_activities = list(Events.objects.filter(
+        start_date__gt=now,
+        start_date__lte=now + three_days
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 7. 未開始活動 - 開始日期大於3天後的時間
+    not_started_activities = list(Events.objects.filter(
+        start_date__gt=now + three_days
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 8. 其他分類 - 依關鍵字搜尋
+    # 運動相關活動
+    sports = list(Events.objects.filter(
+        base_query &
+        (Q(activity_name__icontains='運動') | Q(activity_name__icontains='體育') |
+         Q(activity_name__icontains='球賽') | Q(activity_name__icontains='健身') |
+         Q(description__icontains='運動') | Q(description__icontains='體育') |
+         Q(description__icontains='球賽') | Q(description__icontains='健身'))
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 宗教相關活動
+    religions = list(Events.objects.filter(
+        base_query &
+        (Q(activity_name__icontains='宗教') | Q(activity_name__icontains='寺廟') |
+         Q(activity_name__icontains='教堂') | Q(activity_name__icontains='廟宇') |
+         Q(description__icontains='宗教') | Q(description__icontains='寺廟') |
+         Q(description__icontains='教堂') | Q(description__icontains='廟宇'))
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 表演相關活動
+    shows = list(Events.objects.filter(
+        base_query &
+        (Q(activity_name__icontains='表演') | Q(activity_name__icontains='音樂會') |
+         Q(activity_name__icontains='演唱會') | Q(activity_name__icontains='戲劇') |
+         Q(description__icontains='表演') | Q(description__icontains='音樂會') |
+         Q(description__icontains='演唱會') | Q(description__icontains='戲劇'))
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 藝術相關活動
+    arts = list(Events.objects.filter(
+        base_query &
+        (Q(activity_name__icontains='藝術') | Q(activity_name__icontains='展覽') |
+         Q(activity_name__icontains='畫展') | Q(activity_name__icontains='美術') |
+         Q(description__icontains='藝術') | Q(description__icontains='展覽') |
+         Q(description__icontains='畫展') | Q(description__icontains='美術'))
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 電影相關活動
+    cinemas = list(Events.objects.filter(
+        base_query &
+        (Q(activity_name__icontains='電影') | Q(activity_name__icontains='影展') |
+         Q(activity_name__icontains='放映') | Q(activity_name__icontains='院線') |
+         Q(description__icontains='電影') | Q(description__icontains='影展') |
+         Q(description__icontains='放映') | Q(description__icontains='院線'))
+    )[:limit].values('activity_name', 'description', 'address', 'start_date', 'end_date', 'location', 'ticket_price'))
+
+    # 處理日期時間格式化，方便前端使用
+    activity_collections = [
+        activities, ended_activities, today_only_activities, ending_soon_activities,
+        ongoing_activities, upcoming_activities, not_started_activities,
+        sports, religions, shows, arts, cinemas
+    ]
+
+    for items in activity_collections:
+        for item in items:
+            if item.get('start_date'):
+                item['start_date'] = item['start_date'].strftime('%Y-%m-%d %H:%M:%S')
+            if item.get('end_date'):
+                item['end_date'] = item['end_date'].strftime('%Y-%m-%d %H:%M:%S')
+
+    data = {
+        'activities': activities,
+        'ended_activities': ended_activities,
+        'today_only_activities': today_only_activities,
+        'ending_soon_activities': ending_soon_activities,
+        'ongoing_activities': ongoing_activities,
+        'upcoming_activities': upcoming_activities,
+        'not_started_activities': not_started_activities,
+        'sports': sports,
+        'religions': religions,
+        'shows': shows,
+        'arts': arts,
+        'cinemas': cinemas
+    }
+
+    return Response(data)

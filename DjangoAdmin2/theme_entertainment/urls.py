@@ -83,4 +83,7 @@ urlpatterns = [
     path('activities/<int:event_id>/edit/',
          views.edit_event,
          name='edit_event'),
+
+    # 智能客服 API 端點
+    path('api/entertainment-data-for-ai/', views.get_entertainment_data_for_ai, name='entertainment_data_for_ai'),
 ]

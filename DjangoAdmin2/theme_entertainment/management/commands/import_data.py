@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 import os
 import sys
 import mysql.connector
-import signal
+import time
 from datetime import datetime
 
 # 設定專案根目錄路徑
@@ -33,10 +33,9 @@ CONFIG = {
     }
 }
 
-# 整體逾時處理
-def timeout_handler(signum, frame):
-    """處理整體執行逾時的訊號處理函式"""
-    raise TimeoutError("整體執行時間逾時，程式已停止")
+class TimeoutError(Exception):
+    """自定義逾時錯誤"""
+    pass
 
 class Command(BaseCommand):
     help = '將JSON資料轉換為SQL並匯入MySQL資料庫'
@@ -69,12 +68,6 @@ class Command(BaseCommand):
         # 設定API逾時環境變數（必須在導入main模組前設定）
         os.environ['API_TIMEOUT'] = str(api_timeout)
 
-        # 設定整體逾時處理（如果啟用）
-        if overall_timeout > 0:
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(overall_timeout)
-            self.stdout.write(self.style.SUCCESS(f'設定整體執行逾時時間: {overall_timeout}秒'))
-
         self.stdout.write(self.style.SUCCESS('開始匯入資料...'))
         self.stdout.write(self.style.SUCCESS(f'設定API呼叫逾時時間: {api_timeout}秒'))
 
@@ -89,6 +82,9 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"events_data.json 已有 {events_count} 筆資料，跳過匯入。使用 --force 參數強制重新匯入。"))
                 return
 
+            # 記錄開始時間
+            start_time = time.time()
+
             # 1. 執行main()函式，從各API取得資料、轉換為JSON和SQL
             self.stdout.write(self.style.SUCCESS('執行主程式，從API取得最新資料...'))
             main_result = main()
@@ -96,6 +92,10 @@ class Command(BaseCommand):
             if not main_result:
                 self.stdout.write(self.style.ERROR('主程式執行失敗，未能取得或處理資料'))
                 return
+
+            # 檢查是否超過整體逾時時間
+            if overall_timeout > 0 and (time.time() - start_time) > overall_timeout:
+                raise TimeoutError(f"整體執行時間超過 {overall_timeout} 秒")
 
             # 2. 建立資料庫連線
             self.stdout.write(self.style.SUCCESS('正在連線至資料庫...'))
@@ -117,7 +117,3 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'匯入資料時發生錯誤: {str(e)}'))
             raise
-        finally:
-            # 清除逾時處理
-            if overall_timeout > 0:
-                signal.alarm(0)
