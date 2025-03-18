@@ -1,0 +1,244 @@
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8000/shop';
+
+export interface Product {
+  id: number
+  name: string
+  category: string
+  brand: string
+  price: string
+  description: string
+  stock: number
+  is_active: boolean
+  image_url: string
+  original_price?: string
+  discount?: number
+}
+
+export interface OrderItem {
+  id: number;
+  product_id: number | null;
+  product_name: string;
+  product_image: string;
+  quantity: number;
+  price: string;
+  subtotal: string;
+}
+
+export interface Order {
+  id: number;
+  order_number: string;
+  total_amount: string;
+  status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled';
+  status_display: string;
+  shipping_address: string;
+  contact_phone: string;
+  note?: string;
+  created_at: string;
+  updated_at: string;
+  items: OrderItem[];
+}
+
+export const ShoppingAPI = {
+  // 獲取所有商品
+  getAllProducts: async (): Promise<Product[]> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/products/`);
+      return response.data;
+    }
+    catch (error) {
+      console.error('獲取商品列表失敗:', error);
+      throw error;
+    }
+  },
+
+  // 獲取單個商品詳情
+  getProduct: async (id: number): Promise<Product> => {
+    try {
+      console.log('Calling API with ID:', id);
+      const response = await axios.get(`${API_BASE_URL}/api/products/${id}/`);
+      console.log('API Response:', response.data);
+      if (!response.data)
+        throw new Error('商品不存在');
+
+      return response.data;
+    }
+    catch (error) {
+      console.error('獲取商品詳情失敗:', error);
+      throw error;
+    }
+  },
+
+  // 獲取商品分類
+  getCategories: async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/categories/`);
+      return response.data;
+    }
+    catch (error) {
+      console.error('獲取商品分類失敗:', error);
+      throw error;
+    }
+  },
+
+  // 獲取用戶訂單
+  getUserOrders: async (): Promise<{
+    success: boolean;
+    orders: Order[];
+    pending_orders_count: number;
+    total_orders_count: number;
+    message?: string;
+  }> => {
+    try {
+      console.log('開始獲取用戶訂單...');
+      const token = localStorage.getItem('access_token');
+      console.log('使用的令牌:', token ? `${token.substring(0, 10)}...` : '未找到令牌');
+      
+      // 檢查用戶信息
+      const userInfo = localStorage.getItem('user');
+      console.log('用戶信息存在:', !!userInfo);
+      if (userInfo) {
+        try {
+          const userData = JSON.parse(userInfo);
+          console.log('用戶ID:', userData.id);
+          console.log('用戶名:', userData.username);
+        } catch (e) {
+          console.error('解析用戶信息失敗:', e);
+        }
+      }
+      
+      // 完整的API URL
+      const apiUrl = `${API_BASE_URL}/api/shopping/orders/user/`;
+      console.log('請求URL:', apiUrl);
+      
+      // 請求頭
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+      console.log('請求頭:', headers);
+      
+      console.log('發送API請求...');
+      const response = await axios.get(apiUrl, {
+        headers: headers
+      });
+      
+      console.log('訂單API響應狀態:', response.status);
+      console.log('訂單API響應頭:', response.headers);
+      console.log('訂單API響應數據:', response.data);
+      
+      if (response.data.success) {
+        console.log('成功獲取訂單數據');
+        console.log('訂單數量:', response.data.orders.length);
+        console.log('待處理訂單數量:', response.data.pending_orders_count);
+        console.log('總訂單數量:', response.data.total_orders_count);
+        
+        if (response.data.orders.length > 0) {
+          console.log('第一筆訂單示例:', {
+            訂單號: response.data.orders[0].order_number,
+            狀態: response.data.orders[0].status,
+            金額: response.data.orders[0].total_amount,
+            項目數量: response.data.orders[0].items.length
+          });
+        } else {
+          console.log('沒有訂單記錄');
+        }
+      } else {
+        console.error('API返回失敗:', response.data.message);
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('獲取用戶訂單失敗:', error);
+      
+      // 詳細記錄錯誤信息
+      if (error.response) {
+        // 服務器返回了錯誤狀態碼
+        console.error('錯誤響應狀態:', error.response.status);
+        console.error('錯誤響應頭:', error.response.headers);
+        console.error('錯誤響應數據:', error.response.data);
+        
+        if (error.response.status === 401) {
+          console.error('認證失敗，可能需要重新登入');
+        } else if (error.response.status === 403) {
+          console.error('權限不足，無法訪問訂單數據');
+        } else if (error.response.status === 404) {
+          console.error('訂單API不存在，請檢查URL');
+        } else if (error.response.status === 500) {
+          console.error('服務器內部錯誤');
+        }
+      } else if (error.request) {
+        // 請求已發送但沒有收到響應
+        console.error('沒有收到響應，請求詳情:', error.request);
+        console.error('後端服務可能未運行或網絡問題');
+      } else {
+        // 設置請求時發生錯誤
+        console.error('請求設置錯誤:', error.message);
+      }
+      
+      // 嘗試直接使用fetch API作為備用方案
+      try {
+        console.log('嘗試使用fetch API作為備用方案...');
+        const apiUrl = `${API_BASE_URL}/api/shopping/orders/user/`;
+        const token = localStorage.getItem('access_token');
+        
+        const fetchResponse = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Fetch響應狀態:', fetchResponse.status);
+        
+        if (fetchResponse.ok) {
+          const data = await fetchResponse.json();
+          console.log('Fetch響應數據:', data);
+          return data;
+        } else {
+          console.error('Fetch請求失敗:', fetchResponse.statusText);
+        }
+      } catch (fetchError) {
+        console.error('Fetch備用請求也失敗:', fetchError);
+      }
+      
+      // 返回一個錯誤響應
+      return {
+        success: false,
+        orders: [],
+        pending_orders_count: 0,
+        total_orders_count: 0,
+        message: error.response?.data?.message || error.message || '獲取訂單失敗'
+      };
+    }
+  },
+
+  // 創建訂單
+  createOrder: async (orderData: any): Promise<{
+    success: boolean;
+    order_id?: number;
+    order_number?: string;
+    message?: string;
+  }> => {
+    try {
+      console.log('開始創建訂單...');
+      const token = localStorage.getItem('access_token');
+      console.log('使用的令牌:', token);
+      console.log('訂單數據:', orderData);
+      
+      const response = await axios.post(`${API_BASE_URL}/api/shopping/orders/create/`, orderData, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('創建訂單API響應:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('創建訂單失敗:', error);
+      throw error;
+    }
+  }
+};

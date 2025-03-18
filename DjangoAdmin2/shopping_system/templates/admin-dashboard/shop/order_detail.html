@@ -1,0 +1,769 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+{% load shopping_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block styles %}
+<!-- 添加Sweet Alert獨立引用，確保可用 -->
+<link href="{% static 'css/plugins/sweetalert/sweetalert.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<!-- 添加全局CSRF令牌 -->
+{% csrf_token %}
+
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox">
+                <div class="ibox-title">
+                    <h5>訂單詳情</h5>
+                    <div class="ibox-tools">
+                        <a href="{% url 'shopping_system:order_list' %}" class="btn btn-white btn-sm">
+                            <i class="fa fa-arrow-left"></i> 返回訂單列表
+                        </a>
+                        <a href="#" class="btn btn-danger btn-sm delete-order" data-id="{{ order.id }}" data-number="{{ order.order_number }}">
+                            <i class="fa fa-ban"></i> 取消訂單
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="m-b-md">
+                                <table class="table table-bordered table-striped">
+                                    <tbody>
+                                        <tr>
+                                            <th class="text-right" style="width: 15%;">訂單編號</th>
+                                            <td style="width: 35%;">{{ order.order_number }}</td>
+                                            <th class="text-right" style="width: 15%;">會員</th>
+                                            <td style="width: 35%;">{{ order.user.username }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-right">訂單狀態</th>
+                                            <td>
+                                                <form id="status-form" style="display: flex; align-items: center;">
+                                                    {% csrf_token %}
+                                                    <div class="input-group" style="width: 200px;">
+                                                        <select name="status" class="form-control input-sm" id="status-select">
+                                                            <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>待付款</option>
+                                                            <option value="paid" {% if order.status == 'paid' %}selected{% endif %}>已付款</option>
+                                                            <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>已出貨</option>
+                                                            <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>已完成</option>
+                                                            <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                                                        </select>
+                                                        <span class="input-group-btn">
+                                                            <button type="button" id="update-status-btn" class="btn btn-primary btn-sm">
+                                                                <i class="fa fa-check"></i> 更新
+                                                            </button>
+                                                        </span>
+                                                    </div>
+                                                    <div class="m-l-sm">
+                                                        {% if order.status == 'pending' %}
+                                                        <span class="label label-warning">待付款</span>
+                                                        {% elif order.status == 'paid' %}
+                                                        <span class="label label-info">已付款</span>
+                                                        {% elif order.status == 'shipped' %}
+                                                        <span class="label label-primary">已出貨</span>
+                                                        {% elif order.status == 'completed' %}
+                                                        <span class="label label-success">已完成</span>
+                                                        {% elif order.status == 'cancelled' %}
+                                                        <span class="label label-danger">已取消</span>
+                                                        {% else %}
+                                                        <span class="label label-default">{{ order.status }}</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </form>
+                                            </td>
+                                            <th class="text-right">收件地址</th>
+                                            <td>
+                                                <div class="address-display-container">
+                                                    <span id="address-display">{{ order.shipping_address }}</span>
+                                                    <button type="button" id="edit-address-btn" class="btn btn-xs btn-primary m-l-sm">
+                                                        <i class="fa fa-edit"></i> 編輯
+                                                    </button>
+                                                </div>
+                                                <div class="address-edit-container" style="display: none;">
+                                                    <div class="input-group">
+                                                        <input type="text" id="address-input" class="form-control" value="{{ order.shipping_address }}">
+                                                        <span class="input-group-btn">
+                                                            <button type="button" id="save-address-btn" class="btn btn-primary btn-sm">
+                                                                <i class="fa fa-check"></i> 保存
+                                                            </button>
+                                                            <button type="button" id="cancel-address-btn" class="btn btn-white btn-sm">
+                                                                <i class="fa fa-times"></i> 取消
+                                                            </button>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-right">訂單金額</th>
+                                            <td>NT$ {{ order.total_amount|floatformat:"0" }}</td>
+                                            <th class="text-right">聯絡電話</th>
+                                            <td>
+                                                <div class="phone-display-container">
+                                                    <span id="phone-display">{{ order.contact_phone }}</span>
+                                                    <button type="button" id="edit-phone-btn" class="btn btn-xs btn-primary m-l-sm">
+                                                        <i class="fa fa-edit"></i> 編輯
+                                                    </button>
+                                                </div>
+                                                <div class="phone-edit-container" style="display: none;">
+                                                    <div class="input-group">
+                                                        <input type="text" id="phone-input" class="form-control" value="{{ order.contact_phone }}">
+                                                        <span class="input-group-btn">
+                                                            <button type="button" id="save-phone-btn" class="btn btn-primary btn-sm">
+                                                                <i class="fa fa-check"></i> 保存
+                                                            </button>
+                                                            <button type="button" id="cancel-phone-btn" class="btn btn-white btn-sm">
+                                                                <i class="fa fa-times"></i> 取消
+                                                            </button>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-right">建立時間</th>
+                                            <td>{{ order.created_at|date:"Y-m-d H:i:s" }}</td>
+                                            <th class="text-right">訂單備註</th>
+                                            <td>
+                                                <div class="note-display-container">
+                                                    <span id="note-display">{{ order.note|default:"無" }}</span>
+                                                    <button type="button" id="edit-note-btn" class="btn btn-xs btn-primary m-l-sm">
+                                                        <i class="fa fa-edit"></i> 編輯
+                                                    </button>
+                                                </div>
+                                                <div class="note-edit-container" style="display: none;">
+                                                    <div class="input-group">
+                                                        <textarea id="note-input" class="form-control" rows="3">{{ order.note }}</textarea>
+                                                        <span class="input-group-btn" style="vertical-align: top;">
+                                                            <button type="button" id="save-note-btn" class="btn btn-primary btn-sm">
+                                                                <i class="fa fa-check"></i> 保存
+                                                            </button>
+                                                            <button type="button" id="cancel-note-btn" class="btn btn-white btn-sm">
+                                                                <i class="fa fa-times"></i> 取消
+                                                            </button>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-right">更新時間</th>
+                                            <td>{{ order.updated_at|date:"Y-m-d H:i:s" }}</td>
+                                            <td colspan="2"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row m-t-lg">
+                        <div class="col-lg-12">
+                            <div class="panel panel-default">
+                                <div class="panel-heading" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h5 style="margin: 0;">訂單項目</h5>
+                                    <a href="{% url 'shopping_system:order_item_add' order.id %}" class="btn btn-primary btn-sm">
+                                        <i class="fa fa-plus"></i> 添加商品
+                                    </a>
+                                </div>
+                                <div class="panel-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>商品圖片</th>
+                                                    <th>商品名稱</th>
+                                                    <th>單價</th>
+                                                    <th>數量</th>
+                                                    <th>小計</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for item in order_items %}
+                                                <tr id="item-row-{{ item.id }}">
+                                                    <td>
+                                                        {% if item.product %}
+                                                        <img src="{{ item.product.get_image_url }}" alt="{{ item.product.name }}" class="img-thumbnail" style="max-width: 50px;">
+                                                        {% else %}
+                                                        <img src="{% static 'img/no-image.jpg' %}" alt="商品已刪除" class="img-thumbnail" style="max-width: 50px;">
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if item.product %}
+                                                        <a href="{% url 'shopping_system:product_detail' item.product.id %}">{{ item.product.name }}</a>
+                                                        {% else %}
+                                                        <span class="text-muted">商品已刪除</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="item-price-display">NT$ {{ item.price|floatformat:"0" }}</td>
+                                                    <td class="item-quantity-display">{{ item.quantity }}</td>
+                                                    <td class="item-subtotal">NT$ {{ item.price|floatformat:"0"|multiply:item.quantity }}</td>
+                                                    <td>
+                                                        <button type="button" class="btn btn-xs btn-primary edit-item-btn" data-item-id="{{ item.id }}" data-price="{{ item.price }}" data-quantity="{{ item.quantity }}">
+                                                            <i class="fa fa-edit"></i> 編輯
+                                                        </button>
+                                                        <button type="button" class="btn btn-xs btn-success save-item-btn" data-item-id="{{ item.id }}" style="display: none;">
+                                                            <i class="fa fa-check"></i> 保存
+                                                        </button>
+                                                        <button type="button" class="btn btn-xs btn-white cancel-item-edit-btn" data-item-id="{{ item.id }}" style="display: none;">
+                                                            <i class="fa fa-times"></i> 取消
+                                                        </button>
+                                                        <a href="#" class="btn btn-xs btn-danger delete-item" data-order-id="{{ order.id }}" data-item-id="{{ item.id }}" data-product-name="{% if item.product %}{{ item.product.name }}{% else %}已刪除商品{% endif %}">
+                                                            <i class="fa fa-trash"></i> 刪除
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                <tr id="item-edit-row-{{ item.id }}" class="item-edit-row" style="display: none;">
+                                                    <td colspan="6">
+                                                        <form class="form-inline item-edit-form" data-item-id="{{ item.id }}">
+                                                            <div class="form-group m-r-sm">
+                                                                <label class="control-label m-r-xs">單價:</label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-addon">NT$</span>
+                                                                    <input type="number" name="price" class="form-control item-price-input" value="{{ item.price|floatformat:'0' }}" min="0" step="1" required style="width: 100px;">
+                                                                </div>
+                                                            </div>
+                                                            <div class="form-group m-r-sm">
+                                                                <label class="control-label m-r-xs">數量:</label>
+                                                                <input type="number" name="quantity" class="form-control item-quantity-input" value="{{ item.quantity }}" min="1" required style="width: 80px;">
+                                                            </div>
+                                                            <div class="form-group m-r-sm">
+                                                                <label class="control-label m-r-xs">小計:</label>
+                                                                <span class="form-control-static item-edit-subtotal">NT$ {{ item.price|floatformat:"0"|multiply:item.quantity }}</span>
+                                                            </div>
+                                                            {% if item.product %}
+                                                            <div class="form-group">
+                                                                <span class="help-block">商品目前售價: NT$ {{ item.product.price|floatformat:"0" }}</span>
+                                                            </div>
+                                                            {% endif %}
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                    <td colspan="6" class="text-center">此訂單沒有商品項目</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <td colspan="4" class="text-right"><strong>總計</strong></td>
+                                                    <td><strong id="order-total">NT$ {{ order.total_amount|floatformat:"0" }}</strong></td>
+                                                    <td></td>
+                                                </tr>
+                                                {% if items_total != order.total_amount %}
+                                                <tr class="danger">
+                                                    <td colspan="6" class="text-center">
+                                                        <div class="alert alert-warning">
+                                                            <i class="fa fa-exclamation-triangle"></i> 警告：訂單項目總金額 (NT$ {{ items_total|floatformat:"0" }}) 與訂單總金額 (NT$ {{ order.total_amount|floatformat:"0" }}) 不一致！
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+
+<!-- 獨立載入SweetAlert以防在基礎模板中未正確加載 -->
+<script src="{% static 'js/plugins/sweetalert/sweetalert.min.js' %}"></script>
+
+<script>
+    console.log('訂單詳情頁面腳本開始載入...');
+    
+    // 確認SweetAlert是否可用
+    if (typeof swal === 'undefined') {
+        console.error('SweetAlert未定義！嘗試從CDN加載...');
+        // 如果本地SweetAlert未加載，嘗試從CDN加載
+        var sweetalertScript = document.createElement('script');
+        sweetalertScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js';
+        document.head.appendChild(sweetalertScript);
+        
+        var sweetalertCSS = document.createElement('link');
+        sweetalertCSS.rel = 'stylesheet';
+        sweetalertCSS.href = 'https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.css';
+        document.head.appendChild(sweetalertCSS);
+        
+        console.log('SweetAlert已從CDN加載');
+    } else {
+        console.log('SweetAlert已正確加載');
+    }
+    
+    $(document).ready(function() {
+        console.log('訂單詳情頁面文檔已準備就緒');
+        
+        // 綁定訂單取消事件
+        bindOrderCancelEvent();
+        
+        function bindOrderCancelEvent() {
+            console.log('開始綁定訂單取消事件');
+            
+            // 解綁之前的事件以避免重複
+            $(document).off('click', '.delete-order');
+            
+            // 使用document事件委派
+            $(document).on('click', '.delete-order', function(e) {
+                console.log('取消訂單按鈕被點擊');
+                e.preventDefault();
+                
+                var orderId = $(this).data('id');
+                var orderNumber = $(this).data('number');
+                
+                console.log('訂單ID:', orderId, '訂單編號:', orderNumber);
+                
+                if (typeof swal === 'undefined') {
+                    console.error('SweetAlert未定義，使用標準確認框');
+                    if (confirm('您確定要取消訂單 ' + orderNumber + ' 嗎？訂單狀態將改為「已取消」！')) {
+                        console.log('用戶確認取消訂單，準備跳轉');
+                        window.location.href = "{% url 'shopping_system:order_delete' order.id %}";
+                    }
+                } else {
+                    console.log('使用SweetAlert顯示確認框');
+                    swal({
+                        title: "確認取消訂單？",
+                        text: "您確定要取消訂單 " + orderNumber + " 嗎？訂單狀態將改為「已取消」！",
+                        type: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#DD6B55",
+                        confirmButtonText: "確認取消",
+                        cancelButtonText: "返回",
+                        closeOnConfirm: false,
+                        closeOnCancel: true
+                    }, function(isConfirm) {
+                        if (isConfirm) {
+                            console.log('用戶確認取消訂單，準備跳轉');
+                            window.location.href = "{% url 'shopping_system:order_delete' order.id %}";
+                        }
+                    });
+                }
+            });
+            
+            console.log('訂單取消事件綁定完成');
+        }
+        
+        // 添加延遲綁定作為備份
+        setTimeout(function() {
+            console.log('延遲500ms後再次綁定事件');
+            bindOrderCancelEvent();
+        }, 500);
+        
+        // 添加額外延遲綁定作為第二備份
+        setTimeout(function() {
+            console.log('延遲2000ms後最終綁定事件');
+            bindOrderCancelEvent();
+        }, 2000);
+        
+        // 更新訂單狀態按鈕點擊事件
+        $('#update-status-btn').click(function() {
+            try {
+                console.log('更新按鈕被點擊 - 執行開始');
+                var newStatus = $('#status-select').val();
+                var statusText = $('#status-select option:selected').text();
+                var currentStatus = '{{ order.status }}';
+                var csrfToken = $('input[name="csrfmiddlewaretoken"]').val();
+                
+                console.log('狀態值:', {newStatus, statusText, currentStatus, csrfToken});
+                
+                // 如果狀態沒有變化，則不提交
+                if (newStatus === currentStatus) {
+                    alert("訂單狀態沒有變化");
+                    return false;
+                }
+                
+                // 確認對話框
+                if (!confirm("您確定要將訂單狀態修改為「" + statusText + "」嗎？")) {
+                    return false;
+                }
+                
+                // 禁用按鈕，防止重複提交
+                $('#update-status-btn').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 處理中...');
+                
+                // 直接使用jQuery的AJAX功能
+                $.ajax({
+                    url: '/shop/admin-dashboard/shop/orders/{{ order.id }}/update-status/',
+                    type: 'POST',
+                    data: {
+                        'status': newStatus,
+                        'csrfmiddlewaretoken': csrfToken
+                    },
+                    success: function(response) {
+                        console.log('AJAX請求成功', response);
+                        
+                        if (response.success) {
+                            // 更新頁面顯示
+                            var labelClass = '';
+                            if (newStatus === 'pending') labelClass = 'label-warning';
+                            else if (newStatus === 'paid') labelClass = 'label-info';
+                            else if (newStatus === 'shipped') labelClass = 'label-primary';
+                            else if (newStatus === 'completed') labelClass = 'label-success';
+                            else if (newStatus === 'cancelled') labelClass = 'label-danger';
+                            else labelClass = 'label-default';
+                            
+                            $('#status-form .label').removeClass().addClass('label ' + labelClass).text(statusText);
+                            
+                            alert("更新成功：訂單狀態已更新為「" + statusText + "」");
+                            // 重新載入頁面確保一切正常
+                            location.reload();
+                        } else {
+                            alert("更新失敗：" + (response.message || "更新訂單狀態時發生錯誤"));
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('AJAX請求失敗', {xhr, status, error});
+                        alert("更新失敗：" + error);
+                    },
+                    complete: function() {
+                        // 恢復按鈕狀態
+                        $('#update-status-btn').prop('disabled', false).html('<i class="fa fa-check"></i> 更新');
+                    }
+                });
+            } catch (e) {
+                console.error('更新狀態過程中發生錯誤:', e);
+                alert('更新過程發生錯誤: ' + e.message);
+                $('#update-status-btn').prop('disabled', false).html('<i class="fa fa-check"></i> 更新');
+            }
+        });
+        
+        // 編輯收件地址
+        $('#edit-address-btn').click(function() {
+            $('.address-display-container').hide();
+            $('.address-edit-container').show();
+        });
+        
+        // 取消編輯收件地址
+        $('#cancel-address-btn').click(function() {
+            $('.address-edit-container').hide();
+            $('.address-display-container').show();
+            // 重置輸入框的值為原始值
+            $('#address-input').val($('#address-display').text());
+        });
+        
+        // 保存收件地址
+        $('#save-address-btn').click(function() {
+            var newAddress = $('#address-input').val().trim();
+            
+            // 檢查地址是否為空
+            if (!newAddress) {
+                swal("錯誤", "收件地址不能為空", "error");
+                return;
+            }
+            
+            // 顯示加載指示器
+            swal({
+                title: "處理中...",
+                text: "正在更新收件地址",
+                type: "info",
+                showConfirmButton: false
+            });
+            
+            // 發送AJAX請求更新收件地址
+            $.ajax({
+                url: '{% url "shopping_system:order_update_address" order.id %}',
+                type: 'POST',
+                data: {
+                    'shipping_address': newAddress,
+                    'csrfmiddlewaretoken': $('input[name="csrfmiddlewaretoken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // 更新顯示
+                        $('#address-display').text(newAddress);
+                        $('.address-edit-container').hide();
+                        $('.address-display-container').show();
+                        
+                        swal("更新成功", "收件地址已成功更新", "success");
+                    } else {
+                        swal("更新失敗", response.message || "更新收件地址時發生錯誤", "error");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    var errorMessage = "更新收件地址時發生錯誤";
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        console.error("解析錯誤響應失敗", e);
+                    }
+                    swal("更新失敗", errorMessage, "error");
+                }
+            });
+        });
+        
+        // 編輯聯絡電話
+        $('#edit-phone-btn').click(function() {
+            $('.phone-display-container').hide();
+            $('.phone-edit-container').show();
+        });
+        
+        // 取消編輯聯絡電話
+        $('#cancel-phone-btn').click(function() {
+            $('.phone-edit-container').hide();
+            $('.phone-display-container').show();
+            // 重置輸入框的值為原始值
+            $('#phone-input').val($('#phone-display').text());
+        });
+        
+        // 保存聯絡電話
+        $('#save-phone-btn').click(function() {
+            var newPhone = $('#phone-input').val().trim();
+            
+            // 檢查電話是否為空
+            if (!newPhone) {
+                swal("錯誤", "聯絡電話不能為空", "error");
+                return;
+            }
+            
+            // 顯示加載指示器
+            swal({
+                title: "處理中...",
+                text: "正在更新聯絡電話",
+                type: "info",
+                showConfirmButton: false
+            });
+            
+            // 發送AJAX請求更新聯絡電話
+            $.ajax({
+                url: '{% url "shopping_system:order_update_phone" order.id %}',
+                type: 'POST',
+                data: {
+                    'contact_phone': newPhone,
+                    'csrfmiddlewaretoken': $('input[name="csrfmiddlewaretoken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // 更新顯示
+                        $('#phone-display').text(newPhone);
+                        $('.phone-edit-container').hide();
+                        $('.phone-display-container').show();
+                        
+                        swal("更新成功", "聯絡電話已成功更新", "success");
+                    } else {
+                        swal("更新失敗", response.message || "更新聯絡電話時發生錯誤", "error");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    var errorMessage = "更新聯絡電話時發生錯誤";
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        console.error("解析錯誤響應失敗", e);
+                    }
+                    swal("更新失敗", errorMessage, "error");
+                }
+            });
+        });
+        
+        // 編輯訂單備註
+        $('#edit-note-btn').click(function() {
+            $('.note-display-container').hide();
+            $('.note-edit-container').show();
+        });
+        
+        // 取消編輯訂單備註
+        $('#cancel-note-btn').click(function() {
+            $('.note-edit-container').hide();
+            $('.note-display-container').show();
+            // 重置輸入框的值為原始值
+            var originalNote = $('#note-display').text();
+            if (originalNote === '無') {
+                $('#note-input').val('');
+            } else {
+                $('#note-input').val(originalNote);
+            }
+        });
+        
+        // 保存訂單備註
+        $('#save-note-btn').click(function() {
+            var newNote = $('#note-input').val().trim();
+            
+            // 顯示加載指示器
+            swal({
+                title: "處理中...",
+                text: "正在更新訂單備註",
+                type: "info",
+                showConfirmButton: false
+            });
+            
+            // 發送AJAX請求更新訂單備註
+            $.ajax({
+                url: '{% url "shopping_system:order_update_note" order.id %}',
+                type: 'POST',
+                data: {
+                    'note': newNote,
+                    'csrfmiddlewaretoken': $('input[name="csrfmiddlewaretoken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // 更新顯示
+                        $('#note-display').text(response.note);
+                        $('.note-edit-container').hide();
+                        $('.note-display-container').show();
+                        
+                        swal("更新成功", "訂單備註已成功更新", "success");
+                    } else {
+                        swal("更新失敗", response.message || "更新訂單備註時發生錯誤", "error");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    var errorMessage = "更新訂單備註時發生錯誤";
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        console.error("解析錯誤響應失敗", e);
+                    }
+                    swal("更新失敗", errorMessage, "error");
+                }
+            });
+        });
+        
+        // 編輯訂單項目
+        $('.edit-item-btn').click(function() {
+            var itemId = $(this).data('item-id');
+            $('#item-row-' + itemId).hide();
+            $('#item-edit-row-' + itemId).show();
+            $(this).hide();
+            $('.save-item-btn[data-item-id="' + itemId + '"], .cancel-item-edit-btn[data-item-id="' + itemId + '"]').show();
+        });
+        
+        // 取消編輯訂單項目
+        $('.cancel-item-edit-btn').click(function() {
+            var itemId = $(this).data('item-id');
+            $('#item-row-' + itemId).show();
+            $('#item-edit-row-' + itemId).hide();
+            $(this).hide();
+            $('.save-item-btn[data-item-id="' + itemId + '"]').hide();
+            $('.edit-item-btn[data-item-id="' + itemId + '"]').show();
+        });
+        
+        // 自動計算小計
+        $('.item-price-input, .item-quantity-input').on('input', function() {
+            var row = $(this).closest('.item-edit-form');
+            var price = parseFloat(row.find('.item-price-input').val()) || 0;
+            var quantity = parseInt(row.find('.item-quantity-input').val()) || 0;
+            var subtotal = price * quantity;
+            row.find('.item-edit-subtotal').text('NT$ ' + subtotal.toFixed(0));
+        });
+        
+        // 保存訂單項目編輯
+        $('.save-item-btn').click(function() {
+            var itemId = $(this).data('item-id');
+            var form = $('.item-edit-form[data-item-id="' + itemId + '"]');
+            var price = form.find('.item-price-input').val();
+            var quantity = form.find('.item-quantity-input').val();
+            var orderId = {{ order.id }};
+            
+            // 顯示加載指示器
+            swal({
+                title: "處理中...",
+                text: "正在更新訂單項目",
+                type: "info",
+                showConfirmButton: false
+            });
+            
+            // 發送AJAX請求更新訂單項目
+            $.ajax({
+                url: '{% url "shopping_system:order_item_edit_ajax" order.id 0 %}'.replace('/0/', '/' + itemId + '/'),
+                type: 'POST',
+                data: {
+                    'price': price,
+                    'quantity': quantity,
+                    'csrfmiddlewaretoken': $('input[name="csrfmiddlewaretoken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // 更新顯示
+                        $('#item-row-' + itemId + ' .item-price-display').text('NT$ ' + parseFloat(price).toFixed(0));
+                        $('#item-row-' + itemId + ' .item-quantity-display').text(quantity);
+                        $('#item-row-' + itemId + ' .item-subtotal').text('NT$ ' + (parseFloat(price) * parseInt(quantity)).toFixed(0));
+                        
+                        // 更新訂單總金額
+                        $('#order-total').text('NT$ ' + parseFloat(response.order_total).toFixed(0));
+                        
+                        // 隱藏編輯行，顯示數據行
+                        $('#item-row-' + itemId).show();
+                        $('#item-edit-row-' + itemId).hide();
+                        $('.save-item-btn[data-item-id="' + itemId + '"], .cancel-item-edit-btn[data-item-id="' + itemId + '"]').hide();
+                        $('.edit-item-btn[data-item-id="' + itemId + '"]').show();
+                        
+                        swal("更新成功", "訂單項目已成功更新", "success");
+                    } else {
+                        swal("更新失敗", response.message, "error");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    var errorMessage = "更新訂單項目時發生錯誤";
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        console.error("解析錯誤響應失敗", e);
+                    }
+                    swal("更新失敗", errorMessage, "error");
+                }
+            });
+        });
+        
+        // 刪除訂單項目確認
+        $('.delete-item').click(function(e) {
+            e.preventDefault();
+            var orderId = $(this).data('order-id');
+            var itemId = $(this).data('item-id');
+            var productName = $(this).data('product-name');
+            
+            swal({
+                title: "確認刪除訂單項目？",
+                text: "您確定要刪除商品「" + productName + "」嗎？此操作不可恢復！",
+                type: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#DD6B55",
+                confirmButtonText: "確認刪除",
+                cancelButtonText: "取消",
+                closeOnConfirm: false,
+                closeOnCancel: true
+            }, function(isConfirm) {
+                if (isConfirm) {
+                    // 跳轉到刪除URL
+                    window.location.href = "{% url 'shopping_system:order_item_delete' order.id 0 %}".replace('/0/', '/' + itemId + '/');
+                }
+            });
+        });
+    });
+    
+    // 添加全局錯誤處理
+    window.onerror = function(message, source, lineno, colno, error) {
+        console.error('全局錯誤:', message, 'at', source, ':', lineno, ':', colno);
+        console.error('錯誤對象:', error);
+        return false;
+    };
+    
+    console.log('訂單詳情頁面腳本載入完成');
+</script>
+{% endblock %} 

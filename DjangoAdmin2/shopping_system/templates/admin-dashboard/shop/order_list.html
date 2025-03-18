@@ -1,0 +1,330 @@
+{% extends 'admin-dashboard/base.html' %}
+{% load static %}
+
+{% block title %}訂單列表{% endblock %}
+
+{% block styles %}
+<!-- 添加Sweet Alert獨立引用，確保可用 -->
+<link href="{% static 'css/plugins/sweetalert/sweetalert.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <!-- 訂單統計卡片 -->
+        <div class="col-lg-12">
+            <div class="row">
+                <div class="col-lg-2">
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <span class="label label-primary pull-right">總計</span>
+                            <h5>全部訂單</h5>
+                        </div>
+                        <div class="ibox-content">
+                            <h1 class="no-margins">{{ status_counts.total }}</h1>
+                            <small>訂單總數</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <span class="label label-warning pull-right">待處理</span>
+                            <h5>待付款</h5>
+                        </div>
+                        <div class="ibox-content">
+                            <h1 class="no-margins">{{ status_counts.pending }}</h1>
+                            <small>筆訂單</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <span class="label label-info pull-right">處理中</span>
+                            <h5>已付款</h5>
+                        </div>
+                        <div class="ibox-content">
+                            <h1 class="no-margins">{{ status_counts.paid }}</h1>
+                            <small>筆訂單</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <span class="label label-info pull-right">處理中</span>
+                            <h5>已出貨</h5>
+                        </div>
+                        <div class="ibox-content">
+                            <h1 class="no-margins">{{ status_counts.shipped }}</h1>
+                            <small>筆訂單</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <span class="label label-success pull-right">已完成</span>
+                            <h5>已完成</h5>
+                        </div>
+                        <div class="ibox-content">
+                            <h1 class="no-margins">{{ status_counts.completed }}</h1>
+                            <small>筆訂單</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <span class="label label-danger pull-right">已取消</span>
+                            <h5>已取消</h5>
+                        </div>
+                        <div class="ibox-content">
+                            <h1 class="no-margins">{{ status_counts.cancelled }}</h1>
+                            <small>筆訂單</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>訂單列表</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>訂單編號</th>
+                                    <th>會員</th>
+                                    <th>訂單金額</th>
+                                    <th>訂單狀態</th>
+                                    <th>收件人</th>
+                                    <th>聯絡電話</th>
+                                    <th>建立時間</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                <tr>
+                                    <td>{{ order.order_number }}</td>
+                                    <td>{{ order.user.username }}</td>
+                                    <td>NT$ {{ order.total_amount|floatformat:"0" }}</td>
+                                    <td>
+                                        {% if order.status == 'pending' %}
+                                        <span class="label label-warning">待付款</span>
+                                        {% elif order.status == 'paid' %}
+                                        <span class="label label-info">已付款</span>
+                                        {% elif order.status == 'shipped' %}
+                                        <span class="label label-primary">已出貨</span>
+                                        {% elif order.status == 'completed' %}
+                                        <span class="label label-success">已完成</span>
+                                        {% elif order.status == 'cancelled' %}
+                                        <span class="label label-danger">已取消</span>
+                                        {% else %}
+                                        <span class="label label-default">{{ order.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ order.shipping_address|truncatechars:15 }}</td>
+                                    <td>{{ order.contact_phone }}</td>
+                                    <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'shopping_system:order_detail' order.id %}" class="btn btn-white btn-xs">
+                                            <i class="fa fa-eye"></i> 查看
+                                        </a>
+                                        <a href="{% url 'shopping_system:order_delete' order.id %}" class="btn btn-danger btn-xs">
+                                            <i class="fa fa-ban"></i> 取消
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">暫無訂單</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+
+<!-- 獨立載入SweetAlert以防在基礎模板中未正確加載 -->
+<script src="{% static 'js/plugins/sweetalert/sweetalert.min.js' %}"></script>
+
+<script>
+    console.log('訂單列表頁面腳本開始載入...');
+    
+    // 確認SweetAlert是否可用
+    if (typeof swal === 'undefined') {
+        console.error('SweetAlert未定義！嘗試從CDN加載...');
+        // 如果本地SweetAlert未加載，嘗試從CDN加載
+        var sweetalertScript = document.createElement('script');
+        sweetalertScript.src = 'https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js';
+        document.head.appendChild(sweetalertScript);
+        
+        var sweetalertCSS = document.createElement('link');
+        sweetalertCSS.rel = 'stylesheet';
+        sweetalertCSS.href = 'https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.css';
+        document.head.appendChild(sweetalertCSS);
+        
+        console.log('SweetAlert已從CDN加載');
+    } else {
+        console.log('SweetAlert已正確加載');
+    }
+    
+    // 確保DOM完全加載後再執行
+    $(document).ready(function() {
+        console.log('文檔已準備就緒，初始化DataTable...');
+        
+        // 初始化DataTable
+        try {
+            var table = $('.table').DataTable({
+                pageLength: 25,
+                responsive: true,
+                dom: '<"html5buttons"B>lTfgitp',
+                buttons: [
+                    {extend: 'copy'},
+                    {extend: 'csv'},
+                    {extend: 'excel', title: '訂單列表'},
+                    {extend: 'pdf', title: '訂單列表'},
+                    {extend: 'print',
+                        customize: function (win){
+                            $(win.document.body).addClass('white-bg');
+                            $(win.document.body).css('font-size', '10px');
+                            $(win.document.body).find('table')
+                                    .addClass('compact')
+                                    .css('font-size', 'inherit');
+                        }
+                    }
+                ],
+                language: {
+                    "sProcessing": "處理中...",
+                    "sLengthMenu": "顯示 _MENU_ 項結果",
+                    "sZeroRecords": "沒有匹配結果",
+                    "sInfo": "顯示第 _START_ 至 _END_ 項結果，共 _TOTAL_ 項",
+                    "sInfoEmpty": "顯示第 0 至 0 項結果，共 0 項",
+                    "sInfoFiltered": "(由 _MAX_ 項結果過濾)",
+                    "sInfoPostFix": "",
+                    "sSearch": "搜索:",
+                    "sUrl": "",
+                    "sEmptyTable": "表中數據為空",
+                    "sLoadingRecords": "載入中...",
+                    "sInfoThousands": ",",
+                    "oPaginate": {
+                        "sFirst": "首頁",
+                        "sPrevious": "上頁",
+                        "sNext": "下頁",
+                        "sLast": "末頁"
+                    }
+                },
+                // 初始化完成回調
+                initComplete: function() {
+                    console.log('DataTable初始化完成');
+                    bindCancelOrderEvents();
+                }
+            });
+            console.log('DataTable初始化成功');
+        } catch (err) {
+            console.error('DataTable初始化失敗:', err);
+        }
+        
+        // 綁定取消訂單事件
+        function bindCancelOrderEvents() {
+            console.log('開始綁定取消訂單事件');
+            
+            // 清除任何現有綁定，防止重複
+            $(document).off('click', '.delete-order');
+            
+            // 使用document事件委派
+            $(document).on('click', '.delete-order', function(e) {
+                console.log('取消訂單按鈕被點擊');
+                e.preventDefault();
+                
+                var orderId = $(this).data('id');
+                var orderNumber = $(this).data('number');
+                
+                console.log('訂單ID:', orderId, '訂單編號:', orderNumber);
+                
+                // 直接跳轉測試
+                var deleteUrl = "/shop/admin-dashboard/shop/orders/" + orderId + "/delete/";
+                console.log('嘗試直接跳轉到:', deleteUrl);
+                
+                try {
+                    window.location.href = deleteUrl;
+                    return; // 直接跳轉，不使用SweetAlert
+                } catch (err) {
+                    console.error('跳轉失敗:', err);
+                    alert('跳轉失敗，請查看控制台');
+                }
+                
+                // 以下代碼不會執行（因為上面直接return）
+                if (typeof swal === 'undefined') {
+                    console.error('SweetAlert未定義，使用標準確認框');
+                    if (confirm('您確定要取消訂單 ' + orderNumber + ' 嗎？訂單狀態將改為「已取消」！')) {
+                        console.log('用戶確認取消訂單，準備跳轉');
+                        window.location.href = "/shop/admin-dashboard/shop/orders/" + orderId + "/delete/";
+                    }
+                } else {
+                    console.log('使用SweetAlert顯示確認框');
+                    swal({
+                        title: "確認取消訂單？",
+                        text: "您確定要取消訂單 " + orderNumber + " 嗎？訂單狀態將改為「已取消」！",
+                        type: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#DD6B55",
+                        confirmButtonText: "確認取消",
+                        cancelButtonText: "返回",
+                        closeOnConfirm: false,
+                        closeOnCancel: true
+                    }, function(isConfirm) {
+                        if (isConfirm) {
+                            console.log('用戶確認取消訂單，準備跳轉');
+                            window.location.href = "/shop/admin-dashboard/shop/orders/" + orderId + "/delete/";
+                        }
+                    });
+                }
+            });
+            
+            console.log('取消訂單事件綁定完成');
+        }
+        
+        // 在DOM加載完成後直接嘗試綁定
+        bindCancelOrderEvents();
+        
+        // 添加延遲綁定作為備份
+        setTimeout(function() {
+            console.log('延遲500ms後再次綁定事件');
+            bindCancelOrderEvents();
+        }, 500);
+        
+        // 添加額外延遲綁定作為第二備份
+        setTimeout(function() {
+            console.log('延遲2000ms後最終綁定事件');
+            bindCancelOrderEvents();
+        }, 2000);
+    });
+    
+    // 添加全局錯誤處理
+    window.onerror = function(message, source, lineno, colno, error) {
+        console.error('全局錯誤:', message, 'at', source, ':', lineno, ':', colno);
+        console.error('錯誤對象:', error);
+        return false;
+    };
+    
+    console.log('訂單列表頁面腳本載入完成');
+</script>
+{% endblock %} 
