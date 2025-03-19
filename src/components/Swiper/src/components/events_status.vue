@@ -318,33 +318,8 @@ const nextActivity = (category: string): void => {
  */
 const fetchAndCategorizeActivities = async (): Promise<void> => {
     try {
-        // 檢查localStorage是否有暫存的分類活動數據
-        const cachedData = localStorage.getItem('categorizedActivities');
-        const cachedTimestamp = localStorage.getItem('categorizedActivitiesTimestamp');
-
-        // 如果有暫存數據且未過期（設置為1小時有效期）
-        if (cachedData && cachedTimestamp) {
-            const currentTime = new Date().getTime();
-            const cacheTime = parseInt(cachedTimestamp);
-
-            // 檢查暫存是否在有效期內（1小時）
-            if (currentTime - cacheTime < 3600000) {
-                console.log('使用暫存的分類活動數據');
-                categorizedActivities.value = JSON.parse(cachedData);
-                return;
-            }
-        }
-
-        // 從localStorage獲取活動數據
-        let activities: Activity[] = [];
-        const activitiesData = localStorage.getItem('activitiesData');
-
-        if (activitiesData) {
-            activities = JSON.parse(activitiesData);
-        } else {
-            // 如果localStorage沒有活動數據，從本地JSON或API獲取
-            activities = await fetchActivitiesData();
-        }
+        // 直接從API或本地JSON檔案獲取活動數據
+        const activities = await fetchActivitiesData();
 
         // 對活動進行分類
         const categorized = categorizeActivities(activities);
@@ -364,30 +339,22 @@ const fetchAndCategorizeActivities = async (): Promise<void> => {
  */
 const fetchActivitiesData = async (): Promise<Activity[]> => {
     try {
-        // 先嘗試從本地JSON獲取
-        const response = await import('@/assets/theme_entertainment/events_data.json');
-        const activities = response.default;
+        // 優先嘗試從API獲取
+        const apiResponse = await axios.get('/theme_entertainment/activities/api/list/');
+        const apiActivities = apiResponse.data.data || apiResponse.data;
+        console.log('成功從API獲取活動資料');
+        return apiActivities;
+    } catch (apiError) {
+        console.error('從API獲取活動錯誤:', apiError);
 
-        // 將數據存入localStorage
-        localStorage.setItem('activitiesData', JSON.stringify(activities));
-        localStorage.setItem('activitiesDataTimestamp', new Date().getTime().toString());
-
-        return activities;
-    } catch (jsonError) {
-        console.error('從本地JSON獲取活動錯誤:', jsonError);
-
-        // 嘗試從API獲取
+        // API獲取失敗時，嘗試從本地JSON獲取
         try {
-            const apiResponse = await axios.get('/theme_entertainment/activities/api/list/');
-            const apiActivities = apiResponse.data.data || apiResponse.data;
-
-            // 將API數據存入localStorage
-            localStorage.setItem('activitiesData', JSON.stringify(apiActivities));
-            localStorage.setItem('activitiesDataTimestamp', new Date().getTime().toString());
-
-            return apiActivities;
-        } catch (apiError) {
-            console.error('從API獲取活動錯誤:', apiError);
+            const response = await import('@/assets/theme_entertainment/events_data.json');
+            const activities = response.default;
+            console.log('成功從本地JSON獲取活動資料');
+            return activities;
+        } catch (jsonError) {
+            console.error('從本地JSON獲取活動錯誤:', jsonError);
             return [];
         }
     }
