@@ -176,6 +176,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
+        'django.db.backends': {
+            'handlers': ['file'],
+            'level': 'INFO',  # 將級別從 DEBUG 改為 INFO，以關閉詳細的數據庫查詢日誌
+            'propagate': False,
+        },
     },
 }
 

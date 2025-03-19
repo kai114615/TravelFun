@@ -5,5 +5,8 @@
   "author": "",
   "license": "ISC",
   "main": "index.js",
-  "scripts": {}
+  "scripts": {},
+  "dependencies": {
+    "marked": "^15.0.7"
+  }
 }

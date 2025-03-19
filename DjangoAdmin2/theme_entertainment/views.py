@@ -332,12 +332,11 @@ def get_events(request):
                     ORDER BY id %s, start_date %s
                 """ % (order_by, order_by))
             else:
-                # 前台查詢（只顯示未結束的活動）
+                # 前台查詢（顯示所有活動）
                 cursor.execute("""
                     SELECT id, activity_name, description,
                            start_date, end_date, location, image_url, ticket_price
                     FROM theme_events
-                    WHERE end_date >= CURRENT_DATE
                     ORDER BY id %s, start_date %s
                 """ % (order_by, order_by))
 

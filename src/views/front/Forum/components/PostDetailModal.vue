@@ -44,22 +44,22 @@ const isViewUpdated = ref(false);
 watch(() => props.post, (newPost) => {
   if (newPost) {
     console.log('Post data updated:', newPost);
-    
+
     // 檢查觀看數是否更新
     const oldViewCount = viewCount.value;
     const newViewCount = newPost.views || 0;
-    
+
     // 更新各項數據
     isLiked.value = newPost.is_liked || false;
     likeCount.value = newPost.like_count || 0;
     commentCount.value = newPost.comment_count || 0;
     viewCount.value = newViewCount;
-    
+
     // 如果觀看數增加了，標記為已更新以觸發動畫
     if (oldViewCount > 0 && newViewCount > oldViewCount) {
       console.log('觀看數已更新:', oldViewCount, '->', newViewCount);
       isViewUpdated.value = true;
-      
+
       // 短暫延遲後重置標記，以便下次更新也能觸發動畫
       setTimeout(() => {
         isViewUpdated.value = false;
@@ -73,7 +73,7 @@ const handleCommentUpdate = (count: number) => {
   console.log('評論數量更新:', count, '文章ID:', props.post?.id);
   // 始終使用最新值更新本地狀態
   commentCount.value = count;
-  
+
   // 確保事件始終正確發送到父組件
   setTimeout(() => {
     emit('comment-count-update', count);
@@ -91,40 +91,40 @@ function formatDate(date: string) {
 // 處理文章內容，移除重複的標題與時間信息
 function preprocessContent(content: string): string {
   if (!content) return '';
-  
+
   // 常見的標題或分類關鍵詞
   const keywords = ['美食分享', '彰化必吃小吃推薦', '美食', '小吃推薦', '必吃'];
-  
+
   // 移除可能存在的重複標題和發表時間
   let processedContent = content.trim();
-  
+
   // 移除標題、分類和時間重複信息 (多種匹配模式)
   for (const keyword of keywords) {
     // 1. 移除 "關鍵詞" + 發表於 + 日期時間 的模式
     const pattern1 = new RegExp(`^(#+ )?${keyword}[\\s\\n]*發表於 \\d{4}\\/\\d{1,2}\\/\\d{1,2}[^\\n]*\\n+`, 'i');
     processedContent = processedContent.replace(pattern1, '');
-    
+
     // 2. 單獨的標題行
     const pattern2 = new RegExp(`^${keyword}\\n+`, 'i');
     processedContent = processedContent.replace(pattern2, '');
-    
+
     // 3. 標題 + 時間格式 (不帶換行)
     const pattern3 = new RegExp(`${keyword}[\\s\\n]*發表於 \\d{4}\\/\\d{1,2}\\/\\d{1,2}[^\\n]*`, 'i');
     processedContent = processedContent.replace(pattern3, '');
   }
-  
+
   // 移除可能的Markdown格式標題 (# 標題格式)
   processedContent = processedContent.replace(/^#+ .*?發表於.*?\n+/im, '');
-  
+
   // 移除純時間行
   processedContent = processedContent.replace(/^發表於 \d{4}\/\d{1,2}\/\d{1,2}[^\n]*\n+/i, '');
-  
+
   // 移除可能的HTML標籤中包含的標題和時間
   processedContent = processedContent.replace(/<div[^>]*>美食分享<\/div>\s*<div[^>]*>彰化必吃小吃推薦<\/div>\s*<div[^>]*>發表於[^<]*<\/div>/gi, '');
-  
+
   // 清理開頭的空行
   processedContent = processedContent.replace(/^\s*\n+/, '');
-  
+
   return processedContent;
 }
 
@@ -142,45 +142,45 @@ async function handleLike() {
 
   try {
     console.log('文章詳情中點讚 - 文章ID:', props.post.id, '當前狀態:', isLiked.value, '點讚數:', likeCount.value);
-    
+
     // 保存原始狀態以便恢復
     const wasLiked = isLiked.value;
     const originalCount = likeCount.value;
-    
+
     // 立即在UI中更新狀態（樂觀更新）
     isLiked.value = !wasLiked;
     likeCount.value += wasLiked ? -1 : 1;
-    
+
     console.log('UI已樂觀更新 - 新狀態:', isLiked.value, '新點讚數:', likeCount.value);
-    
+
     // 立即通知父組件更新
     emit('like', {
       post_id: props.post.id,
       is_liked: isLiked.value,
       like_count: likeCount.value
     });
-    
+
     // 強制Vue更新視圖
     await nextTick();
-    
+
     // 調用API
     const response = await apiForumToggleLike(props.post.id);
     console.log('點讚API響應:', response.data);
-    
+
     if (response.data.status === 'success') {
       // 使用後端返回的實際數據更新
       isLiked.value = response.data.data.is_liked;
       likeCount.value = response.data.data.like_count;
-      
+
       console.log('API更新完成 - 最終狀態:', isLiked.value, '最終點讚數:', likeCount.value);
-      
+
       // 再次發送事件，確保父組件同步更新
       emit('like', {
         post_id: props.post.id,
         is_liked: isLiked.value,
         like_count: likeCount.value
       });
-      
+
       // 強制多次更新，確保視圖刷新
       await nextTick();
       setTimeout(() => {
@@ -188,32 +188,32 @@ async function handleLike() {
         isLiked.value = isLiked.value;
         console.log('UI延遲強制刷新完成');
       }, 50);
-      
+
       // 顯示成功消息
       message.success(response.data.message || (isLiked.value ? '已點讚！' : '已取消點讚'));
     } else {
       // 如果請求失敗，恢復原始狀態
       isLiked.value = wasLiked;
       likeCount.value = originalCount;
-      
+
       console.log('恢復原狀 - 恢復狀態:', wasLiked, '恢復點讚數:', originalCount);
-      
+
       // 通知父組件恢復原狀
       emit('like', {
         post_id: props.post.id,
         is_liked: wasLiked,
         like_count: originalCount
       });
-      
+
       // 強制視圖更新
       await nextTick();
-      
+
       // 顯示錯誤消息
       message.error(response.data.message || '操作失敗，請稍後重試');
     }
   } catch (error) {
     console.error('按讚失敗:', error);
-    
+
     // 由於在 catch 區域中，無法訪問 try 區塊中定義的變數
     // 這裡我們回復到初始狀態
     const currentLiked = isLiked.value;
@@ -221,17 +221,17 @@ async function handleLike() {
     isLiked.value = !currentLiked;
     // 更新點讚數
     likeCount.value = currentLiked ? likeCount.value - 1 : likeCount.value + 1;
-    
+
     // 通知父組件恢復原狀
     emit('like', {
       post_id: props.post.id,
       is_liked: isLiked.value,
       like_count: likeCount.value
     });
-    
+
     // 強制視圖更新
     await nextTick();
-    
+
     message.error('按讚失敗，請稍後重試');
   }
 }
@@ -259,16 +259,16 @@ async function handleLike() {
               {{ viewCount }} 觀看
             </span>
             <div class="flex items-center text-gray-700">
-              <button @click="handleLike" 
+              <button @click="handleLike"
                 class="flex items-center space-x-1 px-3 py-1.5 rounded-md transition-colors focus:outline-none"
                 :class="[
-                  isLiked 
-                    ? 'text-green-600 bg-green-50 hover:bg-green-100 border border-green-200' 
+                  isLiked
+                    ? 'text-green-600 bg-green-50 hover:bg-green-100 border border-green-200'
                     : 'text-gray-500 hover:text-green-600 hover:bg-green-50 hover:border-green-200 border border-gray-200'
                 ]"
               >
                 <NIcon>
-                  <component :is="isLiked ? FavoriteOutlined : FavoriteBorderOutlined" 
+                  <component :is="isLiked ? FavoriteOutlined : FavoriteBorderOutlined"
                              :class="['like-icon', { 'like-animation': isLiked }]" />
                 </NIcon>
                 <span class="font-medium" :key="`likes-${likeCount}-${isLiked}`">{{ likeCount }}</span>
@@ -311,7 +311,7 @@ async function handleLike() {
             </div>
           </div>
         </div>
-        
+
         <!-- 文章內容 -->
         <div class="flex-1">
           <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
@@ -319,14 +319,14 @@ async function handleLike() {
             <div class="w-full article-content-wrapper">
               <div class="prose prose-lg max-w-none text-gray-700 mb-6 content-container" v-html="processedPostContent"></div>
             </div>
-            
+
             <!-- 標籤 -->
             <div v-if="post?.tags && post?.tags.length > 0" class="mt-6 pt-4 border-t border-gray-100">
               <div class="flex flex-wrap gap-1.5">
                 <span class="text-sm text-gray-500">標籤：</span>
-                <span 
-                  v-for="tag in post?.tags" 
-                  :key="tag.id" 
+                <span
+                  v-for="tag in post?.tags"
+                  :key="tag.id"
                   class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -336,7 +336,7 @@ async function handleLike() {
                 </span>
               </div>
             </div>
-            
+
             <!-- 文章底部可能的旅遊相關資訊 -->
             <div v-if="post?.meta" class="mt-6 pt-4 border-t border-gray-100">
               <div v-if="post?.meta.location" class="flex items-center text-sm text-gray-600 mb-3">
@@ -380,8 +380,8 @@ async function handleLike() {
       <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
         <!-- 評論列表組件 -->
         <div class="p-5">
-          <CommentSection 
-            :post-id="post.id" 
+          <CommentSection
+            :post-id="post.id"
             @comment-count-update="handleCommentUpdate"
           />
         </div>
