@@ -449,8 +449,8 @@ def create_order(request):
     # 處理POST請求 - 創建訂單
     if request.method == 'POST':
         try:
-        # 獲取請求數據
-        data = request.data
+            # 獲取請求數據
+            data = request.data
             
             # 獲取用戶信息
             user = None
@@ -477,7 +477,7 @@ def create_order(request):
             payment_method = data.get('payment_method', 'cash_on_delivery')
             
             # 嘗試獲取收件人信息 - 支持兩種格式
-        shipping_info = data.get('shipping_info', {})
+            shipping_info = data.get('shipping_info', {})
             if shipping_info:
                 # 如果使用shipping_info格式
                 shipping_name = shipping_info.get('name')
@@ -496,10 +496,10 @@ def create_order(request):
             # 驗證訂單必填字段
             if not shipping_name or not shipping_phone or not shipping_address:
                 print(f"收件人信息不完整: 姓名={shipping_name}, 電話={shipping_phone}, 地址={shipping_address}")
-            return JsonResponse({
-                'success': False,
+                return JsonResponse({
+                    'success': False,
                     'message': '請提供完整的收件人信息'
-            }, status=400)
+                }, status=400)
             
             # 從請求中提取items數據
             items_data = data.get('items', [])
@@ -508,12 +508,12 @@ def create_order(request):
             
             # 如果沒有商品項目，返回錯誤
             if not items_data:
-            return JsonResponse({
-                'success': False,
+                return JsonResponse({
+                    'success': False,
                     'message': '訂單中沒有商品項目'
-            }, status=400)
+                }, status=400)
         
-        # 生成訂單編號
+            # 生成訂單編號
             import datetime
             import random
             current_date = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
@@ -521,9 +521,9 @@ def create_order(request):
             order_number = f"ORD{current_date}{random_suffix}"
             
             # 計算訂單總金額並處理訂單項目
-        total_amount = 0
-        order_items = []
-        
+            total_amount = 0
+            order_items = []
+            
             for item_data in items_data:
                 try:
                     product_id = item_data.get('product_id')
@@ -543,10 +543,10 @@ def create_order(request):
                     total_amount += item_total
                     
                     # 添加訂單項目
-                order_items.append({
-                    'product': product,
+                    order_items.append({
+                        'product': product,
                         'product_id': product_id,
-                    'quantity': quantity,
+                        'quantity': quantity,
                         'price': item_price
                     })
                     
@@ -563,12 +563,12 @@ def create_order(request):
                 }, status=400)
         
             # 創建訂單記錄
-        try:
-            order = Order.objects.create(
-                user=user,
-                order_number=order_number,
-                total_amount=total_amount,
-                status='pending',
+            try:
+                order = Order.objects.create(
+                    user=user,
+                    order_number=order_number,
+                    total_amount=total_amount,
+                    status='pending',
                     payment_method=payment_method,
                     shipping_name=shipping_name,
                     shipping_phone=shipping_phone,
@@ -577,35 +577,35 @@ def create_order(request):
                 )
                 
                 # 創建訂單項目記錄
-            for item in order_items:
+                for item in order_items:
                     if item['product']:
-                OrderItem.objects.create(
-                    order=order,
-                    product=item['product'],
-                    quantity=item['quantity'],
-                    price=item['price']
-                )
+                        OrderItem.objects.create(
+                            order=order,
+                            product=item['product'],
+                            quantity=item['quantity'],
+                            price=item['price']
+                        )
                     else:
                         # 如果產品不存在，使用ID創建
                         OrderItem.objects.create(
                             order=order,
                             product_id=item['product_id'],
-                    quantity=item['quantity'],
-                    price=item['price']
-                )
+                            quantity=item['quantity'],
+                            price=item['price']
+                        )
                 
                 print(f"成功創建訂單: {order_number}, 總金額: {total_amount}")
             
                 # 返回成功訊息
-            return JsonResponse({
-                'success': True,
+                return JsonResponse({
+                    'success': True,
                     'message': '訂單創建成功',
                     'order_id': order.id,
                     'order_number': order_number,
                     'total_amount': str(total_amount)
-            })
+                })
             
-        except Exception as e:
+            except Exception as e:
                 import traceback
                 traceback.print_exc()
                 print(f"創建訂單記錄時出錯: {str(e)}")
