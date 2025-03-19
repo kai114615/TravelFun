@@ -14,6 +14,7 @@ from django.http import Http404
 from django.contrib import messages
 from django.urls import reverse
 from django.http import HttpResponseRedirect
+from django.contrib.auth.decorators import user_passes_test
 
 # Django REST framework
 from rest_framework import permissions
@@ -38,6 +39,7 @@ import os
 from datetime import time, datetime
 import glob
 from django.db.models import Q
+from django.core.management import call_command
 
 # 設置日誌
 logger = logging.getLogger(__name__)
@@ -275,7 +277,7 @@ def activity_list(request):
     """獲取活動列表的API"""
     try:
         page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 10))
+        page_size = int(request.GET.get('page_size', 100))
 
         activities = Events.objects.all().order_by('id')
         paginator = Paginator(activities, page_size)
@@ -289,6 +291,15 @@ def activity_list(request):
             'start_date': activity.start_date,
             'end_date': activity.end_date,
             'ticket_price': activity.ticket_price,
+            'image_url': activity.image_url,
+            'description': activity.description,
+            'organizer': activity.organizer,
+            'address': activity.address,
+            'latitude': activity.latitude,
+            'longitude': activity.longitude,
+            'source_url': activity.source_url,
+            'created_at': activity.created_at,
+            'updated_at': activity.updated_at
         } for activity in current_page]
 
         return JsonResponse({
@@ -960,3 +971,30 @@ def get_entertainment_data_for_ai(request):
     }
 
     return Response(data)
+
+
+# 新增API端點用於手動更新前端JSON
+@csrf_exempt
+@user_passes_test(lambda u: u.is_superuser)
+def update_activities_json(request):
+    """
+    管理員可以透過此API手動更新前端活動資料JSON
+    """
+    if request.method == 'POST':
+        try:
+            # 呼叫管理命令
+            call_command('update_activities_json')
+            return JsonResponse({
+                'status': 'success',
+                'message': '已成功更新前端活動JSON檔案'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'更新失敗: {str(e)}'
+            }, status=500)
+
+    return JsonResponse({
+        'status': 'error',
+        'message': '僅支援POST請求'
+    }, status=405)

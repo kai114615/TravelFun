@@ -374,7 +374,7 @@ function prepareRequestBody(userMessage: string) {
       }]
     }],
     generationConfig: {
-      temperature: 0.5,
+      temperature: 0.7,
       topK: 40,
       topP: 0.95,
       maxOutputTokens: MAX_OUTPUT_TOKENS
@@ -886,7 +886,7 @@ onMounted(() => {
 }
 
 .input-travel :deep(textarea) {
-  border-radius: 0.75rem;
+  border-radius: 0rem;
   border-color: #e5e7eb;
   transition: all 0.2s;
 }

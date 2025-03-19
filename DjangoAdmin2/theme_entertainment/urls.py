@@ -86,4 +86,9 @@ urlpatterns = [
 
     # 智能客服 API 端點
     path('api/entertainment-data-for-ai/', views.get_entertainment_data_for_ai, name='entertainment_data_for_ai'),
+
+    # 手動更新前端JSON的API端點
+    path('activities/api/update-json/',
+         csrf_exempt(views.update_activities_json),
+         name='update_activities_json'),
 ]
