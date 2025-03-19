@@ -575,17 +575,19 @@ def create_event(request):
             }, status=500)
 
 
-# 更新活動（PUT）
+# 更新活動（POST）
 @csrf_exempt
-@require_http_methods(["PUT"])
+@require_http_methods(["POST", "PUT"])
 def update_event(request, event_id):
     try:
-        # 嘗試解析JSON數據或表單數據
-        try:
+        # 檢查Content-Type頭部
+        content_type = request.content_type or ''
+
+        # 根據不同Content-Type處理數據
+        if content_type.startswith('application/json'):
             data = json.loads(request.body)
             image = None
-        except json.JSONDecodeError:
-            # 如果不是JSON格式，則處理表單數據
+        else:
             data = {}
             for key, value in request.POST.items():
                 data[key] = value
@@ -594,7 +596,44 @@ def update_event(request, event_id):
         # 獲取活動對象
         event = get_object_or_404(Events, id=event_id)
 
-        # 處理日期和時間
+        # 處理經緯度欄位
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+
+        # 將 "null" 字符串或空字符串轉換為 None
+        if latitude == "null" or latitude == "" or latitude is None:
+            latitude = None
+        else:
+            try:
+                latitude = float(latitude)  # 嘗試轉換為浮點數
+            except (TypeError, ValueError):
+                latitude = None
+
+        if longitude == "null" or longitude == "" or longitude is None:
+            longitude = None
+        else:
+            try:
+                longitude = float(longitude)  # 嘗試轉換為浮點數
+            except (TypeError, ValueError):
+                longitude = None
+
+        # 設置處理過的經緯度值
+        event.latitude = latitude
+        event.longitude = longitude
+
+        # 處理圖片上傳
+        if image:
+            # 使用共用的圖片上傳處理函數
+            uploaded_image_url = handle_image_upload(image, event_id)
+            if uploaded_image_url:
+                event.image_url = uploaded_image_url
+        else:
+            # 保留原始圖片URL或使用前端傳來的URL
+            original_image_url = data.get('original_image_url')
+            if original_image_url and original_image_url != "null":
+                event.image_url = original_image_url
+
+        # 處理日期時間
         # 從請求中獲取日期（YYYY-MM-DD）和時間（HH:MM）
         start_date = data.get('start_date')
         end_date = data.get('end_date')
@@ -642,24 +681,16 @@ def update_event(request, event_id):
         except Exception as e:
             logger.error(f"解析結束日期時間出錯: {str(e)}")
 
-        # 更新提供的其他欄位
+        # 其他欄位更新（排除已處理的欄位）
         fields_to_update = [
             'activity_name', 'description', 'organizer', 'address',
-            'location', 'latitude', 'longitude', 'ticket_price',
-            'source_url', 'image_url'
-            # 註意：start_date 和 end_date 已經在上面處理過了
+            'location', 'ticket_price', 'source_url'
+            # 不包含 'latitude', 'longitude', 'image_url'，因為已特別處理
         ]
 
         for field in fields_to_update:
             if field in data:
                 setattr(event, field, data[field])
-
-        # 處理文件上傳
-        if image:
-            # 使用共用的圖片上傳處理函數
-            uploaded_image_url = handle_image_upload(image, event_id)
-            if uploaded_image_url:
-                event.image_url = uploaded_image_url
 
         # 保存活動
         event.save()

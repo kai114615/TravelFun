@@ -466,8 +466,8 @@
                     // 發送 API 請求
                     try {
                         const response = await axios({
-                            method: 'put', // 使用PUT方法
-                            url: `/admin-dashboard/entertainment/activities/update/${eventId}/`,
+                            method: 'post', // 從 'put' 改為 'post'
+                            url: `/admin-dashboard/entertainment/activities/${eventId}/update/`,
                             data: formData,
                             headers: {
                                 'X-CSRFToken': csrfToken,
