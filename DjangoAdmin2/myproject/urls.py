@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
+from shopping_system.views import create_order
 
 # 健康檢查視圖函數
 
@@ -20,11 +21,14 @@ def health_check(request):
 
 
 urlpatterns = [
+    # 移除與購物相關的直接路由轉發，避免URL解析衝突
     path('admin/', admin.site.urls),
     path('password-reset/', include('password_reset.urls')),
     path('', include('myapp.urls')),
     path('restaurant/', include('restaurant_system.urls')),
     path('shop/', include('shopping_system.urls')),
+    # 添加直接的訂單API路由
+    path('api/orders/create/', create_order, name='direct_order_create'),
     path('travel/', include(('travel_app.urls', 'travel_app'), namespace='travel_frontend')),
     path('', include('forum_system.urls')),
     path('admin-dashboard/travel_app/', include(('travel_app.urls', 'travel_app'), namespace='travel_admin')),
@@ -37,6 +41,8 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     # API v1 路由
     path('api/v1/', include('myapp.urls_api')),
+    # 直接添加密碼修改API路由，確保在最上層能夠訪問
+    path('api/m/change-password/<int:user_id>/', include('myapp.urls')),
 ]
 
 if settings.DEBUG:

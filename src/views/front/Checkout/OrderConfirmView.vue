@@ -1,15 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox, ElDialog, ElButton, ElForm, ElFormItem, ElInput } from 'element-plus';
 import { useCartStore } from '@/stores/cart';
+import { useUserStore } from '@/stores/user';
 import api from '@/api/config';
+import { CashIcon, TruckIcon } from '@heroicons/vue/outline'
+import axios from 'axios';
 
 // 確保 window 可以在模板中訪問
 const window = globalThis.window;
 
 const router = useRouter();
 const cartStore = useCartStore();
+const userStore = useUserStore();
+
+// 取得用戶登入狀態和資訊
+const isLoggedIn = computed(() => userStore.loginStatus || localStorage.getItem('access_token') !== null);
+const userDisplayName = computed(() => userStore.displayName || '');
+const userEmail = computed(() => userStore.userInfo?.email || '');
 
 // 全形數字轉半形函數
 function toHalfWidth (str: string): string {
@@ -23,28 +32,21 @@ function toHalfWidth (str: string): string {
 }
 
 // 訂單資訊
-const orderInfo = ref({
-  orderNumber: '',
-  items: [] as any[],
-  shippingInfo: {
-    name: '',
-    phone: '',
-    address: '',
-    note: ''
-  },
-  totalAmount: 0,
-  discount: 0,
-  finalAmount: 0,
-  shippingFee: 0
-});
+const orderInfo = ref(JSON.parse(window.localStorage.getItem('pendingOrderInfo') || '{}'));
 
 // 付款方式
-const paymentMethod = ref('credit_card');
+const paymentMethod = ref('cash_on_delivery');
 // 訂單提交中狀態
 const isSubmitting = ref(false);
 
 // 載入訂單資訊
-onMounted(() => {
+onMounted(async () => {
+  // 強制檢查登入狀態
+  if(localStorage.getItem('access_token')) {
+    await userStore.checkLoginStatus();
+    console.log('登入狀態檢查完成:', userStore.loginStatus);
+  }
+  
   // 從路由參數或 localStorage 獲取訂單資訊
   const savedOrderInfo = window.localStorage.getItem('pendingOrderInfo');
   if (savedOrderInfo) {
@@ -69,64 +71,149 @@ const finalAmount = computed(() => {
   return orderInfo.value.totalAmount - orderInfo.value.discount + orderInfo.value.shippingFee;
 });
 
-// 提交付款
-async function submitPayment () {
+// 提交付款 - 使用單一真實API路徑
+const submitPayment = async () => {
   try {
-    if (isSubmitting.value) return;
     isSubmitting.value = true;
-
     ElMessage.info('正在處理訂單...');
-
-    // 準備提交到後端的訂單數據
+    
+    // 驗證必填資訊
+    if (!orderInfo.value.shippingInfo.name || !orderInfo.value.shippingInfo.phone || !orderInfo.value.shippingInfo.address) {
+      ElMessage.error('請填寫完整的收件人資訊');
+      isSubmitting.value = false;
+      return;
+    }
+    
+    // 建立訂單資料 - 確保符合後端期望的格式
     const orderData = {
-      items: orderInfo.value.items.map(item => ({
+      payment_method: 'cash_on_delivery',
+      shipping_name: orderInfo.value.shippingInfo.name,
+      shipping_phone: orderInfo.value.shippingInfo.phone,
+      shipping_address: orderInfo.value.shippingInfo.address,
+      shipping_note: orderInfo.value.shippingInfo.note || '',
+      items: orderInfo.value.items.map((item: any) => ({
         product_id: item.id,
         quantity: item.quantity
-      })),
-      shipping_info: {
-        name: orderInfo.value.shippingInfo.name,
-        phone: orderInfo.value.shippingInfo.phone,
-        address: orderInfo.value.shippingInfo.address,
-        note: orderInfo.value.shippingInfo.note || ''
-      },
-      payment_method: paymentMethod.value
+      }))
     };
+    
+    // 使用較短的API路徑，確保與後端匹配 (嘗試shopping路徑)
+    const API_URL = '/api/shopping/orders/create/';
 
-    // 調用後端API創建訂單
-    const response = await api.post('/api/shopping/orders/create/', orderData);
+    console.log('使用API配置中的axios實例發送請求到:', API_URL);
 
-    if (response.data.success) {
-      // 清空購物車和暫存的訂單資訊
-      cartStore.clearCart();
-      window.localStorage.removeItem('pendingOrderInfo');
-
-      // 顯示成功訊息
-      ElMessage.success('訂單建立成功！');
-
-      // 導向訂單完成頁面
-      router.push({
-        name: 'OrderComplete',
-        params: { orderNumber: response.data.order_number }
-      });
-    } else {
-      throw new Error(response.data.message || '訂單處理失敗');
+    try {
+      console.log('訂單數據:', orderData);
+      
+      // 使用不同路徑嘗試 - 這是原始配置的路徑
+      const response = await api.post(API_URL, orderData);
+      
+      console.log('訂單API請求成功:', response.data);
+      const responseData = response.data;
+      
+      // 處理成功響應
+      if (responseData && responseData.success) {
+        // 清空購物車
+        try {
+          localStorage.removeItem('cartItems');
+          localStorage.removeItem('cartCount');
+          cartStore.clearCart();
+          console.log('購物車已清空');
+        } catch (cartError) {
+          console.error('清空購物車時發生錯誤:', cartError);
+        }
+        
+        // 儲存訂單資訊到本地
+        const orderNumber = responseData.order_number || responseData.order_id;
+        localStorage.setItem('lastOrderNumber', orderNumber);
+        localStorage.setItem('orderTotal', String(orderInfo.value.totalAmount));
+        
+        // 顯示成功訊息並導向訂單頁面
+        ElMessage.success('訂單建立成功！我們將盡快處理您的訂單。');
+        router.push({
+          path: `/member/orders`,
+          query: { 
+            just_ordered: 'true',
+            order_number: orderNumber
+          }
+        });
+      } else {
+        // 處理後端返回的錯誤信息
+        console.error('訂單創建失敗:', responseData);
+        ElMessage.error(responseData.message || '訂單處理失敗');
+      }
+    } catch (error: any) {
+      console.error('訂單提交出錯:', error);
+      
+      // 提供詳細錯誤信息以便調試
+      if (error.response) {
+        console.error('錯誤響應:', error.response.data);
+        console.error('錯誤狀態碼:', error.response.status);
+        ElMessage.error(`訂單處理失敗 (${error.response.status}): ${error.response.data?.message || '伺服器錯誤'}`);
+      } else if (error.request) {
+        console.error('請求發送但無響應:', error.request);
+        ElMessage.error('伺服器無響應，請檢查網絡連接');
+      } else {
+        ElMessage.error(`錯誤: ${error.message}`);
+      }
     }
   } catch (error: any) {
-    console.error('訂單處理失敗:', error);
-    ElMessage.error(error.response?.data?.message || error.message || '訂單處理失敗，請稍後再試');
+    console.error('訂單提交出錯:', error);
+    
+    // 提供詳細錯誤信息以便調試
+    if (error.response) {
+      console.error('錯誤響應:', error.response.data);
+      console.error('錯誤狀態碼:', error.response.status);
+      ElMessage.error(`訂單處理失敗 (${error.response.status}): ${error.response.data?.message || '伺服器錯誤'}`);
+    } else if (error.request) {
+      console.error('請求發送但無響應:', error.request);
+      ElMessage.error('伺服器無響應，請檢查網絡連接');
+    } else {
+      ElMessage.error(`錯誤: ${error.message}`);
+    }
   } finally {
     isSubmitting.value = false;
   }
-}
+};
 
 // 返回修改訂單
 function goBackToCheckout () {
   router.push('/checkout');
 }
 
-// 導向登入頁面
-function goToLogin () {
-  router.push('/login');
+// 導向登入頁面或切換帳戶
+async function goToLogin() {
+  // 如果用戶已登入，顯示確認對話框
+  if (isLoggedIn.value) {
+    try {
+      await ElMessageBox.confirm(
+        '切換帳戶將會將您登出目前的帳號，確定要繼續嗎？',
+        '確認切換帳戶',
+        {
+          confirmButtonText: '確定',
+          cancelButtonText: '取消',
+          type: 'warning',
+          center: true
+        }
+      );
+      
+      // 用戶點擊確定，執行登出操作
+      await userStore.logout();
+      ElMessage.success('已成功登出，請重新登入');
+      router.push('/login');
+    } catch (error) {
+      // 用戶點擊取消，不執行任何操作
+      return;
+    }
+  } else {
+    // 用戶未登入，直接跳轉到登入頁面
+    router.push('/login');
+  }
+}
+
+// 選擇付款方式 (修改預設為貨到付款)
+const selectPaymentMethod = (method) => {
+  paymentMethod.value = method
 }
 </script>
 
@@ -149,11 +236,30 @@ function goToLogin () {
               <i class="fas fa-chevron-down" />
             </button>
           </div>
-          <p class="text-gray-500">
-            {{ window.localStorage.getItem('user') ? JSON.parse(window.localStorage.getItem('user') || '{}').username : '未登入' }}
-          </p>
+          
+          <!-- 已登入狀態 -->
+          <div v-if="isLoggedIn" class="mb-2">
+            <p class="text-gray-700 font-medium">
+              {{ userDisplayName }}
+              <span class="inline-flex items-center ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <i class="fas fa-check-circle mr-1"></i>已登入
+              </span>
+            </p>
+            <p v-if="userEmail" class="text-gray-500 text-sm">
+              <i class="fas fa-envelope mr-1"></i> {{ userEmail }}
+            </p>
+          </div>
+          
+          <!-- 未登入狀態 -->
+          <div v-else class="mb-2">
+            <p class="text-gray-500">
+              <i class="fas fa-user-slash mr-1"></i> 未登入
+            </p>
+            <p class="text-gray-500 text-sm">登入後可享會員購物優惠及訂單追蹤</p>
+          </div>
+          
           <button class="text-blue-600 hover:text-blue-800 text-sm mt-2" @click="goToLogin">
-            登入其他帳戶
+            {{ isLoggedIn ? '切換帳戶' : '立即登入' }}
           </button>
         </div>
 
@@ -216,71 +322,25 @@ function goToLogin () {
         </div>
 
         <!-- 付款方式 -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold">
-              付款方式
-            </h2>
-            <button class="text-gray-500 hover:text-gray-700">
-              <i class="fas fa-chevron-down" />
-            </button>
-          </div>
-
-          <div class="space-y-4">
-            <!-- 信用卡付款 -->
-            <div class="border rounded-lg p-4" :class="{ 'border-blue-500 bg-blue-50': paymentMethod === 'credit_card' }">
-              <label class="flex items-center cursor-pointer">
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  name="payment"
-                  value="credit_card"
-                  class="form-radio h-5 w-5 text-blue-600"
-                >
-                <span class="ml-2 flex-grow">信用卡・LINE Pay</span>
-                <div class="flex space-x-2">
-                  <i class="fab fa-cc-visa text-blue-600 text-xl" />
-                  <i class="fab fa-cc-mastercard text-red-600 text-xl" />
-                  <i class="fab fa-cc-jcb text-green-600 text-xl" />
-                  <i class="fab fa-line text-green-500 text-xl" />
-                </div>
-              </label>
-              <div v-if="paymentMethod === 'credit_card'" class="mt-4 text-center text-gray-600">
-                <div class="border rounded p-4 mx-auto max-w-md">
-                  <div class="flex justify-center items-center mb-3">
-                    <i class="fas fa-credit-card text-4xl text-gray-400 mr-3" />
-                    <i class="fas fa-lock text-3xl text-green-600" />
-                  </div>
-                  <p class="text-sm">
-                    您將被導入信用卡付款頁面進行信用卡安全結帳
-                  </p>
+        <div class="payment-section mb-8">
+          <h2 class="section-title mb-4">付款方式</h2>
+          
+          <div class="payment-options">
+            <div class="payment-option p-4 border rounded-lg mb-4 bg-white">
+              <div class="flex items-start">
+                <NRadio checked disabled value="cash_on_delivery" label="貨到付款" />
+                <div class="ml-2">
+                  <h3 class="font-medium">貨到付款</h3>
+                  <p class="text-gray-600 text-sm">商品送達時付款，我們的送貨人員會收取商品費用</p>
                 </div>
               </div>
             </div>
-
-            <!-- ATM 轉帳 -->
-            <div class="border rounded-lg p-4" :class="{ 'border-blue-500 bg-blue-50': paymentMethod === 'atm' }">
-              <label class="flex items-center cursor-pointer">
-                <input
-                  v-model="paymentMethod"
-                  type="radio"
-                  name="payment"
-                  value="atm"
-                  class="form-radio h-5 w-5 text-blue-600"
-                >
-                <span class="ml-2">ATM 轉帳</span>
-              </label>
-              <div v-if="paymentMethod === 'atm'" class="mt-4 text-sm text-gray-600">
-                <p>請於訂單成立後 3 天內完成轉帳，逾期訂單將自動取消</p>
-                <p>轉帳資訊將顯示在訂單確認信中</p>
-              </div>
+            
+            <div class="mt-4">
+              <p class="text-sm text-gray-600 mb-2">
+                全程採用安全的物流配送，收到貨後再付款，安全又方便。
+              </p>
             </div>
-          </div>
-
-          <div class="mt-8">
-            <p class="text-sm text-gray-600 mb-2">
-              全程採用 TLS 1.2 安全憑證加密，付款過程均受保護，請安心使用。
-            </p>
           </div>
         </div>
       </div>
@@ -358,7 +418,7 @@ function goToLogin () {
             :disabled="isSubmitting"
             @click="submitPayment"
           >
-            {{ isSubmitting ? '處理中...' : '立即付款' }}
+            {{ isSubmitting ? '處理中...' : '確認訂單並送出' }}
           </button>
         </div>
       </div>

@@ -3,8 +3,9 @@ import {
   FavoriteBorderOutlined,
   FavoriteOutlined,
   PersonOutlineFilled,
+  AccountCircleOutlined,
 } from '@vicons/material';
-import { NDialogProvider, NIcon, NMessageProvider, useDialog, useMessage } from 'naive-ui';
+import { NDialogProvider, NIcon, NMessageProvider, useDialog, useMessage, NAvatar } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -26,7 +27,7 @@ const userStore = useUserStore();
 const { totalNum, cartList } = storeToRefs(cartStore);
 const { isMobile } = storeToRefs(deviceStore);
 const { favoriteList } = storeToRefs(favoriteStore);
-const { loginStatus, displayName } = storeToRefs(userStore);
+const { loginStatus, displayName, userInfo } = storeToRefs(userStore);
 
 const cartRef = ref<InstanceType<typeof ShopCart>>();
 const hamBurRef = ref<InstanceType<typeof HamburgerMenu>>();
@@ -38,6 +39,28 @@ const isFixed = computed(() => new Set(['Home', 'City', 'Country', 'Member']).ha
 
 const navListComponent = computed(() => createNavList().filter(({ component }) => component));
 
+// 計算頭像URL
+const avatarUrl = computed(() => {
+  if (userInfo.value?.avatar) {
+    // 如果是完整URL直接返回
+    if (userInfo.value.avatar.startsWith('http://') || userInfo.value.avatar.startsWith('https://')) {
+      return userInfo.value.avatar;
+    } 
+    // 否則需要加上基礎URL
+    else {
+      // 獲取API基礎URL
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      // 移除頭像路徑前面的斜線（如果有）
+      const avatarPath = userInfo.value.avatar.replace(/^\/+/, '');
+      // 移除重複的 media 前綴
+      const cleanedPath = avatarPath.replace(/^media\/media\//, 'media/');
+      return `${baseUrl}/${cleanedPath}`;
+    }
+  }
+  // 返回預設頭像
+  return '/avatar-fallback.png';
+});
+
 function handleClick(target: string) {
   if (target === 'cart')
     hamBurRef.value?.closeActive();
@@ -45,10 +68,13 @@ function handleClick(target: string) {
   cartRef.value?.closeActive();
 };
 
-// 直接處理登入跳轉
 function goToLogin() {
   console.log('跳轉到登入頁面');
   router.push('/login');
+}
+
+function goToMemberCenter() {
+  router.push('/member/profile');
 }
 
 async function handleLogout() {
@@ -60,7 +86,6 @@ async function handleLogout() {
     onPositiveClick: async () => {
       try {
         await userStore.logout();
-        // 清空購物車
         cartStore.clearCart();
         message.success('已成功登出');
         router.push('/');
@@ -74,7 +99,6 @@ async function handleLogout() {
 
 // 監聽登入狀態變化
 watch(loginStatus, async (newStatus) => {
-  console.log('Login status changed:', newStatus);
   if (newStatus)
     await userStore.checkLoginStatus();
 }, { immediate: true });
@@ -88,8 +112,6 @@ watch(
 );
 
 onMounted(async () => {
-  console.log('Header component mounted');
-  // 組件掛載時檢查登入狀態
   await userStore.checkLoginStatus();
 })
 </script>
@@ -132,16 +154,30 @@ onMounted(async () => {
                   </NIcon>
                 </RouterLink>
               </div>
-              <div v-if="loginStatus" class="hidden lg:flex items-center justify-center text-base gap-4">
-                <span class="text-white">{{ displayName }}</span>
+              <!-- 已登入狀態 -->
+              <div v-if="loginStatus" class="flex items-center justify-center text-base gap-2">
+                <!-- 用戶頭像和名稱 -->
+                <div class="flex items-center cursor-pointer" @click="goToMemberCenter">
+                  <!-- 用戶頭像 -->
+                  <NAvatar 
+                    round 
+                    :src="avatarUrl" 
+                    size="small"
+                    fallback-src="/avatar-fallback.png" 
+                    class="user-avatar"
+                  />
+                  <span class="text-white ml-2 font-medium truncate max-w-[80px] md:max-w-[120px]">{{ displayName || '會員' }}</span>
+                </div>
+                <!-- 登出按鈕 -->
                 <button
-                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                  class="inline-flex items-center px-2 py-1 md:px-3 md:py-1.5 text-xs md:text-sm font-medium text-red-600 hover:text-red-700 transition-colors bg-white/10 hover:bg-white/20 rounded-md"
                   @click="handleLogout"
                 >
-                  <i class="fas fa-sign-out-alt mr-2" />
-                  登出
+                  <i class="fas fa-sign-out-alt md:mr-1" />
+                  <span class="hidden md:inline">登出</span>
                 </button>
               </div>
+              <!-- 未登入狀態 -->
               <RouterLink v-else v-slot="{ navigate }" custom :to="{ name: 'Login' }">
                 <button
                   type="button"
@@ -193,6 +229,11 @@ onMounted(async () => {
 
 .nav-item:hover::after {
   transform: scaleX(1);
+}
+
+.user-avatar {
+  border: 2px solid white;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 1280px) {

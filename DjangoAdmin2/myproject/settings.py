@@ -54,21 +54,14 @@ MIDDLEWARE = [
 ]
 
 # CORS 設置
-CORS_ALLOW_ALL_ORIGINS = False  # 關閉允許所有來源
-CORS_ALLOW_CREDENTIALS = True  # 允許攜帶認證信息
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite 開發伺服器
-    "http://127.0.0.1:5173",
-    "http://localhost:3333",  # 加入允許列表
-    "http://127.0.0.1:3333",
-]
+CORS_ALLOW_ALL_ORIGINS = True  # 允許所有來源的跨域請求
 CORS_ALLOW_METHODS = [
+    'DELETE',
     'GET',
+    'OPTIONS',
+    'PATCH',
     'POST',
     'PUT',
-    'PATCH',
-    'DELETE',
-    'OPTIONS'
 ]
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -81,6 +74,11 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+CORS_EXPOSE_HEADERS = [
+    'content-disposition',
+]
+CORS_PREFLIGHT_MAX_AGE = 86400  # 預檢請求的有效期，單位秒
+CORS_ALLOW_CREDENTIALS = True  # 允許跨域請求攜帶憑證（如Cookie）
 
 # 添加 ROOT_URLCONF 設置
 ROOT_URLCONF = 'myproject.urls'

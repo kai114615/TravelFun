@@ -59,50 +59,68 @@ async function handleSubmit() {
       return;
     }
 
-    const response = await apiUserSignin({
-      username: formValue.value.username,
-      password: formValue.value.password
-    });
+    try {
+      const response = await apiUserSignin({
+        username: formValue.value.username,
+        password: formValue.value.password
+      });
 
-    console.log('登入回應:', response); // 添加日誌
+      console.log('登入回應:', response); // 添加日誌
 
-    // 檢查回應中是否包含 access token
-    if (response.data?.access) {
-      // 保存 token
-      localStorage.setItem('access_token', response.data.access);
-      if (response.data.refresh) {
-        localStorage.setItem('refresh_token', response.data.refresh);
-      }
-
-      // 更新用戶狀態
-      if (response.data.user) {
-        await userStore.updateUserState(response.data.user, true);
-      } else {
-        // 如果回應中沒有用戶資料，嘗試獲取用戶資料
-        const userResponse = await request.get(api.user.checkSigin);
-        if (userResponse.data) {
-          await userStore.updateUserState(userResponse.data, true);
+      // 檢查回應中是否包含 access token
+      if (response.data?.access) {
+        // 保存 token
+        localStorage.setItem('access_token', response.data.access);
+        if (response.data.refresh) {
+          localStorage.setItem('refresh_token', response.data.refresh);
         }
+
+        // 更新用戶狀態
+        if (response.data.user) {
+          await userStore.updateUserState(response.data.user, true);
+        } else {
+          // 如果回應中沒有用戶資料，嘗試獲取用戶資料
+          const userResponse = await request.get(api.user.checkSigin);
+          if (userResponse.data) {
+            await userStore.updateUserState(userResponse.data, true);
+          }
+        }
+
+        message.success('登入成功');
+
+        // 確保跳轉成功
+        const redirectPath = route.query.redirect?.toString() || '/member/dashboard';
+        
+        try {
+          await router.push(redirectPath);
+        } catch (error) {
+          console.error('路由跳轉失敗，使用替代方法:', error);
+          window.location.href = `/#${redirectPath}`;
+        }
+      } else {
+        throw new Error('登入失敗：未收到有效的認證令牌');
       }
-
-      message.success('登入成功');
-
-      // 確保跳轉成功
-      const redirectPath = route.query.redirect?.toString() || '/member/dashboard';
+    } catch (error: any) {
+      console.error('登入API錯誤:', error);
       
-      try {
-        await router.push(redirectPath);
-      } catch (error) {
-        console.error('路由跳轉失敗，使用替代方法:', error);
-        window.location.href = `/#${redirectPath}`;
+      // 特別處理401錯誤（未授權），通常表示用戶名或密碼錯誤
+      if (error.response?.status === 401) {
+        message.error('帳號或密碼錯誤');
+      } else if (error.response?.data?.message) {
+        // 如果API返回了具體錯誤訊息，則顯示該訊息
+        message.error(error.response.data.message);
+      } else {
+        // 其他錯誤情況
+        message.error(error.message || '登入失敗，請稍後再試');
       }
-    } else {
-      throw new Error('登入失敗：未收到有效的認證令牌');
+      
+      // 重新生成驗證碼
+      generateCaptcha();
     }
   } catch (error: any) {
-    console.error('登入失敗:', error);
-    message.error(error.response?.data?.message || error.message || '登入失敗');
-    generateCaptcha();
+    // 這裡處理表單驗證錯誤
+    console.error('表單驗證錯誤:', error);
+    message.error('請檢查輸入資料是否正確');
   } finally {
     loading.value = false;
   }

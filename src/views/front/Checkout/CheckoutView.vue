@@ -41,7 +41,7 @@ async function submitOrder () {
     // 檢查購物車是否為空
     if (items.value.length === 0) {
       ElMessage.warning('購物車是空的，請先選購商品');
-      router.push('/mall-products');
+      router.push('/mall');
       return;
     }
 

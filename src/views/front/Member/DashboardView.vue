@@ -6,10 +6,30 @@ import axios from 'axios';
 import { NButton, NForm, NFormItem, NInput, NMessageProvider, NUpload, useMessage } from 'naive-ui';
 import type { UploadFileInfo } from 'naive-ui';
 import { useUserStore } from '@/stores/user';
+import { request } from '@/utils/request';
+
+// 獲取 API 基礎 URL
+const getBaseUrl = () => {
+  // 优先使用环境变量
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  // 如果环境变量不存在，则使用当前域名
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  // 如果是本地开发环境，使用后端开发服务器
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://127.0.0.1:8000';
+  }
+  // 生产环境使用相对路径
+  return `${protocol}//${hostname}`;
+};
+
+const baseApiUrl = getBaseUrl();
 
 // 創建 axios 實例
 const axiosInstance = axios.create({
-  baseURL: 'http://127.0.0.1:8000',
+  baseURL: baseApiUrl,
   withCredentials: true,
 });
 
@@ -40,12 +60,21 @@ const router = useRouter();
 const userStore = useUserStore();
 const { userInfo } = storeToRefs(userStore);
 
-const baseUrl = 'http://127.0.0.1:8000';
+// 計算頭像 URL
 const avatarUrl = computed(() => {
   if (!userInfo.value?.avatar)
     return 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
 
   let url = userInfo.value.avatar;
+  
+  // 檢查是否為完整 URL
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // 獲取API基礎URL，如果環境變數不存在則使用默認值
+  const apiBaseUrl = import.meta.env.VITE_API_URL || baseApiUrl || 'http://127.0.0.1:8000';
+  
   // 移除開頭的斜線（如果存在）
   url = url.replace(/^\/+/, '');
   // 移除重複的 media 前綴
@@ -54,8 +83,8 @@ const avatarUrl = computed(() => {
   url = url.replace(/\\/g, '/');
 
   // 組合完整 URL
-  return `${baseUrl}/${url}`;
-})
+  return `${apiBaseUrl}/${url}`;
+});
 
 // 模擬數據
 const pendingOrders = ref(3);
@@ -141,7 +170,6 @@ function togglePasswordFields() {
 // 監聽 userInfo 變化，更新表單數據
 watch(() => userInfo.value, (newUserInfo) => {
   if (newUserInfo) {
-    console.log('用戶數據已更新:', newUserInfo);
     // 設定姓名
     userForm.value.full_name = newUserInfo.full_name || '';
     
@@ -183,8 +211,6 @@ watch(() => userInfo.value, (newUserInfo) => {
         userForm.value.phone = '';
       }
     }
-    
-    console.log('表單數據已更新:', userForm.value);
   }
 }, { immediate: true });
 
@@ -203,7 +229,7 @@ async function handleAvatarUpload(options: { file: UploadFileInfo }) {
     // 使用更穩定的API調用方式
     const response = await axios({
       method: 'post',
-      url: 'http://127.0.0.1:8000/api/member/profile/update/',
+      url: `${baseApiUrl}/api/member/profile/update/`,
       data: formData,
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -217,8 +243,21 @@ async function handleAvatarUpload(options: { file: UploadFileInfo }) {
       message.success('頭像上傳成功');
       // 更新用戶資料
       await userStore.checkLoginStatus();
-      // 使用可選鏈操作避免null錯誤
-      userInfo.value?.avatar && (userInfo.value.avatar = response.data.avatar);
+      // 更新用戶頭像
+      if (userInfo.value && response.data.avatar) {
+        userInfo.value.avatar = response.data.avatar;
+        // 手動更新 localStorage 中的用戶信息
+        const localUserInfo = localStorage.getItem('userInfo');
+        if (localUserInfo) {
+          try {
+            const userData = JSON.parse(localUserInfo);
+            userData.avatar = response.data.avatar;
+            localStorage.setItem('userInfo', JSON.stringify(userData));
+          } catch (e) {
+            console.error('更新本地存儲的用戶頭像失敗:', e);
+          }
+        }
+      }
     }
     else {
       throw new Error(response.data.message || '上傳失敗');
@@ -233,18 +272,14 @@ async function handleAvatarUpload(options: { file: UploadFileInfo }) {
 // 在元件掛載時獲取最新數據
 onMounted(async () => {
   try {
-    console.log('組件掛載，初始表單數據:', userForm.value);
-    
     // 首先確保檢查登入狀態，獲取最新的用戶數據
     await userStore.checkLoginStatus();
-    console.log('登入狀態檢查完成，用戶數據:', userInfo.value);
     
     // 從localStorage獲取之前保存的數據
     const savedUserData = localStorage.getItem('userData');
     if (savedUserData) {
       try {
         const userData = JSON.parse(savedUserData);
-        console.log('從localStorage獲取到用戶數據:', userData);
         
         // 優先使用localStorage中的數據
         if (userData.full_name) userForm.value.full_name = userData.full_name;
@@ -258,8 +293,6 @@ onMounted(async () => {
           userForm.value.phone = userData.phone;
           hasInput.value.phone = true;
         }
-        
-        console.log('從localStorage更新後的表單數據:', userForm.value);
       } catch (e) {
         console.error('解析本地存儲的用戶數據失敗:', e);
       }
@@ -270,11 +303,10 @@ onMounted(async () => {
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
-          console.log('嘗試從API獲取完整用戶資料');
           // 獲取完整用戶資料
           const response = await axios({
             method: 'get',
-            url: 'http://127.0.0.1:8000/api/member/profile/',
+            url: `${baseApiUrl}/api/member/profile/`,
             headers: {
               'Authorization': `Bearer ${token}`,
               'X-Requested-With': 'XMLHttpRequest',
@@ -282,12 +314,9 @@ onMounted(async () => {
             withCredentials: true,
           });
           
-          console.log('API回應:', response.data);
-          
           if (response.status === 200 && response.data.success) {
             // 使用API返回的資料更新表單
             const profileData = response.data.profile || {};
-            console.log('從API獲取的用戶資料:', profileData);
             
             // 更新表單數據
             if (profileData.full_name) userForm.value.full_name = profileData.full_name;
@@ -302,9 +331,6 @@ onMounted(async () => {
               hasInput.value.phone = true;
             }
             
-            console.log('從API更新後的表單數據:', userForm.value);
-            console.log('欄位輸入狀態:', hasInput.value);
-            
             // 同時更新localStorage
             localStorage.setItem('userData', JSON.stringify({
               full_name: userForm.value.full_name,
@@ -317,9 +343,6 @@ onMounted(async () => {
         }
       }
     }
-    
-    console.log('最終表單數據:', userForm.value);
-    console.log('最終欄位輸入狀態:', hasInput.value);
   }
   catch (error) {
     console.error('獲取儀表板數據失敗:', error);
@@ -362,7 +385,7 @@ async function saveProfile() {
     // 直接使用FormData發送請求
     const response = await axios({
       method: 'post',
-      url: 'http://127.0.0.1:8000/api/member/profile/update/',
+      url: `${baseApiUrl}/api/member/profile/update/`,
       data: formData,
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -398,171 +421,118 @@ async function saveProfile() {
     } else {
       throw new Error(response.data?.message || '伺服器回應異常');
     }
-  }
-  catch (error: any) {
-    console.error('更新個人資料失敗:', error);
-    
-    // 顯示具體錯誤訊息
-    if (error.response?.data?.message) {
-      message.error(`保存失敗: ${error.response.data.message}`);
-    } else if (error.message) {
-      message.error(`保存失敗: ${error.message}`);
-    } else {
-      message.error('保存失敗，請稍後再試');
-    }
+  } catch (error: any) {
+    console.error('保存個人資料失敗:', error);
+    message.error(error.response?.data?.message || error.message || '保存失敗，請稍後再試');
   }
 }
 
-// 專門處理密碼更新的函數
+// 更新密碼
 async function updatePassword() {
-  // 檢查密碼相關欄位
-  // 如果當前密碼為空
-  if (!userForm.value.current_password) {
-    message.error('變更密碼需要輸入當前密碼');
-    throw new Error('變更密碼需要輸入當前密碼');
+  // 密碼變更邏輯
+  // 檢查密碼欄位是否為空
+  if (!userForm.value.current_password || !userForm.value.new_password || !userForm.value.confirm_password) {
+    message.error('密碼欄位不能為空');
+    return;
   }
   
-  // 如果新密碼為空
-  if (!userForm.value.new_password) {
-    message.error('請輸入新密碼');
-    throw new Error('請輸入新密碼');
-  }
-  
-  // 如果確認密碼為空
-  if (!userForm.value.confirm_password) {
-    message.error('請確認新密碼');
-    throw new Error('請確認新密碼');
-  }
-  
-  // 確認兩次輸入的新密碼是否一致
+  // 檢查新密碼是否一致
   if (userForm.value.new_password !== userForm.value.confirm_password) {
     message.error('兩次輸入的新密碼不一致');
-    throw new Error('兩次輸入的新密碼不一致');
+    return;
   }
-  
-  // 檢查密碼強度 (至少8個字符且包含字母和數字)
-  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
-  if (!passwordRegex.test(userForm.value.new_password)) {
-    message.error('新密碼必須至少8個字符，並包含字母和數字');
-    throw new Error('新密碼必須至少8個字符，並包含字母和數字');
-  }
-  
-  // 獲取token
-  const token = localStorage.getItem('access_token');
-  if (!token)
-    throw new Error('請先登入');
   
   try {
-    console.log('開始更新密碼，使用profile_api端點');
+    const token = localStorage.getItem('access_token');
+    if (!token) throw new Error('請先登入');
     
-    // 使用profile_api端點更新密碼
-    const response = await axios({
-      method: 'put',  // 使用PUT方法
-      url: 'http://127.0.0.1:8000/api/user/profile/',  // 個人資料API
-      data: {
-        current_password: userForm.value.current_password,
-        new_password: userForm.value.new_password
-      },
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      withCredentials: true,
-      timeout: 15000,  // 增加超時時間
-    });
+    // 獲取用戶ID
+    const userId = userInfo.value?.id;
+    console.log('獲取到用戶ID:', userId);
+    
+    console.log('嘗試使用簡化版密碼修改API');
+    
+    // 嘗試多個可能的API端點
+    let response;
+    let error;
+    
+    // 嘗試不同的API路徑
+    const apiUrls = [
+      // 相對路徑
+      `/api/user/update-password/`,
+      `/api/u/update-password/`,
+      userId ? `/api/u/update-password/${userId}/` : null,
+      
+      // 直接URL路徑
+      `${baseApiUrl}/api/user/update-password/`,
+      `${baseApiUrl}/api/u/update-password/`,
+      userId ? `${baseApiUrl}/api/u/update-password/${userId}/` : null
+    ].filter(Boolean); // 移除null值
+    
+    console.log('將嘗試以下API路徑:', apiUrls);
+    
+    // 依次嘗試每個API路徑
+    for (const apiUrl of apiUrls) {
+      try {
+        console.log(`嘗試API路徑: ${apiUrl}`);
+        response = await axios({
+          method: 'post',
+          url: apiUrl,
+          data: {
+            current_password: userForm.value.current_password,
+            new_password: userForm.value.new_password,
+            confirm_password: userForm.value.confirm_password
+          },
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true
+        });
+        
+        // 如果成功則跳出循環
+        if (response.status === 200 || response.status === 201) {
+          console.log('密碼更新成功，使用的API路徑:', apiUrl);
+          break;
+        }
+      } catch (err) {
+        console.error(`使用API路徑 ${apiUrl} 更新密碼失敗:`, err);
+        error = err;
+      }
+    }
+    
+    // 如果所有API路徑都失敗
+    if (!response) {
+      throw error || new Error('所有API路徑都請求失敗');
+    }
     
     console.log('密碼更新響應:', response.data);
     
-    if (response.status === 200) {
-      // 清空密碼欄位
-      userForm.value.current_password = '';
-      userForm.value.new_password = '';
-      userForm.value.confirm_password = '';
-      
-      // 隱藏密碼欄位
-      showPasswordFields.value = false;
-      
-      // 顯示密碼更新成功訊息
-      message.success('密碼已成功更新');
-      
-      // 如果響應中包含新token，則更新本地token
-      if (response.data?.access) {
-        localStorage.setItem('access_token', response.data.access);
-        
-        // 如果還包含refresh token，也一併更新
-        if (response.data?.refresh) {
-          localStorage.setItem('refresh_token', response.data.refresh);
-        }
-      }
-      
-      return true;
-    } else {
-      throw new Error(response.data?.message || '密碼更新失敗');
+    // 如果返回新的訪問令牌，則更新本地存儲
+    if (response.data && response.data.access) {
+      localStorage.setItem('access_token', response.data.access);
+      console.log('已更新訪問令牌');
     }
-  } catch (error: any) {
-    console.error('密碼更新失敗:', error);
     
-    // 嘗試使用另一個端點
-    try {
-      console.log('嘗試使用備用的密碼更新端點');
-      
-      // 使用專門的密碼更新API
-      const backupResponse = await axios({
-        method: 'post',
-        url: 'http://127.0.0.1:8000/api/user/change-password/',
-        data: {
-          current_password: userForm.value.current_password,
-          new_password: userForm.value.new_password
-        },
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        withCredentials: true,
-        timeout: 10000,
-      });
-      
-      console.log('備用端點密碼更新響應:', backupResponse.data);
-      
-      if (backupResponse.status === 200) {
-        // 清空密碼欄位
-        userForm.value.current_password = '';
-        userForm.value.new_password = '';
-        userForm.value.confirm_password = '';
-        
-        // 隱藏密碼欄位
-        showPasswordFields.value = false;
-        
-        // 顯示密碼更新成功訊息
-        message.success('密碼已成功更新');
-        
-        // 檢查是否需要更新token
-        if (backupResponse.data?.access) {
-          localStorage.setItem('access_token', backupResponse.data.access);
-        }
-        
-        return true;
-      } else {
-        throw new Error(backupResponse.data?.message || '密碼更新失敗');
-      }
-    } catch (backupError: any) {
-      console.error('備用端點密碼更新失敗:', backupError);
-      
-      // 顯示具體錯誤訊息
-      if (error.response?.data?.message) {
-        message.error(`密碼更新失敗: ${error.response.data.message}`);
-      } else if (error.response?.data?.detail) {
-        message.error(`密碼更新失敗: ${error.response.data.detail}`);
-      } else if (error.message) {
-        message.error(`密碼更新失敗: ${error.message}`);
-      } else {
-        message.error('密碼更新失敗，請稍後再試');
-      }
-      
-      throw error;
+    if (response.data && response.data.refresh) {
+      localStorage.setItem('refresh_token', response.data.refresh);
+      console.log('已更新刷新令牌');
     }
+    
+    message.success('密碼已成功更新');
+    // 清空密碼欄位
+    userForm.value.current_password = '';
+    userForm.value.new_password = '';
+    userForm.value.confirm_password = '';
+    // 隱藏密碼欄位
+    showPasswordFields.value = false;
+    return true;
+  } catch (error: any) {
+    console.error('更新密碼失敗:', error);
+    // 顯示詳細的錯誤信息
+    const errorMsg = error.response?.data?.message || error.message || '密碼更新失敗，請確認當前密碼是否正確';
+    message.error(errorMsg);
+    return false;
   }
 }
 </script>

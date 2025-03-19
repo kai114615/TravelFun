@@ -8,25 +8,57 @@ import requests
 from io import BytesIO
 from django.core.management.base import BaseCommand
 from tqdm import tqdm
-import clip  # 直接導入 clip 庫
+import traceback
+import logging
+from django.conf import settings
 
 from shopping_system.models import Product
+
+# 設置日誌格式
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = '建立產品圖片向量索引用於圖片搜索'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='強制重新構建索引，即使已存在'
+        )
+        parser.add_argument(
+            '--device',
+            type=str,
+            default='cpu',
+            help='使用的設備 (cpu, cuda, mps)'
+        )
+    
     def handle(self, *args, **options):
-        # 強制使用 CPU 設備，避免 MPS 的兼容性問題
-        device = "cpu"
+        force_rebuild = options['force']
+        device = options.get('device', 'cpu')
+        
+        # 檢查設備可用性
+        if device == 'cuda' and not torch.cuda.is_available():
+            self.stdout.write(self.style.WARNING("CUDA不可用，將使用CPU"))
+            device = 'cpu'
+        elif device == 'mps' and (not hasattr(torch.backends, 'mps') or not torch.backends.mps.is_available()):
+            self.stdout.write(self.style.WARNING("MPS不可用，將使用CPU"))
+            device = 'cpu'
+        
         self.stdout.write(f"使用設備: {device}")
         
         try:
-            # 直接載入 CLIP 模型
-            self.stdout.write("🔄 正在載入 CLIP 模型...")
-            model, preprocess = clip.load("ViT-B/32", device=device)
-            self.stdout.write("✅ CLIP 模型載入完成")
+            # 導入CLIP (延遲導入以處理可能的導入錯誤)
+            try:
+                import clip
+                self.stdout.write("✅ 成功導入CLIP庫")
+            except ImportError as e:
+                self.stdout.write(self.style.ERROR(f"無法導入CLIP庫: {e}"))
+                self.stdout.write(self.style.ERROR("請安裝必要的依賴: pip install -r requirements.clip.windows.txt"))
+                return
             
-            # 設置 FAISS 索引保存路徑
+            # 設置索引文件路徑
             current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             data_dir = os.path.join(current_dir, 'image_search', 'data')
             os.makedirs(data_dir, exist_ok=True)
@@ -34,8 +66,20 @@ class Command(BaseCommand):
             index_path = os.path.join(data_dir, 'product_vectors.index')
             product_ids_path = os.path.join(data_dir, 'product_ids.npy')
             
-            self.stdout.write(f"索引將保存至: {index_path}")
-            self.stdout.write(f"產品 ID 將保存至: {product_ids_path}")
+            # 檢查索引是否已存在
+            if os.path.exists(index_path) and os.path.exists(product_ids_path) and not force_rebuild:
+                self.stdout.write(self.style.WARNING("索引文件已存在，使用 --force 參數強制重新構建"))
+                return
+            
+            # 載入CLIP模型
+            try:
+                self.stdout.write("🔄 正在載入 CLIP 模型...")
+                model, preprocess = clip.load("ViT-B/32", device=device)
+                self.stdout.write("✅ CLIP 模型載入完成")
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"載入CLIP模型失敗: {e}"))
+                self.stdout.write(traceback.format_exc())
+                return
             
             # 獲取所有活躍產品
             products = Product.objects.filter(is_active=True)
@@ -50,94 +94,71 @@ class Command(BaseCommand):
             product_ids = []
             vectors = []
             
-            # 批次處理，每批最多處理 32 個產品
-            batch_size = 32
-            batches = (product_count + batch_size - 1) // batch_size
-            
+            # 處理每個產品圖片
             self.stdout.write("🔄 開始處理產品圖片...")
-            for batch_idx in range(batches):
-                start_idx = batch_idx * batch_size
-                end_idx = min((batch_idx + 1) * batch_size, product_count)
-                
-                batch_products = products[start_idx:end_idx]
-                batch_images = []
-                batch_valid_indices = []
-                batch_products_to_use = []
-                
-                for i, product in enumerate(batch_products):
-                    # 使用 image_url 而不是 image
-                    if not product.image_url:
-                        self.stdout.write(f"警告: 產品 {product.id} ({product.name}) 沒有圖片URL")
-                        continue
-                        
+            with torch.no_grad():
+                for product in tqdm(products, desc="處理產品圖片"):
                     try:
-                        # 從網絡下載圖片
-                        response = requests.get(product.image_url, timeout=10)
-                        if response.status_code != 200:
-                            self.stdout.write(self.style.WARNING(f"下載圖片失敗 (產品 {product.id}): HTTP狀態碼 {response.status_code}"))
+                        # 獲取圖片URL
+                        image_url = product.image_url  # 假設有這個欄位
+                        
+                        # 跳過沒有圖片的產品
+                        if not image_url:
+                            self.stdout.write(f"跳過產品 {product.id}: 沒有圖片")
                             continue
-                            
-                        # 載入並預處理圖片
+                        
+                        # 下載圖片
                         try:
-                            img = Image.open(BytesIO(response.content)).convert('RGB')
-                            batch_images.append(preprocess(img))
-                            batch_valid_indices.append(i)
-                            batch_products_to_use.append(product)
-                            self.stdout.write(f"成功載入圖片: {product.image_url}")
-                        except Exception as e:
-                            self.stdout.write(self.style.WARNING(f"圖片處理錯誤 (產品 {product.id}): {e}"))
+                            response = requests.get(image_url, timeout=10)
+                            if response.status_code != 200:
+                                self.stdout.write(f"跳過產品 {product.id}: 下載圖片失敗，狀態碼 {response.status_code}")
+                                continue
+                                
+                            image_data = BytesIO(response.content)
+                            image = Image.open(image_data).convert('RGB')
+                        except Exception as img_err:
+                            self.stdout.write(f"跳過產品 {product.id}: 圖片處理錯誤 {str(img_err)}")
+                            continue
+                        
+                        # 使用CLIP處理圖片
+                        processed_image = preprocess(image).unsqueeze(0).to(device)
+                        image_features = model.encode_image(processed_image)
+                        image_features /= image_features.norm(dim=-1, keepdim=True)
+                        
+                        # 添加到向量列表
+                        vectors.append(image_features.cpu().numpy().astype(np.float32).flatten())
+                        product_ids.append(product.id)
+                        
                     except Exception as e:
-                        self.stdout.write(self.style.WARNING(f"獲取圖片錯誤 (產品 {product.id}): {e}"))
-                
-                if not batch_images:
-                    self.stdout.write(f"批次 {batch_idx+1}/{batches} 中沒有有效圖片")
-                    continue
-                    
-                # 合併批次圖片並轉換為張量
-                batch_tensor = torch.stack(batch_images).to(device)
-                
-                # 使用 CLIP 模型獲取特徵向量
-                with torch.no_grad():
-                    batch_features = model.encode_image(batch_tensor)
-                    
-                # 正規化特徵向量
-                batch_features /= batch_features.norm(dim=-1, keepdim=True)
-                
-                # 將特徵向量轉換為 NumPy 陣列並添加到向量列表
-                batch_features_np = batch_features.cpu().numpy().astype('float32')
-                
-                # 添加產品ID和向量
-                for i, product in enumerate(batch_products_to_use):
-                    product_ids.append(product.id)
-                    vectors.append(batch_features_np[i])
-                
-                self.stdout.write(f"完成批次 {batch_idx+1}/{batches} 處理")
+                        self.stdout.write(f"處理產品 {product.id} 時出錯: {str(e)}")
+                        continue
             
-            # 確保我們有有效的向量
-            if not vectors:
-                self.stdout.write(self.style.ERROR("沒有找到有效的產品圖片，無法建立索引"))
+            # 檢查是否有處理成功的產品
+            if len(vectors) == 0:
+                self.stdout.write(self.style.ERROR("沒有成功處理任何產品圖片，無法創建索引"))
                 return
+                
+            # 轉換為numpy數組
+            vectors_array = np.array(vectors).astype(np.float32)
+            product_ids_array = np.array(product_ids, dtype=np.int64)
             
-            # 將向量列表轉換為 NumPy 陣列
-            vectors_np = np.array(vectors).astype('float32')
-            product_ids_np = np.array(product_ids)
+            self.stdout.write(f"成功處理 {len(vectors)} 個產品圖片")
+            self.stdout.write(f"向量形狀: {vectors_array.shape}")
             
-            # 建立 FAISS 索引
-            self.stdout.write("🔄 建立 FAISS 索引...")
-            dimension = vectors_np.shape[1]
-            index = faiss.IndexFlatIP(dimension)
-            index.add(vectors_np)
+            # 建立FAISS索引
+            self.stdout.write("🔄 建立FAISS索引...")
+            index = faiss.IndexFlatIP(vectors_array.shape[1])  # 內積相似度（餘弦相似度）
+            index.add(vectors_array)
             
-            # 保存索引和產品 ID
-            self.stdout.write(f"保存索引到 {index_path}")
+            # 保存索引和產品ID
+            self.stdout.write(f"🔄 保存索引到 {index_path}")
             faiss.write_index(index, index_path)
             
-            self.stdout.write(f"保存產品 ID 到 {product_ids_path}")
-            np.save(product_ids_path, product_ids_np)
+            self.stdout.write(f"🔄 保存產品ID到 {product_ids_path}")
+            np.save(product_ids_path, product_ids_array)
             
-            self.stdout.write(self.style.SUCCESS(f"✅ 索引建立完成! 共處理 {len(product_ids)} 個產品"))
-        
+            self.stdout.write(self.style.SUCCESS(f"✅ 成功建立索引，包含 {len(product_ids)} 個產品"))
+            
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"建立索引時發生錯誤: {e}"))
-            import traceback
+            self.stdout.write(self.style.ERROR(f"建立索引時發生錯誤: {str(e)}"))
             self.stdout.write(traceback.format_exc()) 

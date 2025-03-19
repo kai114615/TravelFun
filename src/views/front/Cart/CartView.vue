@@ -45,7 +45,7 @@ function proceedToCheckout () {
 
 // 前往商品列表
 function goToProducts () {
-  router.push('/mall-products');
+  router.push('/mall');
 }
 </script>
 

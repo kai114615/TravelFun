@@ -149,7 +149,7 @@ async function buyNow () {
 // 新增：點擊品牌按鈕的處理函數
 function openBrandProducts (brand: string) {
   // 直接使用品牌名稱作為參數
-  const url = `${window.location.origin}/#/mall-products?brand=${encodeURIComponent(brand)}`;
+  const url = `${window.location.origin}/#/mall?brand=${encodeURIComponent(brand)}`;
   window.open(url, '_blank');
 }
 

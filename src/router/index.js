@@ -146,7 +146,7 @@ const routes = [
     },
   },
   {
-    path: '/wishlist',
+    path: '/member/wishlist',
     name: 'WishList',
     component: () => import('../views/front/WishList/WishListView.vue'),
     meta: {
@@ -222,6 +222,23 @@ const routes = [
     meta: {
       title: '訂單完成',
       requiresAuth: true,
+    },
+  },
+  {
+    path: '/checkout/complete',
+    name: 'CheckoutComplete',
+    component: () => import('../views/front/Member/OrderDetailView.vue'),
+    props: (route) => ({ orderNumber: route.query.order_number }),
+    meta: {
+      title: '訂單詳情',
+    },
+  },
+  {
+    path: '/payment-atm/:orderNumber',
+    name: 'PaymentATM',
+    component: () => import('../views/front/Checkout/PaymentATMView.vue'),
+    meta: {
+      title: 'ATM轉帳資訊',
     },
   },
 ];

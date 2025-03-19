@@ -27,6 +27,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests  # 給 Google 的 requests 模組起別名
 from django.conf import settings
 import uuid
+from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 
@@ -1209,3 +1210,259 @@ def google_signin(request):
             'success': False,
             'message': f'處理 Google 登入時發生錯誤: {str(e)}'
         }, status=status.HTTP_400_BAD_REQUEST)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    """更新用戶個人資料的API"""
+    print(f"更新用戶資料API被調用，用戶ID: {request.user.id}")
+    
+    try:
+        user = request.user
+        data = request.data
+        
+        # 獲取Member對象
+        try:
+            member = Member.objects.get(username=user.username)
+        except Member.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': '找不到對應的會員資料'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # 更新資料
+        if 'name' in data and data['name']:
+            # 拆分姓名到first_name和last_name
+            name_parts = data['name'].split(' ', 1)
+            if len(name_parts) > 1:
+                user.first_name = name_parts[0]
+                user.last_name = name_parts[1]
+            else:
+                user.first_name = name_parts[0]
+                user.last_name = ''
+        
+        # 更新地址
+        if 'address' in data:
+            member.address = data['address']
+        
+        # 更新手機號碼 - 確保使用正確欄位
+        if 'phone' in data:
+            member.phone = data['phone']
+        
+        # 保存更改
+        user.save()
+        member.save()
+        
+        return Response({
+            'success': True,
+            'message': '個人資料更新成功',
+            'data': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'full_name': f"{user.first_name} {user.last_name}".strip(),
+                'address': member.address,
+                'phone': member.phone
+            }
+        })
+    except Exception as e:
+        print(f"更新用戶資料時出錯: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'success': False,
+            'message': f'更新資料時出錯: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request, user_id):
+    """修改用戶密碼的API視圖函數"""
+    print(f"密碼更改API被調用，用戶ID: {user_id}")
+    
+    try:
+        # 驗證用戶只能更改自己的密碼
+        if request.user.id != user_id:
+            return Response({
+                'success': False,
+                'message': '您只能更改自己的密碼'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # 獲取請求數據
+        data = request.data
+        print("收到密碼修改請求數據:", data)
+        
+        # 支援兩種不同的參數命名：
+        # 1. old_password, new_password, confirm_password (ProfileView)
+        # 2. current_password, new_password (DashboardView)
+        old_password = data.get('old_password') or data.get('current_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password') or data.get('new_password')
+        
+        # 驗證數據完整性
+        if not all([old_password, new_password]):
+            return Response({
+                'success': False, 
+                'message': '請提供當前密碼和新密碼'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 驗證新密碼與確認密碼是否一致
+        if new_password != confirm_password:
+            return Response({
+                'success': False,
+                'message': '新密碼與確認密碼不一致'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 驗證舊密碼是否正確
+        user = request.user
+        if not user.check_password(old_password):
+            return Response({
+                'success': False,
+                'message': '舊密碼不正確'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 驗證新密碼是否符合要求
+        if len(new_password) < 8:
+            return Response({
+                'success': False,
+                'message': '新密碼須至少8個字符'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 檢查是否包含字母和數字
+        has_letter = any(c.isalpha() for c in new_password)
+        has_number = any(c.isdigit() for c in new_password)
+        if not (has_letter and has_number):
+            return Response({
+                'success': False,
+                'message': '新密碼必須包含字母和數字'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 更新密碼
+        user.set_password(new_password)
+        user.save()
+        
+        # 生成新的JWT令牌
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'success': True,
+            'message': '密碼更改成功',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh)
+        })
+        
+    except Exception as e:
+        print(f"密碼更改時發生錯誤: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'success': False,
+            'message': f'密碼更改失敗: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_password(request, user_id=None):
+    """
+    更簡單的密碼修改API，支持URL中有用戶ID或者無用戶ID的版本
+    直接從當前已認證的用戶獲取ID
+    """
+    print("======== 密碼修改API被調用 ========")
+    print(f"請求方法: {request.method}")
+    print(f"請求路徑: {request.path}")
+    print(f"URL中的用戶ID參數: {user_id}")
+    print(f"請求用戶: {request.user.username}, ID: {request.user.id}")
+    print(f"認證標頭: {request.headers.get('Authorization', '無')}")
+    
+    try:
+        # 獲取當前用戶
+        user = request.user
+        print(f"當前用戶: {user.username}, ID: {user.id}")
+        
+        # 如果URL中提供了user_id，則驗證權限
+        if user_id is not None and user.id != user_id:
+            print(f"權限錯誤: URL中的用戶ID {user_id} 與當前用戶ID {user.id} 不一致")
+            return Response({
+                'success': False,
+                'message': '您只能修改自己的密碼'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # 獲取請求數據
+        data = request.data
+        print("收到密碼修改請求數據類型:", type(data), "內容:", data)
+        
+        # 支援兩種不同的參數命名方式
+        old_password = data.get('old_password') or data.get('current_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password') or data.get('new_password')
+        
+        print(f"收到的參數: old_password={bool(old_password)}, new_password={bool(new_password)}, confirm_password={bool(confirm_password)}")
+        
+        # 驗證數據完整性
+        if not old_password or not new_password:
+            print("密碼欄位不完整")
+            return Response({
+                'success': False, 
+                'message': '請提供當前密碼和新密碼'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 驗證新密碼與確認密碼是否一致
+        if new_password != confirm_password:
+            print("新密碼與確認密碼不一致")
+            return Response({
+                'success': False,
+                'message': '新密碼與確認密碼不一致'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 驗證舊密碼是否正確
+        if not user.check_password(old_password):
+            print("當前密碼不正確")
+            return Response({
+                'success': False,
+                'message': '當前密碼不正確'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 驗證新密碼是否符合要求
+        if len(new_password) < 8:
+            print("新密碼長度不足")
+            return Response({
+                'success': False,
+                'message': '新密碼須至少8個字符'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 檢查是否包含字母和數字
+        has_letter = any(c.isalpha() for c in new_password)
+        has_number = any(c.isdigit() for c in new_password)
+        if not (has_letter and has_number):
+            print("新密碼格式不符合要求")
+            return Response({
+                'success': False,
+                'message': '新密碼必須包含字母和數字'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 更新密碼
+        user.set_password(new_password)
+        user.save()
+        print("密碼更新成功")
+        
+        # 生成新的JWT令牌
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'success': True,
+            'message': '密碼更改成功',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh)
+        })
+        
+    except Exception as e:
+        print(f"密碼更改時發生錯誤: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({
+            'success': False,
+            'message': f'密碼更改失敗: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -99,28 +99,42 @@ class ClipImageSearch:
         # 檢查索引文件是否存在
         if not os.path.exists(self.index_path) or not os.path.exists(self.product_ids_path):
             logger.warning(f"索引文件不存在: {self.index_path} 或 {self.product_ids_path}")
-            # 初始化空索引
-            import faiss
-            self.index = faiss.IndexFlatIP(512)  # CLIP ViT-B/32 輸出 512 維度向量
-            self.product_ids = np.array([], dtype=np.int64)
             return
             
         try:
-            # 載入索引
-            import faiss
+            # 加載FAISS索引
+            logger.info(f"從 {self.index_path} 加載FAISS索引")
             self.index = faiss.read_index(self.index_path)
+            
+            # 加載產品ID列表
+            logger.info(f"從 {self.product_ids_path} 加載產品ID列表")
             self.product_ids = np.load(self.product_ids_path)
             
-            # 確保產品ID是正確的數據類型
-            self.product_ids = self.product_ids.astype(np.int64)
-            
-            logger.info(f"成功載入索引，包含 {len(self.product_ids)} 個產品向量")
+            logger.info(f"索引加載完成，包含 {len(self.product_ids)} 個產品")
         except Exception as e:
-            logger.exception(f"載入索引時出錯: {str(e)}")
-            # 初始化空索引
-            self.index = faiss.IndexFlatIP(512)
-            self.product_ids = np.array([], dtype=np.int64)
+            logger.error(f"加載索引時發生錯誤: {str(e)}")
+            self.index = None
+            self.product_ids = None
+            raise IOError(f"無法加載索引: {str(e)}")
     
+    def is_index_loaded(self):
+        """
+        檢查索引是否已加載
+        
+        Returns:
+            bool: 如果索引已加載則返回True，否則返回False
+        """
+        # 如果未加載，嘗試加載
+        if self.index is None or self.product_ids is None:
+            try:
+                self._load_index()
+            except Exception as e:
+                logger.error(f"檢查索引時無法加載: {str(e)}")
+                return False
+        
+        # 再次檢查加載是否成功
+        return self.index is not None and self.product_ids is not None and len(self.product_ids) > 0
+
     def _save_index(self):
         """
         保存索引和產品ID到文件
@@ -375,14 +389,14 @@ class ClipImageSearch:
             except Exception as e:
                 logger.warning(f"刪除臨時目錄時出錯: {str(e)}")
 
-    def search_by_image(self, image_path: str, top_k: int = 5, threshold: float = 0.2) -> List[Dict[str, any]]:
+    def search_by_image(self, image_path: str, top_k: int = 5, threshold: float = 0.05) -> List[Dict[str, any]]:
         """
         使用圖片搜尋相似商品
 
         Args:
             image_path: 查詢圖片路徑
             top_k: 返回結果數量
-            threshold: 相似度閾值 (0-1)，低於此值的結果將被過濾
+            threshold: 相似度閾值 (0-1)，低於此值的結果將被過濾，預設為0.05
 
         Returns:
             包含產品ID、相似度分數和排名的結果列表
@@ -437,17 +451,23 @@ class ClipImageSearch:
             scores = scores[0]  # shape (1, top_k) -> (top_k,)
             indices = indices[0]  # shape (1, top_k) -> (top_k,)
             
+            logger.info(f"原始搜索結果: 索引 = {indices}, 相似度分數 = {scores}")
+            
             for rank, (score, idx) in enumerate(zip(scores, indices)):
                 # 內積相似度現在範圍是[-1, 1]，將其映射到[0, 1]
                 normalized_score = float((score + 1) / 2.0)
                 
+                logger.info(f"結果 #{rank+1}: idx={idx}, 原始分數={score:.4f}, 正規化分數={normalized_score:.4f}")
+                
                 # 過濾低於閾值的結果
                 if normalized_score < threshold:
                     filtered_count += 1
+                    logger.info(f"過濾結果 #{rank+1}: 分數 {normalized_score:.4f} < 閾值 {threshold}")
                     continue
                     
                 # 獲取產品ID
                 if 0 <= idx < len(self.product_ids):
+                    # 確保是純整數型別
                     product_id = int(self.product_ids[idx])
                     
                     results.append({

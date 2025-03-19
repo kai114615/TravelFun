@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Header from '@/components/Header';
+import Footer from '@/components/Footer.vue';
 </script>
 
 <template>
@@ -26,11 +27,6 @@ import Header from '@/components/Header';
     <Footer />
   </div>
 </template>
-
-<script setup lang="ts">
-import Header from '@/components/Header';
-import Footer from '@/components/Footer.vue';
-</script>
 
 <style scoped>
 .router-link-active {

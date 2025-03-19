@@ -22,7 +22,10 @@ export const useUserStore = defineStore('user', () => {
 
   // 計算屬性：用戶顯示名稱
   const displayName = computed(() => {
-    return userInfo.value?.full_name || userInfo.value?.username || '';
+    if (userInfo.value?.full_name && userInfo.value.full_name.trim() !== '') {
+      return userInfo.value.full_name;
+    }
+    return userInfo.value?.username || '';
   })
 
   // 更新用戶狀態

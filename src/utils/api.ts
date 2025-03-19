@@ -512,6 +512,64 @@ export function apiForumDeletePostDirect(postId: number) {
   });
 }
 
+// 圖像搜索相關API
+function apiImageSearch(imageFile: File) {
+  // 創建一個 FormData 對象
+  const formData = new FormData();
+  formData.append('image', imageFile);
+
+  // 定義請求超時時間（15秒）
+  const timeout = 15000;
+  
+  // 創建帶超時功能的請求Promise
+  const fetchPromise = fetch(BASE_URL + '/shop/api/image-search/', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      // 不要設置 Content-Type，使用瀏覽器自動設置的 multipart/form-data
+    },
+  });
+  
+  // 創建超時Promise
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error('請求超時，服務器響應時間過長'));
+    }, timeout);
+  });
+  
+  // 使用 Promise.race 競爭，哪個先完成就返回哪個結果
+  return Promise.race([fetchPromise, timeoutPromise])
+    .then(response => {
+      if (!response.ok) {
+        // 處理 HTTP 錯誤狀態碼
+        if (response.status === 404) {
+          throw new Error('找不到圖像搜索API，請檢查路徑是否正確');
+        } else if (response.status === 500) {
+          throw new Error('服務器內部錯誤，請聯繫管理員');
+        } else {
+          throw new Error(`圖像搜索失敗，HTTP狀態: ${response.status}`);
+        }
+      }
+      
+      // 檢查是否是 JSON 格式
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('返回格式錯誤，預期JSON格式');
+      }
+      
+      return response.json();
+    })
+    .catch(error => {
+      console.error('圖像搜索API調用出錯:', error);
+      // 返回標準化的錯誤響應，確保前端處理一致
+      return {
+        success: false,
+        error: error.message || '圖像搜索失敗',
+        products: []
+      };
+    });
+}
+
 export {
   api,
   apiAdminGetAllProducts,
@@ -543,4 +601,5 @@ export {
   apiUserPostOrder,
   apiUserPostPay,
   apiUserRegister,
+  apiImageSearch,
 };

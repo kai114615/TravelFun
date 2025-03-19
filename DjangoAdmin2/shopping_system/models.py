@@ -178,8 +178,10 @@ class RecommendedProduct(models.Model):
         return True 
 
 class Order(models.Model):
-    """訂單"""
-    ORDER_STATUS = (
+    """訂單模型"""
+    
+    # 訂單狀態選項
+    STATUS_CHOICES = (
         ('pending', '待付款'),
         ('paid', '已付款'),
         ('shipped', '已出貨'),
@@ -187,27 +189,44 @@ class Order(models.Model):
         ('cancelled', '已取消'),
     )
     
+    # 支付方式選項 - 已修改為只有貨到付款
+    PAYMENT_METHODS = (
+        ('cash_on_delivery', '貨到付款'),
+    )
+
     user = models.ForeignKey(
         Member,
-        on_delete=models.CASCADE,
-        related_name='shopping_orders',
-        verbose_name='購買者'
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='用戶'
     )
-    order_number = models.CharField('訂單編號', max_length=20, unique=True)
-    total_amount = models.DecimalField('總金額', max_digits=10, decimal_places=2)
-    status = models.CharField('訂單狀態', max_length=20, choices=ORDER_STATUS)
-    shipping_address = models.TextField('收貨地址')
-    contact_phone = models.CharField('聯絡電話', max_length=20)
-    created_at = models.DateTimeField('建立時間', auto_now_add=True)
-    updated_at = models.DateTimeField('更新時間', auto_now=True)
-
+    order_number = models.CharField(max_length=50, unique=True, verbose_name='訂單編號')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='總金額')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='狀態')
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='cash_on_delivery', verbose_name='付款方式')
+    payment_info = models.TextField(blank=True, null=True, verbose_name='付款資訊')
+    shipping_name = models.CharField(max_length=100, verbose_name='收件人姓名')
+    shipping_phone = models.CharField(max_length=20, verbose_name='收件人電話')
+    shipping_address = models.CharField(max_length=255, verbose_name='收件地址')
+    shipping_note = models.TextField(blank=True, null=True, verbose_name='訂單備註')
+    
+    # 新增物流相關欄位
+    shipping_method = models.CharField(max_length=20, default='home_delivery', verbose_name='物流方式')
+    logistics_id = models.CharField(max_length=50, blank=True, null=True, verbose_name='物流單號')
+    logistics_status = models.CharField(max_length=20, blank=True, null=True, verbose_name='物流狀態')
+    logistics_info = models.TextField(blank=True, null=True, verbose_name='物流資訊')
+    
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='建立時間')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新時間')
+    
     class Meta:
         verbose_name = '訂單'
-        verbose_name_plural = '訂單'
+        verbose_name_plural = '訂單列表'
         ordering = ['-created_at']
-
+        
     def __str__(self):
-        return f'訂單 {self.order_number}'
+        return f"訂單 {self.order_number}"
 
 class OrderItem(models.Model):
     """訂單項目"""

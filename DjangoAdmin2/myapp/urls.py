@@ -22,7 +22,7 @@ urlpatterns = [
     path('api/users/', views.member_api, name='member_api_list'),
     path('api/users/<int:member_id>/', views.member_api, name='member_api_detail'),
     path('api/member/profile/', views.profile_api, name='profile_api'),
-    path('api/member/profile/update/', views.profile_update_api, name='profile_update_api'),
+    path('api/member/profile/update/', views.update_profile, name='profile_update_api'),
     
     # 商城系統
     path('admin-dashboard/shop/layout/', views.shop_layout, name='shop_layout'),
@@ -50,11 +50,16 @@ urlpatterns = [
     path('messages/compose/', views.compose_message, name='compose_message'),
     path('messages/<int:message_id>/', views.message_detail, name='message_detail'),
     path('messages/<int:message_id>/delete/', views.delete_message, name='delete_message'),
-    path('api/user/register/', views.register_api, name='api-register'),
+    path('api/user/register/', views.register, name='api-register'),
     path('api/user/signin/', views.signin, name='api-signin'),
     path('api/user/logout/', views.logout_api, name='api-logout'),
     path('api/user/check-auth/', views.check_auth, name='api-check-auth'),
     path('api/user/profile/', views.profile_api, name='api-profile'),
+    path('api/user/change-password/<int:user_id>/', views.change_password, name='change_password_api'),
+    path('api/m/change-password/<int:user_id>/', views.change_password, name='change_password_api_alt'),
+    path('api/user/update-password/', views.update_password, name='update_password_api'),
+    path('api/u/update-password/<int:user_id>/', views.update_password, name='update_password_api_with_id'),
+    path('api/u/update-password/', views.update_password, name='update_password_api_short'),
     path('api/posts/create/', views.create_post, name='create_post'),
     path('api/user/google-signin/', views.google_signin, name='google_signin'),
 ]

@@ -32,7 +32,16 @@ request.interceptors.response.use(
   async (error) => {
     if (error.response) {
       if (error.response.status === 401) {
-        // Token 過期，嘗試使用 refresh token
+        // 檢查是否是嘗試登入的請求
+        const isLoginRequest = error.config.url.includes('/api/token/') || 
+                             error.config.url.includes('/api/user/signin/');
+        
+        // 如果是登入請求，直接返回錯誤，讓前端處理
+        if (isLoginRequest) {
+          return Promise.reject(error);
+        }
+        
+        // 對於其他請求，嘗試使用refresh token
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
           try {
@@ -50,8 +59,13 @@ request.interceptors.response.use(
             // refresh token 也過期，清除所有 token
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
+            // 重定向到登入頁面
             window.location.href = '/login';
           }
+        } else {
+          // 沒有refresh token，重定向到登入頁面
+          localStorage.removeItem('access_token');
+          window.location.href = '/login';
         }
       }
     }

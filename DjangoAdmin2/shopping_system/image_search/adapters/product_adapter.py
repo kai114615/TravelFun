@@ -3,6 +3,7 @@
 """
 from typing import List, Dict, Any, Optional
 from django.db.models import Model
+import logging
 
 
 class ProductAdapter:
@@ -20,10 +21,33 @@ class ProductAdapter:
         Returns:
             商品資訊字典，若未找到則返回None
         """
+        logger = logging.getLogger(__name__)
+        
         try:
-            product = product_model.objects.get(id=product_id)
-            return ProductAdapter.model_to_dict(product)
+            logger.info(f"嘗試獲取商品ID: {product_id}, 類型: {type(product_id)}")
+            # 確保product_id是整數
+            product_id = int(product_id)
+            product = product_model.objects.filter(id=product_id).first()
+            
+            if not product:
+                logger.warning(f"找不到ID為 {product_id} 的商品")
+                return None
+                
+            if not getattr(product, 'is_active', True):
+                logger.warning(f"商品ID {product_id} 未啟用")
+                return None
+                
+            result = ProductAdapter.model_to_dict(product)
+            logger.info(f"成功獲取商品ID {product_id} 的詳情")
+            return result
+        except ValueError:
+            logger.error(f"無效的商品ID格式: {product_id}, 類型: {type(product_id)}")
+            return None
         except product_model.DoesNotExist:
+            logger.warning(f"商品ID {product_id} 不存在")
+            return None
+        except Exception as e:
+            logger.exception(f"獲取商品ID {product_id} 時發生未知錯誤: {str(e)}")
             return None
 
     @staticmethod

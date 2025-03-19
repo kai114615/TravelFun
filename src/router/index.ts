@@ -25,7 +25,15 @@ const routes: Array<RouteRecordRaw> = [
         name: 'Mall',
         component: () => import('../views/front/Mall/MallView.vue'),
         meta: {
-          title: '商城中心 - Travel Fun',
+          title: 'AI圖像搜索 - Travel Fun',
+        },
+      },
+      {
+        path: 'mall/image-search',
+        name: 'ImageSearch',
+        component: () => import('../views/front/Mall/MallProductsView.vue'),
+        meta: {
+          title: 'AI圖像搜索 - Travel Fun',
         },
       },
       {
@@ -169,11 +177,19 @@ const routes: Array<RouteRecordRaw> = [
         ],
       },
       {
-        path: 'wishlist',
+        path: '/member/wishlist',
         name: 'WishList',
         component: () => import('../views/front/WishList/WishListView.vue'),
         meta: {
           title: '我的最愛 - Travel Fun',
+        },
+      },
+      {
+        path: 'ecpay-payment',
+        name: 'ECPayPayment',
+        component: () => import('../views/front/Checkout/ECPayView.vue'),
+        meta: {
+          title: '綠界金流支付 - Travel Fun',
         },
       },
       {
@@ -290,6 +306,15 @@ const routes: Array<RouteRecordRaw> = [
         meta: {
           requiresAuth: true,
           title: '優惠券',
+        },
+      },
+      {
+        path: 'orders/:orderNumber',
+        name: 'MemberOrderDetail',
+        component: () => import('@/views/front/Member/OrderDetailView.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '訂單詳情',
         },
       },
     ],
