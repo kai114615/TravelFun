@@ -144,10 +144,10 @@ class ActivityDetailView(RetrieveAPIView):
 
     def get_object(self):
         """獲取單個活動詳情"""
-        uid = self.kwargs.get('id')  # 從 URL 參數獲取 uid
+        id = self.kwargs.get('id')  # 從 URL 參數獲取 id
         try:
-            # 使用 uid 查詢而不是 id
-            event = get_object_or_404(Events, uid=uid)
+            # 使用 id 查詢而不是 uid
+            event = get_object_or_404(Events, id=id)
             return {
                 'id': event.id,
                 'uid': event.uid,
@@ -276,13 +276,13 @@ def create_event(request):
 def activity_list(request):
     """獲取活動列表的API"""
     try:
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 100))
+        # page = int(request.GET.get('page', 1))
+        # page_size = int(request.GET.get('page_size', 100))
 
         activities = Events.objects.all().order_by('id')
-        paginator = Paginator(activities, page_size)
+        # paginator = Paginator(activities, page_size)
 
-        current_page = paginator.page(page)
+        # current_page = paginator.page(page)
 
         data = [{
             'id': activity.id,
@@ -300,14 +300,14 @@ def activity_list(request):
             'source_url': activity.source_url,
             'created_at': activity.created_at,
             'updated_at': activity.updated_at
-        } for activity in current_page]
+        } for activity in activities]
 
         return JsonResponse({
             'status': 'success',
             'data': data,
-            'total': paginator.count,
-            'page': page,
-            'total_pages': paginator.num_pages
+            # 'total': paginator.count,
+            # 'page': page,
+            # 'total_pages': paginator.num_pages
         })
 
     except Exception as e:

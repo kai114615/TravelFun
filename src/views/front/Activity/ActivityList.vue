@@ -318,13 +318,22 @@ export default defineComponent({
 
     async fetchActivityData() {
       try {
-        const localData = await import('@/assets/theme_entertainment/events_data.json');
-        return localData.default;
-      }
-      catch (localError) {
-        console.error('Local data error:', localError);
+        // 先嘗試從後端API獲取最新資料
         const response = await axios.get('/theme_entertainment/activities/api/list/');
         return response.data;
+      }
+      catch (apiError) {
+        console.error('API 資料獲取失敗，使用本地資料:', apiError);
+
+        try {
+          // API獲取失敗時，嘗試讀取本地JSON檔案
+          const localData = await import('@/assets/theme_entertainment/events_data.json');
+          return localData.default;
+        }
+        catch (localError) {
+          console.error('本地資料獲取也失敗:', localError);
+          throw new Error('無法獲取活動資料');
+        }
       }
     },
 
@@ -694,7 +703,7 @@ export default defineComponent({
     viewDetails(activity: Activity) {
       this.$router.push({
         name: 'ActivityDetail',
-        params: { id: activity.uid },
+        params: { id: activity.id },
       });
     },
 
