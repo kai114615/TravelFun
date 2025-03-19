@@ -524,10 +524,10 @@ async function sendMessage(): Promise<void> {
 
     // 處理回應文字
     const text = extractTextFromResponse(data);
-    if (text) {
+      if (text) {
       messages.value.push({ role: 'assistant', content: text });
       scrollToBottom();
-      return;
+        return;
     }
 
     // 錯誤處理
@@ -542,11 +542,11 @@ async function sendMessage(): Promise<void> {
     // 嘗試備用 API 格式
     const backupText = await tryBackupApiFormat(userMessage);
     if (backupText) {
-      messages.value.pop();
+        messages.value.pop();
       messages.value.push({ role: 'assistant', content: backupText });
       scrollToBottom();
-      return;
-    }
+        return;
+      }
 
     // 顯示錯誤訊息
     let errorMessage = getErrorMessage(error);
@@ -569,7 +569,7 @@ async function testApiKey(): Promise<boolean> {
   try {
     const testRequestBody = {
       contents: [{
-        role: "user",
+          role: "user",
         parts: [{ text: '你好，這是 API 金鑰測試。請回覆 "API 金鑰有效"' }]
       }]
     };
@@ -825,12 +825,12 @@ onMounted(() => {
             <template v-for="(msg, index) in messages" :key="index">
               <div class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
                 <div class="max-w-[85%] rounded-2xl p-3 px-4 shadow-sm" :class="[
-                  msg.role === 'user'
-                    ? 'bg-primary text-white'
-                    : msg.content === '思考中.....'
-                      ? 'bg-gray-50 text-gray-400'
+                    msg.role === 'user'
+                      ? 'bg-primary text-white'
+                      : msg.content === '思考中.....'
+                        ? 'bg-gray-50 text-gray-400'
                       : 'bg-gray-50 text-slate-700 border border-gray-100',
-                  msg.content === '思考中.....' ? 'thinking-dots' : '',
+                    msg.content === '思考中.....' ? 'thinking-dots' : '',
                 ]">
                   <div class="whitespace-pre-line">{{ msg.content }}</div>
                 </div>
