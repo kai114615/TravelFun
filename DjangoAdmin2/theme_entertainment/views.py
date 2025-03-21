@@ -155,16 +155,16 @@ class ActivityDetailView(RetrieveAPIView):
                 'description': event.description,
                 'organizer': event.organizer,
                 'address': event.address,
-                'start_date': event.start_date.strftime('%Y-%m-%d') if event.start_date else None,
-                'end_date': event.end_date.strftime('%Y-%m-%d') if event.end_date else None,
+                'start_date': event.start_date.strftime('%Y-%m-%d %H:%M:%S') if event.start_date else None,
+                'end_date': event.end_date.strftime('%Y-%m-%d %H:%M:%S') if event.end_date else None,
                 'location': event.location,
                 'latitude': float(event.latitude) if event.latitude else None,
                 'longitude': float(event.longitude) if event.longitude else None,
                 'ticket_price': event.ticket_price,
                 'source_url': event.source_url,
                 'image_url': event.image_url,
-                'created_at': event.created_at.strftime('%Y-%m-%d') if event.created_at else None,
-                'updated_at': event.updated_at.strftime('%Y-%m-%d') if event.updated_at else None
+                'created_at': event.created_at.strftime('%Y-%m-%d %H:%M:%S') if event.created_at else None,
+                'updated_at': event.updated_at.strftime('%Y-%m-%d %H:%M:%S') if event.updated_at else None
             }
         except Events.DoesNotExist:
             raise Http404("活動不存在")
