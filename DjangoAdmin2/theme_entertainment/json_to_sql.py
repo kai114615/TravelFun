@@ -205,64 +205,112 @@ def convert_datetime_format(date_str: str) -> str:
     # 如果所有格式都無法匹配，返回 NULL
     return 'NULL'
 
+def parse_date(date_str: Optional[str]) -> Optional[str]:
+    """解析各種日期格式，並轉換為 MySQL 可接受的格式 (西元年-月-日)"""
+    if not date_str:
+        return None
+
+    try:
+        # 處理ISO 8601格式 (如：2025-06-21T00:00:00+08:00)
+        if 'T' in date_str and ('+' in date_str or 'Z' in date_str):
+            # 移除時區信息
+            clean_date_str = date_str.split('+')[0] if '+' in date_str else date_str.replace('Z', '')
+            # 將T替換為空格
+            clean_date_str = clean_date_str.replace('T', ' ')
+            try:
+                dt = datetime.strptime(clean_date_str, '%Y-%m-%d %H:%M:%S')
+                return dt.strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                # 如果解析失敗，繼續嘗試其他格式
+                pass
+
+        # 移除時間部分（如果是簡單的空格分隔）
+        if ' ' in date_str:
+            date_part = date_str.split(' ')[0]
+        else:
+            date_part = date_str
+
+        # 支援的日期格式清單
+        date_formats = [
+            '%Y/%m/%d',  # 西元年/月/日
+            '%m/%d/%Y',  # 月/日/西元年
+            '%Y-%m-%d',  # 西元年-月-日
+            '%Y.%m.%d',  # 西元年.月.日
+        ]
+
+        # 嘗試解析不同格式
+        for date_format in date_formats:
+            try:
+                parsed_date = datetime.strptime(date_part, date_format)
+                return parsed_date.strftime('%Y-%m-%d')
+            except ValueError:
+                continue
+
+        # 處理時間戳記格式
+        try:
+            timestamp = float(date_str)
+            dt = datetime.fromtimestamp(timestamp)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+
+        print(f"無法解析的日期格式: {date_str}")
+        return None
+
+    except Exception as e:
+        print(f"日期解析錯誤 '{date_str}': {str(e)}")
+        return None
+
 def process_event_data(event: Dict[str, Any]) -> Dict[str, Any]:
     """
     處理單個活動資料，確保資料欄位正確
 
     Args:
-        event: 原始活動資料
+        event: 活動資料字典
 
     Returns:
-        處理後的活動資料
+        處理後的活動資料字典
     """
+    processed_event = {}
+
+    # 處理必要欄位
+    processed_event['uid'] = event.get('uid') or event.get('Id') or ''
+    processed_event['activity_name'] = event.get('activity_name') or event.get('title') or event.get('Name') or '無標題'
+    processed_event['description'] = event.get('description') or event.get('Description') or ''
+    processed_event['organizer'] = event.get('organizer') or event.get('Organizer') or ''
+    processed_event['address'] = event.get('address') or event.get('Address') or ''
+
+    # 處理日期欄位
+    start_date = event.get('start_date') or event.get('startDate') or event.get('Start') or None
+    end_date = event.get('end_date') or event.get('endDate') or event.get('End') or None
+
+    processed_event['start_date'] = parse_date(start_date)
+    processed_event['end_date'] = parse_date(end_date)
+
+    # 處理其他欄位
+    processed_event['location'] = event.get('location') or event.get('Location') or ''
+    processed_event['latitude'] = event.get('latitude') or event.get('Latitude') or 0
+    processed_event['longitude'] = event.get('longitude') or event.get('Longitude') or 0
+    processed_event['ticket_price'] = event.get('ticket_price') or event.get('price') or event.get('Price') or ''
+    processed_event['source_url'] = event.get('source_url') or event.get('url') or event.get('Url') or ''
+
     # 處理圖片URL
-    image_url = event.get('image_url')
-    if isinstance(image_url, list) and image_url:
-        # 如果是列表，轉換為逗號分隔的字串
-        image_url = ','.join(str(url) for url in image_url if url)
-    elif not image_url or image_url == 'None' or image_url == 'NULL':
-        # 如果是空值，設為空字串
-        image_url = ''
+    image_url = event.get('image_url') or event.get('imageUrl') or event.get('ImageUrl') or []
 
-    # 處理經緯度資料
-    latitude = event.get('latitude')
-    longitude = event.get('longitude')
+    # 確保圖片URL為列表格式
+    if isinstance(image_url, str):
+        if image_url.startswith('[') and image_url.endswith(']'):
+            try:
+                # 嘗試解析JSON字符串
+                image_url = json.loads(image_url)
+            except json.JSONDecodeError:
+                image_url = [image_url]
+        else:
+            image_url = [image_url]
 
-    # 處理無效的經緯度值
-    if latitude in ['無資料', 'None', 'NULL', ''] or not latitude:
-        latitude = None
-    else:
-        try:
-            latitude = float(latitude)
-        except (ValueError, TypeError):
-            latitude = None
+    processed_event['image_url'] = image_url
 
-    if longitude in ['無資料', 'None', 'NULL', ''] or not longitude:
-        longitude = None
-    else:
-        try:
-            longitude = float(longitude)
-        except (ValueError, TypeError):
-            longitude = None
-
-    # 回傳標準化的活動資料結構
-    return {
-        'uid': event.get('uid'),
-        'activity_name': event.get('activity_name', ''),
-        'description': event.get('description', ''),
-        'organizer': event.get('organizer', ''),
-        'address': event.get('address', ''),
-        'start_date': event.get('start_date'),
-        'end_date': event.get('end_date'),
-        'location': event.get('location', ''),
-        'latitude': latitude,
-        'longitude': longitude,
-        'ticket_price': event.get('ticket_price', ''),
-        'source_url': event.get('source_url', ''),
-        'image_url': image_url,
-        'created_at': event.get('created_at'),
-        'updated_at': event.get('updated_at')
-    }
+    return processed_event
 
 def generate_upsert_sql(table_name: str, data: Dict[str, Any]) -> str:
     """生成 UPSERT SQL 語句（插入或更新資料）

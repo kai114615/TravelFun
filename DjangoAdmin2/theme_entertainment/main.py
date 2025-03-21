@@ -53,7 +53,8 @@ try:
     from tfam_api import TaipeiOpenDataAPI  # 北美館 API
     from taipei_api import fetch_taipei_events as taipei_events  # 臺北市政府 API
     from newtaipei_api import fetch_newtaipei_events as newtaipei_events  # 新北市政府 API
-    from json_to_sql import convert_json_to_sql, escape_sql_special_chars, fix_sql_command  # JSON 轉 SQL 工具和SQL處理函數
+    from tourism_api import fetch_tourism_events as tourism_events  # 交通部觀光署 API
+    from json_to_sql import convert_json_to_sql, escape_sql_special_chars, fix_sql_command, parse_date  # JSON 轉 SQL 工具和SQL處理函數
     from address_mapping import update_events_coordinates, match_coordinates, update_coordinates  # 地址對應的經緯度
 except ImportError as e:
     print(f"模組匯入錯誤: {e}")
@@ -96,6 +97,11 @@ API_SOURCES = [
         'name': '新北市政府活動資訊',
         'function': newtaipei_events,
         'result_path': 'result'
+    },
+    {
+        'name': '交通部觀光署活動資訊',
+        'function': tourism_events,
+        'result_path': 'result'
     }
 ]
 
@@ -116,47 +122,6 @@ def init_database() -> None:
 def connect_to_mysql() -> mysql.connector.connection.MySQLConnection:
     """建立 MySQL 資料庫連線"""
     return mysql.connector.connect(**CONFIG['db'])
-
-def parse_date(date_str: Union[str, None]) -> Optional[str]:
-    """解析各種日期格式，並轉換為 MySQL 可接受的格式 (西元年-月-日)"""
-    if not date_str:
-        return None
-
-    try:
-        # 移除時間部分
-        if ' ' in date_str:
-            date_str = date_str.split(' ')[0]
-
-        # 支援的日期格式清單
-        date_formats = [
-            '%Y/%m/%d',  # 西元年/月/日
-            '%m/%d/%Y',  # 月/日/西元年
-            '%Y-%m-%d',  # 西元年-月-日
-            '%Y.%m.%d',  # 西元年.月.日
-        ]
-
-        # 嘗試解析不同格式
-        for date_format in date_formats:
-            try:
-                parsed_date = datetime.strptime(date_str, date_format)
-                return parsed_date.strftime('%Y-%m-%d')
-            except ValueError:
-                continue
-
-        # 處理時間戳記格式
-        try:
-            timestamp = float(date_str)
-            dt = datetime.fromtimestamp(timestamp)
-            return dt.strftime('%Y-%m-%d')
-        except ValueError:
-            pass
-
-        print(f"無法解析的日期格式: {date_str}")
-        return None
-
-    except Exception as e:
-        print(f"日期解析錯誤 '{date_str}': {str(e)}")
-        return None
 
 def save_to_mysql(data: Dict[str, Any], connection: mysql.connector.connection.MySQLConnection) -> int:
     """將資料儲存至 MySQL 資料庫"""
