@@ -215,6 +215,7 @@ def fetch_tourism_events():
                     # 轉換日期格式
                     start_date = convert_date_format(safe_get(event, "Start"))
                     end_date = convert_date_format(safe_get(event, "End"))
+                    print(start_date, end_date)
 
                     # 組合地址
                     address = ""
